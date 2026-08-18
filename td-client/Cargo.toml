@@ -1,0 +1,11 @@
+[package]
+name = "td-client"
+version.workspace = true
+edition.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+td-sys = { path = "../td-sys" }
+td-types = { path = "../td-types" }

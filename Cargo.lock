@@ -87,6 +87,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "td-client"
+version = "0.1.0"
+dependencies = [
+ "td-sys",
+ "td-types",
+]
+
+[[package]]
 name = "td-gen"
 version = "0.1.0"
 dependencies = [
@@ -96,6 +104,10 @@ dependencies = [
 
 [[package]]
 name = "td-parser"
+version = "0.1.0"
+
+[[package]]
+name = "td-sys"
 version = "0.1.0"
 
 [[package]]
