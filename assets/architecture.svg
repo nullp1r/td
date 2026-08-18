@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 448" width="100%" height="100%">
   <defs>
     <style>
-      :root {
+      :root, svg {
         /* Tailwind v4 Slate Palette (Base Tone) */
         --color-slate-50: oklch(0.984 0.003 247.858);
         --color-slate-100: oklch(0.968 0.007 247.896);
@@ -42,7 +42,7 @@
 
       /* Dark Theme Variable Overrides */
       @media (prefers-color-scheme: dark) {
-        :root {
+        :root, svg {
           --bg: var(--color-slate-950);
           --panel-bg: var(--color-slate-900);
           --panel-border: var(--color-slate-800);
@@ -100,7 +100,7 @@
   <g transform="translate(44, 76)">
     <rect width="350" height="64" class="node" />
     <text x="18" y="26" class="title">td_api.tl</text>
-    <text x="18" y="46" class="sub">TDLib Type Language schema definition</text>
+    <text x="18" y="46" class="sub">Upstream Type Language (TL) schema definition</text>
   </g>
 
   <!-- Arrow 1 -> 2 -->
@@ -110,7 +110,7 @@
   <g transform="translate(44, 164)">
     <rect width="350" height="64" class="node" />
     <text x="18" y="26" class="title">td-parser</text>
-    <text x="18" y="46" class="sub">AST parser &amp; combinator resolver</text>
+    <text x="18" y="46" class="sub">Parses TL schema syntax into structured AST</text>
   </g>
 
   <!-- Arrow 2 -> 3 -->
@@ -120,7 +120,7 @@
   <g transform="translate(44, 252)">
     <rect width="350" height="64" class="node" />
     <text x="18" y="26" class="title">td-gen</text>
-    <text x="18" y="46" class="sub">Rust code generator &amp; Serde derive</text>
+    <text x="18" y="46" class="sub">Generates Rust structs, enums, and Serde impls</text>
   </g>
 
   <!-- Arrow 3 -> 4 -->
@@ -130,7 +130,7 @@
   <g transform="translate(44, 340)">
     <rect width="350" height="64" class="node-highlight" />
     <text x="18" y="26" class="title">td-types</text>
-    <text x="18" y="46" class="sub">Strongly-typed Rust structures, enums &amp; Function trait</text>
+    <text x="18" y="46" class="sub">Strongly-typed API models and request traits</text>
   </g>
 
   <!-- Right Panel: Runtime & Application Stack -->
@@ -141,7 +141,7 @@
   <g transform="translate(466, 76)">
     <rect width="350" height="64" class="node" />
     <text x="18" y="26" class="title">libtdjson</text>
-    <text x="18" y="46" class="sub">Official C++ TDLib shared library</text>
+    <text x="18" y="46" class="sub">Native C++ TDLib core with JSON C interface</text>
   </g>
 
   <!-- Arrow 5 <-> 6 -->
@@ -151,7 +151,7 @@
   <g transform="translate(466, 164)">
     <rect width="350" height="64" class="node" />
     <text x="18" y="26" class="title">td-sys</text>
-    <text x="18" y="46" class="sub">Low-level unsafe FFI declarations &amp; loader</text>
+    <text x="18" y="46" class="sub">Raw C FFI bindings and dynamic library loader</text>
   </g>
 
   <!-- Arrow 6 <-> 7 -->
@@ -161,7 +161,7 @@
   <g transform="translate(466, 252)">
     <rect width="350" height="64" class="node-highlight" />
     <text x="18" y="26" class="title">td-client</text>
-    <text x="18" y="46" class="sub">Safe async client, event loop &amp; dispatcher</text>
+    <text x="18" y="46" class="sub">High-level async client and event dispatcher</text>
   </g>
 
   <!-- Arrow 7 <-> 8 -->
@@ -171,7 +171,7 @@
   <g transform="translate(466, 340)">
     <rect width="350" height="64" class="node" />
     <text x="18" y="26" class="title">Application / Bot</text>
-    <text x="18" y="46" class="sub">Telegram bots, userbots, and custom clients</text>
+    <text x="18" y="46" class="sub">Telegram bots, userbots, and client tools</text>
   </g>
 
   <!-- Cross-Stack Connector: td-types -> td-client -->
