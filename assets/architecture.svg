@@ -1,153 +1,145 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 470" width="100%" height="100%">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 410" width="100%" height="100%">
   <defs>
     <style>
-      .bg { fill: #0f141c; }
-      .panel { fill: #161d27; stroke: #263345; stroke-width: 1.5; rx: 12px; }
-      .panel-title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; font-size: 13px; font-weight: 700; fill: #8b9bb4; letter-spacing: 0.08em; text-transform: uppercase; }
+      .bg { fill: #0b0f17; }
+      .panel { fill: #111722; stroke: #1e293b; stroke-width: 1.5; rx: 12px; }
+      .panel-title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; font-size: 11px; font-weight: 700; fill: #64748b; letter-spacing: 0.1em; text-transform: uppercase; }
       
-      .node { rx: 8px; stroke-width: 1.5; }
-      .node-schema { fill: #172338; stroke: #3b82f6; }
-      .node-parser { fill: #1f1d38; stroke: #8b5cf6; }
-      .node-gen { fill: #2b1d3a; stroke: #a855f7; }
-      .node-types { fill: #142a29; stroke: #10b981; }
+      .node { fill: #161e2e; stroke: #243247; stroke-width: 1.2; rx: 8px; }
+      .node-highlight-types { fill: #132238; stroke: #2563eb; stroke-width: 1.5; rx: 8px; }
+      .node-highlight-client { fill: #0e2433; stroke: #0891b2; stroke-width: 1.5; rx: 8px; }
       
-      .node-c { fill: #291d18; stroke: #f97316; }
-      .node-sys { fill: #2e2617; stroke: #eab308; }
-      .node-client { fill: #132738; stroke: #06b6d4; }
-      .node-app { fill: #17253b; stroke: #38bdf8; }
-
-      .title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; font-size: 15px; font-weight: 600; fill: #f1f5f9; }
+      .title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; font-size: 14px; font-weight: 600; fill: #f8fafc; }
       .sub { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; font-size: 11px; fill: #94a3b8; }
-      .badge { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 10px; font-weight: 600; }
       
-      .arrow { stroke: #475569; stroke-width: 1.5; fill: none; }
-      .arrow-accent { stroke: #10b981; stroke-width: 1.5; stroke-dasharray: 4 3; fill: none; }
-      .arrow-text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; font-size: 10px; fill: #10b981; font-weight: 500; }
+      .arrow { stroke: #334155; stroke-width: 1.5; fill: none; }
+      .arrow-accent { stroke: #38bdf8; stroke-width: 1.5; stroke-dasharray: 4 3; fill: none; }
+      .arrow-text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; font-size: 10px; fill: #38bdf8; font-weight: 600; }
+      .connector-badge { fill: #111722; stroke: #38bdf8; stroke-width: 1; rx: 4px; }
+      
+      .arrow-marker { fill: #334155; }
+      .arrow-marker-accent { fill: #38bdf8; }
 
       @media (prefers-color-scheme: light) {
         .bg { fill: #f8fafc; }
         .panel { fill: #ffffff; stroke: #e2e8f0; }
         .panel-title { fill: #64748b; }
         
-        .node-schema { fill: #eff6ff; stroke: #3b82f6; }
-        .node-parser { fill: #f5f3ff; stroke: #8b5cf6; }
-        .node-gen { fill: #faf5ff; stroke: #a855f7; }
-        .node-types { fill: #ecfdf5; stroke: #10b981; }
+        .node { fill: #f8fafc; stroke: #e2e8f0; }
+        .node-highlight-types { fill: #eff6ff; stroke: #3b82f6; }
+        .node-highlight-client { fill: #ecfeff; stroke: #06b6d4; }
         
-        .node-c { fill: #fff7ed; stroke: #ea580c; }
-        .node-sys { fill: #fefce8; stroke: #ca8a04; }
-        .node-client { fill: #ecfeff; stroke: #0891b2; }
-        .node-app { fill: #f0f9ff; stroke: #0284c7; }
-
         .title { fill: #0f172a; }
         .sub { fill: #64748b; }
-        .arrow { stroke: #94a3b8; }
-        .arrow-accent { stroke: #059669; }
-        .arrow-text { fill: #059669; }
+        
+        .arrow { stroke: #cbd5e1; }
+        .arrow-accent { stroke: #0284c7; }
+        .arrow-text { fill: #0284c7; }
+        .connector-badge { fill: #ffffff; stroke: #0284c7; }
+        
+        .arrow-marker { fill: #cbd5e1; }
+        .arrow-marker-accent { fill: #0284c7; }
       }
     </style>
 
-    <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
-      <polygon points="0 0, 8 3, 0 6" fill="#64748b" />
+    <marker id="arrowhead" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto">
+      <polygon points="0 0, 7 2.5, 0 5" class="arrow-marker" />
     </marker>
-    <marker id="arrowhead-both" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
-      <polygon points="0 0, 8 3, 0 6" fill="#64748b" />
+    <marker id="arrowhead-start" markerWidth="7" markerHeight="5" refX="1" refY="2.5" orient="auto">
+      <polygon points="7 0, 0 2.5, 7 5" class="arrow-marker" />
     </marker>
-    <marker id="arrowhead-start" markerWidth="8" markerHeight="6" refX="1" refY="3" orient="auto">
-      <polygon points="8 0, 0 3, 8 6" fill="#64748b" />
-    </marker>
-    <marker id="arrowhead-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
-      <polygon points="0 0, 8 3, 0 6" fill="#10b981" />
+    <marker id="arrowhead-accent" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto">
+      <polygon points="0 0, 7 2.5, 0 5" class="arrow-marker-accent" />
     </marker>
   </defs>
 
   <!-- Background -->
-  <rect width="100%" height="100%" class="bg" rx="16" />
+  <rect width="100%" height="100%" class="bg" rx="14" />
 
   <!-- Left Panel: Code Generation Pipeline -->
-  <rect x="30" y="30" width="370" height="410" class="panel" />
-  <text x="50" y="60" class="panel-title">Code Generation &amp; Type System</text>
+  <rect x="24" y="24" width="394" height="362" class="panel" />
+  <text x="44" y="50" class="panel-title">Code Generation &amp; Type System</text>
 
   <!-- Node 1: td_api.tl -->
-  <g transform="translate(50, 80)">
-    <rect width="330" height="58" class="node node-schema" />
-    <text x="16" y="26" class="title">td_api.tl</text>
-    <text x="16" y="44" class="sub">TDLib Type Language schema definition</text>
+  <g transform="translate(44, 70)">
+    <rect width="354" height="58" class="node" />
+    <text x="16" y="25" class="title">td_api.tl</text>
+    <text x="16" y="43" class="sub">TDLib Type Language schema definition</text>
   </g>
 
   <!-- Arrow 1 -> 2 -->
-  <line x1="215" y1="138" x2="215" y2="164" class="arrow" marker-end="url(#arrowhead)" />
+  <line x1="221" y1="128" x2="221" y2="148" class="arrow" marker-end="url(#arrowhead)" />
 
   <!-- Node 2: td-parser -->
-  <g transform="translate(50, 165)">
-    <rect width="330" height="58" class="node node-parser" />
-    <text x="16" y="26" class="title">td-parser</text>
-    <text x="16" y="44" class="sub">AST parser &amp; combinator resolver</text>
+  <g transform="translate(44, 148)">
+    <rect width="354" height="58" class="node" />
+    <text x="16" y="25" class="title">td-parser</text>
+    <text x="16" y="43" class="sub">AST parser &amp; combinator resolver</text>
   </g>
 
   <!-- Arrow 2 -> 3 -->
-  <line x1="215" y1="223" x2="215" y2="249" class="arrow" marker-end="url(#arrowhead)" />
+  <line x1="221" y1="206" x2="221" y2="226" class="arrow" marker-end="url(#arrowhead)" />
 
   <!-- Node 3: td-gen -->
-  <g transform="translate(50, 250)">
-    <rect width="330" height="58" class="node node-gen" />
-    <text x="16" y="26" class="title">td-gen</text>
-    <text x="16" y="44" class="sub">Rust code generator &amp; Serde derive</text>
+  <g transform="translate(44, 226)">
+    <rect width="354" height="58" class="node" />
+    <text x="16" y="25" class="title">td-gen</text>
+    <text x="16" y="43" class="sub">Rust code generator &amp; Serde derive</text>
   </g>
 
   <!-- Arrow 3 -> 4 -->
-  <line x1="215" y1="308" x2="215" y2="334" class="arrow" marker-end="url(#arrowhead)" />
+  <line x1="221" y1="284" x2="221" y2="304" class="arrow" marker-end="url(#arrowhead)" />
 
   <!-- Node 4: td-types -->
-  <g transform="translate(50, 335)">
-    <rect width="330" height="68" class="node node-types" />
-    <text x="16" y="28" class="title">td-types</text>
-    <text x="16" y="48" class="sub">Strongly-typed Rust structures, enums, &amp; Function trait</text>
+  <g transform="translate(44, 304)">
+    <rect width="354" height="58" class="node-highlight-types" />
+    <text x="16" y="25" class="title">td-types</text>
+    <text x="16" y="43" class="sub">Strongly-typed Rust structures, enums &amp; Function trait</text>
   </g>
 
   <!-- Right Panel: Runtime & Application Stack -->
-  <rect x="460" y="30" width="370" height="410" class="panel" />
-  <text x="480" y="60" class="panel-title">Runtime &amp; Application Stack</text>
+  <rect x="442" y="24" width="394" height="362" class="panel" />
+  <text x="462" y="50" class="panel-title">Runtime &amp; Application Stack</text>
 
   <!-- Node 5: libtdjson -->
-  <g transform="translate(480, 80)">
-    <rect width="330" height="58" class="node node-c" />
-    <text x="16" y="26" class="title">libtdjson</text>
-    <text x="16" y="44" class="sub">Official C++ TDLib shared library</text>
+  <g transform="translate(462, 70)">
+    <rect width="354" height="58" class="node" />
+    <text x="16" y="25" class="title">libtdjson</text>
+    <text x="16" y="43" class="sub">Official C++ TDLib shared library</text>
   </g>
 
   <!-- Arrow 5 <-> 6 -->
-  <line x1="645" y1="138" x2="645" y2="164" class="arrow" marker-end="url(#arrowhead)" marker-start="url(#arrowhead-start)" />
+  <line x1="639" y1="128" x2="639" y2="148" class="arrow" marker-end="url(#arrowhead)" marker-start="url(#arrowhead-start)" />
 
   <!-- Node 6: td-sys -->
-  <g transform="translate(480, 165)">
-    <rect width="330" height="58" class="node node-sys" />
-    <text x="16" y="26" class="title">td-sys</text>
-    <text x="16" y="44" class="sub">Low-level unsafe FFI declarations &amp; loader</text>
+  <g transform="translate(462, 148)">
+    <rect width="354" height="58" class="node" />
+    <text x="16" y="25" class="title">td-sys</text>
+    <text x="16" y="43" class="sub">Low-level unsafe FFI declarations &amp; loader</text>
   </g>
 
   <!-- Arrow 6 <-> 7 -->
-  <line x1="645" y1="223" x2="645" y2="249" class="arrow" marker-end="url(#arrowhead)" marker-start="url(#arrowhead-start)" />
+  <line x1="639" y1="206" x2="639" y2="226" class="arrow" marker-end="url(#arrowhead)" marker-start="url(#arrowhead-start)" />
 
   <!-- Node 7: td-client -->
-  <g transform="translate(480, 250)">
-    <rect width="330" height="58" class="node node-client" />
-    <text x="16" y="26" class="title">td-client</text>
-    <text x="16" y="44" class="sub">Safe async client, event loop &amp; dispatcher</text>
+  <g transform="translate(462, 226)">
+    <rect width="354" height="58" class="node-highlight-client" />
+    <text x="16" y="25" class="title">td-client</text>
+    <text x="16" y="43" class="sub">Safe async client, event loop &amp; dispatcher</text>
   </g>
 
   <!-- Arrow 7 <-> 8 -->
-  <line x1="645" y1="308" x2="645" y2="334" class="arrow" marker-end="url(#arrowhead)" marker-start="url(#arrowhead-start)" />
+  <line x1="639" y1="284" x2="639" y2="304" class="arrow" marker-end="url(#arrowhead)" marker-start="url(#arrowhead-start)" />
 
   <!-- Node 8: Application / Bot -->
-  <g transform="translate(480, 335)">
-    <rect width="330" height="68" class="node node-app" />
-    <text x="16" y="28" class="title">Application / Bot</text>
-    <text x="16" y="48" class="sub">Telegram bots, userbots, and custom clients</text>
+  <g transform="translate(462, 304)">
+    <rect width="354" height="58" class="node" />
+    <text x="16" y="25" class="title">Application / Bot</text>
+    <text x="16" y="43" class="sub">Telegram bots, userbots, and custom clients</text>
   </g>
 
-  <!-- Cross-Stack Connector: td-types -> td-client & Application -->
-  <path d="M 380 369 C 430 369, 430 279, 478 279" class="arrow-accent" marker-end="url(#arrowhead-accent)" />
-  <rect x="396" y="308" width="68" height="18" rx="4" fill="#161d27" stroke="#263345" stroke-width="1"/>
-  <text x="430" y="321" text-anchor="middle" class="arrow-text">Typed API</text>
+  <!-- Cross-Stack Connector: td-types -> td-client -->
+  <path d="M 398 333 C 430 333, 430 255, 460 255" class="arrow-accent" marker-end="url(#arrowhead-accent)" />
+  <rect x="397" y="284" width="66" height="20" class="connector-badge" />
+  <text x="430" y="294" text-anchor="middle" dominant-baseline="central" class="arrow-text">Typed API</text>
 </svg>
