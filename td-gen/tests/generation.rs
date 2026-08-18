@@ -51,7 +51,7 @@ fn count_items(rs: &str) -> syn::Result<[usize; 3]> {
       _ => continue,
     };
 
-    *count += 1
+    *count += 1;
   }
 
   Ok([structs, enums, impls])

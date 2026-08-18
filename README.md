@@ -10,17 +10,17 @@ TDLib is Telegram's official library providing full access to the Telegram MTPro
 
 ## Status
 
-- [x] **`td-parser`**: Parses TDLib's TL schema (`td_api.tl`) into an AST.
+- [x] **[`td-parser`](td-parser)**: Parses TDLib's TL schema (`td_api.tl`) into an AST.
   - Supports combinators, constructors, types, documentation comments, and parameter annotations.
   - Handles TDLib-specific TL syntax (vector types, boxed types, and built-in primitives).
-- [x] **`td-gen`**: Codegen engine translating parsed TL AST into idiomatic Rust.
+- [x] **[`td-gen`](td-gen)**: Codegen engine translating parsed TL AST into idiomatic Rust.
   - Generates strongly-typed structs, tagged enums, doc comments, and default implementations.
   - Emits custom Serde derives for TDLib's JSON wire format (`@type` tags, base64 bytes, 64-bit int string conversions, and boxed recursion).
-- [x] **`td-types`**: Generated Rust API definitions for TDLib.
+- [x] **[`td-types`](td-types)**: Generated Rust API definitions for TDLib.
   - Complete, strongly-typed models for all TDLib objects, updates, and functions.
   - `traits::Function` associating each request with its compile-time return type (`type Return = ...`).
-- [ ] **`td-sys`**: Minimal, low-level C FFI bindings to `libtdjson` *(planned)*.
-- [ ] **`td-client`**: High-level async client runtime and event dispatcher *(planned)*.
+- [ ] **[`td-sys`](td-sys)**: Minimal, low-level C FFI bindings to `libtdjson` *(planned)*.
+- [ ] **[`td-client`](td-client)**: High-level async client runtime and event dispatcher *(planned)*.
 
 ## Quick Look
 
@@ -28,7 +28,7 @@ TDLib is Telegram's official library providing full access to the Telegram MTPro
 use td_types::{enums, functions, traits, types};
 
 fn api<F: traits::Function>(req: &F) -> Result<F::Return, enums::Error> {
-  // some code to send `req` as JSON to TDLib and parse the result into `F::Return` (or `Error`)
+  // some code to send `req` as JSON to TDLib and return the result as `F::Return` (or `Error`)
   // `F::Return` is statically associated with `F` via `traits::Function`
 }
 
@@ -42,11 +42,11 @@ println!("User: {first_name} {last_name} (ID: {id})");
 ### Prerequisites
 
 - **Rust Toolchain**: Rust 2024 edition compatible compiler (e.g. latest stable or nightly).
-- **External Tools**: `curl` and `jq` (required by `td/fetch` to download upstream schemas and binary releases).
+- **External Tools**: `curl` and `jq` (required by [`td/fetch`](td/fetch) to download upstream schemas and binary releases).
 
 ### Setup & Workflow
 
-The upstream schema (`td/td_api.tl`) and native libraries (`td/libtdjson.*`) are gitignored and downloaded locally via `td/fetch`:
+Upstream artifacts (`td_api.tl`, `libtdjson`) are not committed to git and must be fetched locally via [`td/fetch`](td/fetch):
 
 ```bash
 td/fetch                                # fetch upstream schema and prebuilt binaries
@@ -59,15 +59,15 @@ cargo fmt --all                         # format codebase according to formattin
 
 ### Code Generation Pipeline
 
-The strongly-typed definitions in `td-types` are generated directly from the TDLib schema:
+[`td-types`](td-types) compiles the TL schema into Rust definitions in stages:
 
-1. **Schema Source**: `td/fetch` downloads `td_api.tl` into `td/`.
-2. **Parsing & AST**: [`td-parser`](td-parser) parses the TL grammar into an abstract syntax tree.
-3. **Rust Codegen**: [`td-gen`](td-gen) analyzes type dependencies, calculates strongly connected components for recursive type boxing, and emits Serde-annotated Rust models.
-4. **Compile-Time Build**: [`td-types`](td-types) runs this pipeline in its `build.rs` to generate the complete API surface directly into `OUT_DIR`.
+1. **Schema**: `td_api.tl` provides the upstream definition.
+2. **Parse**: [`td-parser`](td-parser) transforms TL syntax into an AST.
+3. **Codegen**: [`td-gen`](td-gen) handles dependency graphs, recursive type boxing, and Serde derives.
+4. **Build**: [`td-types`](td-types) runs the generator in `build.rs` during compilation.
 
-To generate and inspect the standalone reference file (`td/td_api.rs`, also gitignored) for exploration or debugging, run the `td-gen` integration test:
+To emit a standalone reference file (`td/td_api.rs`) for inspection:
 
 ```bash
-cargo test -p td-gen full
+cargo test -p td-gen -- full
 ```

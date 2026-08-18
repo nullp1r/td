@@ -1,6 +1,6 @@
 //! # `td-client`
 //!
-//! High-level, safe, and idiomatic Rust interface for TDLib to build Telegram bots, userbots, and client applications.
+//! High-level, safe, and idiomatic Rust interface for `TDLib` to build Telegram bots, userbots, and client applications.
 //!
 //! ## Plan & Responsibilities
 //!
@@ -16,4 +16,4 @@
 //! - **Authentication Helpers**:
 //!   - Automated authentication state machine (handling phone code, bot token, password / 2FA, QR code authentication).
 //! - **Robust Error Handling**:
-//!   - Rich Rust error types mapping TDLib error codes and JSON serialization failures.
+//!   - Rich Rust error types mapping `TDLib` error codes and JSON serialization failures.

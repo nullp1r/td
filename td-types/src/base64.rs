@@ -69,7 +69,7 @@ pub fn decode_to(buf: &mut Vec<u8>, input: &str) -> bool {
 
 mod sextet {
   const ENCODE: [[u8; 2]; 0x100] = {
-    let mut arr = [[0; 2]; 0x100];
+    let mut arr = [[0; _]; _];
     let mut i = 0;
     while i < 64 {
       let b = match i {
@@ -87,7 +87,7 @@ mod sextet {
   };
 
   const DECODE: [u8; 0x100] = {
-    let mut arr = [!0; 0x100];
+    let mut arr = [!0; _];
     let mut i = 0;
     while i < 64 {
       let [std, url] = ENCODE[i];
@@ -109,6 +109,8 @@ mod sextet {
 
 #[cfg(test)]
 mod tests {
+  use std::array;
+
   use super::*;
 
   #[test]
@@ -151,8 +153,7 @@ mod tests {
 
   #[test]
   fn roundtrip() {
-    let input: [_; 0x100] = std::array::from_fn(|i| i as u8);
-
+    let input: [_; 0x100] = array::from_fn(|i| i as u8);
     for len in 0..0x100 {
       let input = &input[..len];
 
@@ -188,13 +189,14 @@ mod tests {
   }
 
   #[test]
-  #[ignore]
+  #[ignore = "benchmark"]
+  #[expect(clippy::assertions_on_constants, reason = "release only")]
   fn throughput() {
-    // cargo test --release -p td-types throughput -- --ignored --nocapture
-    assert!(!cfg!(debug_assertions), "no --release flag");
-
     use std::hint::black_box;
     use std::time::Instant;
+
+    // cargo test --release -p td-types throughput -- --ignored --nocapture
+    assert!(!cfg!(debug_assertions), "must be run with `--release`");
 
     let payload = vec![0x42; 1024 * 1024]; // 1 MiB
     let encoded = encode(&payload, 0);
