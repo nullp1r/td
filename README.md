@@ -4,6 +4,10 @@ A modular, type-safe Rust toolkit for building Telegram clients, bots, and autom
 
 TDLib is Telegram's official library providing full access to the Telegram MTProto protocol—supporting user accounts, bots, secret chats, local database caching, and real-time event updates. This workspace bridges TDLib's native JSON interface into idiomatic Rust, providing a complete pipeline from Type Language (`td_api.tl`) parsing and strictly-typed Serde code generation to low-level C FFI bindings and an ergonomic async client runtime.
 
+## Architecture
+
+![Architecture](assets/architecture.svg)
+
 ## Status
 
 - [x] **`td-parser`**: Parses TDLib's TL schema (`td_api.tl`) into an AST.
@@ -21,32 +25,49 @@ TDLib is Telegram's official library providing full access to the Telegram MTPro
 ## Quick Look
 
 ```rust
-use td_types::{enums, functions, traits::Function, types};
+use td_types::{enums, functions, traits, types};
 
-// 1. Serialize a typed request to TDLib JSON
-let req = functions::getUser { user_id: 123456789 };
-let req_json = serde_json::to_string(&req)?; // {"@type":"getUser","user_id":123456789}
+fn api<F: traits::Function>(req: &F) -> Result<F::Return, enums::Error> {
+  // some code to send `req` as JSON to TDLib and parse the result into `F::Return` (or `Error`)
+  // `F::Return` is statically associated with `F` via `traits::Function`
+}
 
-// 2. Deserialize the response directly into the statically-associated return type
-let res_json = r#"{"@type":"user","id":123456789,"first_name":"Alice","last_name":"Smith"}"#;
-let res: <functions::getUser as Function>::Return = serde_json::from_str(res_json)?;
-let enums::User::user(user) = res;
-println!("User: {} {} (ID: {})", user.first_name, user.last_name, user.id);
+let user = api(&functions::getUser { user_id: 123456789 })?;
+let enums::User::user(types::user { first_name, last_name, id, .. }) = user;
+println!("User: {first_name} {last_name} (ID: {id})");
 ```
 
 ## Development
 
+### Prerequisites
+
+- **Rust Toolchain**: Rust 2024 edition compatible compiler (e.g. latest stable or nightly).
+- **External Tools**: `curl` and `jq` (required by `td/fetch` to download upstream schemas and binary releases).
+
+### Setup & Workflow
+
+The upstream schema (`td/td_api.tl`) and native libraries (`td/libtdjson.*`) are gitignored and downloaded locally via `td/fetch`:
+
 ```bash
-# Check the workspace
-cargo check --workspace
+td/fetch                                # fetch upstream schema and prebuilt binaries
 
-# Run all tests
-cargo test --workspace
-
-# Fetch latest upstream schema and prebuilt binaries
-./td/fetch
+cargo check --workspace                 # check compilation across all workspace crates
+cargo test --workspace                  # run all unit, integration, and roundtrip tests
+cargo clippy --workspace --all-targets  # run linter across all targets
+cargo fmt --all                         # format codebase according to formatting rules
 ```
 
-## Architecture
+### Code Generation Pipeline
 
-![Architecture](assets/architecture.svg)
+The strongly-typed definitions in `td-types` are generated directly from the TDLib schema:
+
+1. **Schema Source**: `td/fetch` downloads `td_api.tl` into `td/`.
+2. **Parsing & AST**: [`td-parser`](td-parser) parses the TL grammar into an abstract syntax tree.
+3. **Rust Codegen**: [`td-gen`](td-gen) analyzes type dependencies, calculates strongly connected components for recursive type boxing, and emits Serde-annotated Rust models.
+4. **Compile-Time Build**: [`td-types`](td-types) runs this pipeline in its `build.rs` to generate the complete API surface directly into `OUT_DIR`.
+
+To generate and inspect the standalone reference file (`td/td_api.rs`, also gitignored) for exploration or debugging, run the `td-gen` integration test:
+
+```bash
+cargo test -p td-gen full
+```
