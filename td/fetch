@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+log() { printf -- '\x1b[9%dm%s\x1b[39m %s\n' "$1" "$2" "$3"; }
+
+arch="$(uname -m)"
+arch="${arch/x86_64/x64}"
+arch="${arch/aarch64/arm64}"
+
+case "$(uname -s)" in
+Linux)
+  pkg="linux-$arch-glibc"
+  lib="libtdjson.so"
+  ;;
+Darwin)
+  pkg="darwin-$arch"
+  lib="libtdjson.dylib"
+  ;;
+*)
+  log 1 "unsupported OS:" "$(uname -s)" >&2
+  exit 1
+  ;;
+esac
+
+cd "${0%/*}"
+
+log 2 "fetching" "td_api.tl"
+curl -fsSL "https://raw.githubusercontent.com/tdlib/td/master/td/generate/scheme/td_api.tl" -o td_api.tl
+
+log 2 "fetching" "$lib ($pkg)"
+tarball=$(curl -fsSL "https://registry.npmjs.org/@prebuilt-tdlib/$pkg/latest" | jq -r .dist.tarball)
+curl -fsSL "$tarball" | tar -xz --strip-components=1 "package/$lib"

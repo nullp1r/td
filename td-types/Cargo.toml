@@ -1,0 +1,20 @@
+[package]
+name = "td-types"
+version.workspace = true
+edition.workspace = true
+
+[lib]
+doctest = false
+
+[lints]
+workspace = true
+
+[dependencies]
+serde = { version = "*", features = ["derive"] }
+
+[dev-dependencies]
+serde_json = "*"
+
+[build-dependencies]
+td-parser = { path = "../td-parser" }
+td-gen = { path = "../td-gen" }

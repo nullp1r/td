@@ -1,0 +1,13 @@
+[package]
+name = "td-gen"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+td-parser = { path = "../td-parser" }
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+syn = { version = "*", features = ["full"] }
