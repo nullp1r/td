@@ -1,45 +1,81 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 410" width="100%" height="100%">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 448" width="100%" height="100%">
   <defs>
     <style>
-      .bg { fill: #0b0f17; }
-      .panel { fill: #111722; stroke: #1e293b; stroke-width: 1.5; rx: 12px; }
-      .panel-title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; font-size: 11px; font-weight: 700; fill: #64748b; letter-spacing: 0.1em; text-transform: uppercase; }
-      
-      .node { fill: #161e2e; stroke: #243247; stroke-width: 1.2; rx: 8px; }
-      .node-highlight-types { fill: #132238; stroke: #2563eb; stroke-width: 1.5; rx: 8px; }
-      .node-highlight-client { fill: #0e2433; stroke: #0891b2; stroke-width: 1.5; rx: 8px; }
-      
-      .title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; font-size: 14px; font-weight: 600; fill: #f8fafc; }
-      .sub { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; font-size: 11px; fill: #94a3b8; }
-      
-      .arrow { stroke: #334155; stroke-width: 1.5; fill: none; }
-      .arrow-accent { stroke: #38bdf8; stroke-width: 1.5; stroke-dasharray: 4 3; fill: none; }
-      .arrow-text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; font-size: 10px; fill: #38bdf8; font-weight: 600; }
-      .connector-badge { fill: #111722; stroke: #38bdf8; stroke-width: 1; rx: 4px; }
-      
-      .arrow-marker { fill: #334155; }
-      .arrow-marker-accent { fill: #38bdf8; }
+      :root {
+        /* Tailwind v4 Slate Palette (Base Tone) */
+        --color-slate-50: oklch(0.984 0.003 247.858);
+        --color-slate-100: oklch(0.968 0.007 247.896);
+        --color-slate-200: oklch(0.929 0.013 255.508);
+        --color-slate-300: oklch(0.869 0.022 252.894);
+        --color-slate-400: oklch(0.704 0.04 256.788);
+        --color-slate-500: oklch(0.554 0.046 257.417);
+        --color-slate-600: oklch(0.446 0.043 257.281);
+        --color-slate-700: oklch(0.372 0.044 257.287);
+        --color-slate-800: oklch(0.279 0.041 260.031);
+        --color-slate-900: oklch(0.208 0.042 265.755);
+        --color-slate-950: oklch(0.129 0.042 264.695);
 
-      @media (prefers-color-scheme: light) {
-        .bg { fill: #f8fafc; }
-        .panel { fill: #ffffff; stroke: #e2e8f0; }
-        .panel-title { fill: #64748b; }
-        
-        .node { fill: #f8fafc; stroke: #e2e8f0; }
-        .node-highlight-types { fill: #eff6ff; stroke: #3b82f6; }
-        .node-highlight-client { fill: #ecfeff; stroke: #06b6d4; }
-        
-        .title { fill: #0f172a; }
-        .sub { fill: #64748b; }
-        
-        .arrow { stroke: #cbd5e1; }
-        .arrow-accent { stroke: #0284c7; }
-        .arrow-text { fill: #0284c7; }
-        .connector-badge { fill: #ffffff; stroke: #0284c7; }
-        
-        .arrow-marker { fill: #cbd5e1; }
-        .arrow-marker-accent { fill: #0284c7; }
+        /* Tailwind v4 Sky Palette (Highlight Tone) */
+        --color-sky-50: oklch(0.977 0.013 236.62);
+        --color-sky-400: oklch(0.746 0.16 232.661);
+        --color-sky-500: oklch(0.685 0.169 237.323);
+        --color-sky-600: oklch(0.588 0.158 241.966);
+        --color-sky-950: oklch(0.293 0.066 243.157);
+
+        /* Light Theme Default Variables */
+        --bg: var(--color-slate-50);
+        --panel-bg: #ffffff;
+        --panel-border: var(--color-slate-200);
+        --panel-title: var(--color-slate-500);
+
+        --node-bg: var(--color-slate-50);
+        --node-border: var(--color-slate-200);
+        --node-title: var(--color-slate-900);
+        --node-sub: var(--color-slate-500);
+
+        --node-hl-bg: var(--color-sky-50);
+        --node-hl-border: var(--color-sky-500);
+
+        --arrow: var(--color-slate-300);
+        --connector: var(--color-sky-600);
       }
+
+      /* Dark Theme Variable Overrides */
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: var(--color-slate-950);
+          --panel-bg: var(--color-slate-900);
+          --panel-border: var(--color-slate-800);
+          --panel-title: var(--color-slate-400);
+
+          --node-bg: var(--color-slate-800);
+          --node-border: var(--color-slate-700);
+          --node-title: var(--color-slate-50);
+          --node-sub: var(--color-slate-400);
+
+          --node-hl-bg: var(--color-sky-950);
+          --node-hl-border: var(--color-sky-500);
+
+          --arrow: var(--color-slate-600);
+          --connector: var(--color-sky-400);
+        }
+      }
+
+      .bg { fill: var(--bg); }
+      .panel { fill: var(--panel-bg); stroke: var(--panel-border); stroke-width: 1.5; rx: 12px; }
+      .panel-title { font-family: ui-sans-serif, system-ui, sans-serif; font-size: 12px; font-weight: 700; fill: var(--panel-title); text-transform: uppercase; letter-spacing: 0.05em; }
+
+      .node { fill: var(--node-bg); stroke: var(--node-border); stroke-width: 1.2; rx: 8px; }
+      .node-highlight { fill: var(--node-hl-bg); stroke: var(--node-hl-border); stroke-width: 1.5; rx: 8px; }
+
+      .title { font-family: ui-sans-serif, system-ui, sans-serif; font-size: 14px; font-weight: 600; fill: var(--node-title); }
+      .sub { font-family: ui-sans-serif, system-ui, sans-serif; font-size: 12px; fill: var(--node-sub); }
+
+      .arrow { stroke: var(--arrow); stroke-width: 1.5; fill: none; }
+      .arrow-marker { fill: var(--arrow); }
+
+      .arrow-accent { stroke: var(--connector); stroke-width: 1.5; stroke-dasharray: 4 3; fill: none; }
+      .arrow-marker-accent { fill: var(--connector); }
     </style>
 
     <marker id="arrowhead" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto">
@@ -57,89 +93,87 @@
   <rect width="100%" height="100%" class="bg" rx="14" />
 
   <!-- Left Panel: Code Generation Pipeline -->
-  <rect x="24" y="24" width="394" height="362" class="panel" />
-  <text x="44" y="50" class="panel-title">Code Generation &amp; Type System</text>
+  <rect x="24" y="24" width="390" height="400" class="panel" />
+  <text x="44" y="54" class="panel-title">Code Generation &amp; Type System</text>
 
   <!-- Node 1: td_api.tl -->
-  <g transform="translate(44, 70)">
-    <rect width="354" height="58" class="node" />
-    <text x="16" y="25" class="title">td_api.tl</text>
-    <text x="16" y="43" class="sub">TDLib Type Language schema definition</text>
+  <g transform="translate(44, 76)">
+    <rect width="350" height="64" class="node" />
+    <text x="18" y="26" class="title">td_api.tl</text>
+    <text x="18" y="46" class="sub">TDLib Type Language schema definition</text>
   </g>
 
   <!-- Arrow 1 -> 2 -->
-  <line x1="221" y1="128" x2="221" y2="148" class="arrow" marker-end="url(#arrowhead)" />
+  <line x1="219" y1="140" x2="219" y2="164" class="arrow" marker-end="url(#arrowhead)" />
 
   <!-- Node 2: td-parser -->
-  <g transform="translate(44, 148)">
-    <rect width="354" height="58" class="node" />
-    <text x="16" y="25" class="title">td-parser</text>
-    <text x="16" y="43" class="sub">AST parser &amp; combinator resolver</text>
+  <g transform="translate(44, 164)">
+    <rect width="350" height="64" class="node" />
+    <text x="18" y="26" class="title">td-parser</text>
+    <text x="18" y="46" class="sub">AST parser &amp; combinator resolver</text>
   </g>
 
   <!-- Arrow 2 -> 3 -->
-  <line x1="221" y1="206" x2="221" y2="226" class="arrow" marker-end="url(#arrowhead)" />
+  <line x1="219" y1="228" x2="219" y2="252" class="arrow" marker-end="url(#arrowhead)" />
 
   <!-- Node 3: td-gen -->
-  <g transform="translate(44, 226)">
-    <rect width="354" height="58" class="node" />
-    <text x="16" y="25" class="title">td-gen</text>
-    <text x="16" y="43" class="sub">Rust code generator &amp; Serde derive</text>
+  <g transform="translate(44, 252)">
+    <rect width="350" height="64" class="node" />
+    <text x="18" y="26" class="title">td-gen</text>
+    <text x="18" y="46" class="sub">Rust code generator &amp; Serde derive</text>
   </g>
 
   <!-- Arrow 3 -> 4 -->
-  <line x1="221" y1="284" x2="221" y2="304" class="arrow" marker-end="url(#arrowhead)" />
+  <line x1="219" y1="316" x2="219" y2="340" class="arrow" marker-end="url(#arrowhead)" />
 
   <!-- Node 4: td-types -->
-  <g transform="translate(44, 304)">
-    <rect width="354" height="58" class="node-highlight-types" />
-    <text x="16" y="25" class="title">td-types</text>
-    <text x="16" y="43" class="sub">Strongly-typed Rust structures, enums &amp; Function trait</text>
+  <g transform="translate(44, 340)">
+    <rect width="350" height="64" class="node-highlight" />
+    <text x="18" y="26" class="title">td-types</text>
+    <text x="18" y="46" class="sub">Strongly-typed Rust structures, enums &amp; Function trait</text>
   </g>
 
   <!-- Right Panel: Runtime & Application Stack -->
-  <rect x="442" y="24" width="394" height="362" class="panel" />
-  <text x="462" y="50" class="panel-title">Runtime &amp; Application Stack</text>
+  <rect x="446" y="24" width="390" height="400" class="panel" />
+  <text x="466" y="54" class="panel-title">Runtime &amp; Application Stack</text>
 
   <!-- Node 5: libtdjson -->
-  <g transform="translate(462, 70)">
-    <rect width="354" height="58" class="node" />
-    <text x="16" y="25" class="title">libtdjson</text>
-    <text x="16" y="43" class="sub">Official C++ TDLib shared library</text>
+  <g transform="translate(466, 76)">
+    <rect width="350" height="64" class="node" />
+    <text x="18" y="26" class="title">libtdjson</text>
+    <text x="18" y="46" class="sub">Official C++ TDLib shared library</text>
   </g>
 
   <!-- Arrow 5 <-> 6 -->
-  <line x1="639" y1="128" x2="639" y2="148" class="arrow" marker-end="url(#arrowhead)" marker-start="url(#arrowhead-start)" />
+  <line x1="641" y1="140" x2="641" y2="164" class="arrow" marker-end="url(#arrowhead)" marker-start="url(#arrowhead-start)" />
 
   <!-- Node 6: td-sys -->
-  <g transform="translate(462, 148)">
-    <rect width="354" height="58" class="node" />
-    <text x="16" y="25" class="title">td-sys</text>
-    <text x="16" y="43" class="sub">Low-level unsafe FFI declarations &amp; loader</text>
+  <g transform="translate(466, 164)">
+    <rect width="350" height="64" class="node" />
+    <text x="18" y="26" class="title">td-sys</text>
+    <text x="18" y="46" class="sub">Low-level unsafe FFI declarations &amp; loader</text>
   </g>
 
   <!-- Arrow 6 <-> 7 -->
-  <line x1="639" y1="206" x2="639" y2="226" class="arrow" marker-end="url(#arrowhead)" marker-start="url(#arrowhead-start)" />
+  <line x1="641" y1="228" x2="641" y2="252" class="arrow" marker-end="url(#arrowhead)" marker-start="url(#arrowhead-start)" />
 
   <!-- Node 7: td-client -->
-  <g transform="translate(462, 226)">
-    <rect width="354" height="58" class="node-highlight-client" />
-    <text x="16" y="25" class="title">td-client</text>
-    <text x="16" y="43" class="sub">Safe async client, event loop &amp; dispatcher</text>
+  <g transform="translate(466, 252)">
+    <rect width="350" height="64" class="node-highlight" />
+    <text x="18" y="26" class="title">td-client</text>
+    <text x="18" y="46" class="sub">Safe async client, event loop &amp; dispatcher</text>
   </g>
 
   <!-- Arrow 7 <-> 8 -->
-  <line x1="639" y1="284" x2="639" y2="304" class="arrow" marker-end="url(#arrowhead)" marker-start="url(#arrowhead-start)" />
+  <line x1="641" y1="316" x2="641" y2="340" class="arrow" marker-end="url(#arrowhead)" marker-start="url(#arrowhead-start)" />
 
   <!-- Node 8: Application / Bot -->
-  <g transform="translate(462, 304)">
-    <rect width="354" height="58" class="node" />
-    <text x="16" y="25" class="title">Application / Bot</text>
-    <text x="16" y="43" class="sub">Telegram bots, userbots, and custom clients</text>
+  <g transform="translate(466, 340)">
+    <rect width="350" height="64" class="node" />
+    <text x="18" y="26" class="title">Application / Bot</text>
+    <text x="18" y="46" class="sub">Telegram bots, userbots, and custom clients</text>
   </g>
 
   <!-- Cross-Stack Connector: td-types -> td-client -->
-  <path d="M 398 333 C 430 333, 430 255, 460 255" class="arrow-accent" marker-end="url(#arrowhead-accent)" />
-  <rect x="397" y="284" width="66" height="20" class="connector-badge" />
-  <text x="430" y="294" text-anchor="middle" dominant-baseline="central" class="arrow-text">Typed API</text>
+  <path d="M 394 372 H 420 Q 430 372 430 362 V 294 Q 430 284 440 284 H 466" class="arrow-accent" marker-end="url(#arrowhead-accent)" />
 </svg>
