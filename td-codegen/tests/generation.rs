@@ -8,7 +8,7 @@ fn simple() -> io::Result<()> {
   let rs_input = include_str!("fixtures/simple.rs");
 
   let tl_ast = td_parser::parse(tl_input).map_err(io::Error::other)?;
-  let rs_output = td_gen::generate(&tl_ast).to_string();
+  let rs_output = td_codegen::generate(&tl_ast).to_string();
 
   assert_eq!(rs_input, rs_output);
 
@@ -23,7 +23,7 @@ fn full() -> io::Result<()> {
 
   let tl_input = fs::read_to_string(tl_path)?;
   let tl_ast = td_parser::parse(&tl_input).map_err(|e| io::Error::other(e.to_string()))?;
-  let rs_output = td_gen::generate(&tl_ast).to_string();
+  let rs_output = td_codegen::generate(&tl_ast).to_string();
 
   fs::write(&rs_path, &rs_output)?;
 

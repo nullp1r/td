@@ -95,7 +95,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "td-gen"
+name = "td-codegen"
 version = "0.1.0"
 dependencies = [
  "syn",
@@ -116,7 +116,7 @@ version = "0.1.0"
 dependencies = [
  "serde",
  "serde_json",
- "td-gen",
+ "td-codegen",
  "td-parser",
 ]
 

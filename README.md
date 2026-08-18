@@ -13,7 +13,7 @@ TDLib is Telegram's official library providing full access to the Telegram MTPro
 - [x] **[`td-parser`](td-parser)**: Parses TDLib's TL schema (`td_api.tl`) into an AST.
   - Supports combinators, constructors, types, documentation comments, and parameter annotations.
   - Handles TDLib-specific TL syntax (vector types, boxed types, and built-in primitives).
-- [x] **[`td-gen`](td-gen)**: Codegen engine translating parsed TL AST into idiomatic Rust.
+- [x] **[`td-codegen`](td-codegen)**: Codegen engine translating parsed TL AST into idiomatic Rust.
   - Generates strongly-typed structs, tagged enums, doc comments, and default implementations.
   - Emits custom Serde derives for TDLib's JSON wire format (`@type` tags, base64 bytes, 64-bit int string conversions, and boxed recursion).
 - [x] **[`td-types`](td-types)**: Generated Rust API definitions for TDLib.
@@ -25,14 +25,14 @@ TDLib is Telegram's official library providing full access to the Telegram MTPro
 ## Quick Look
 
 ```rust
-use td_types::{enums, functions, traits, types};
+use td_types::{enums, fns, traits, types};
 
 fn api<F: traits::Function>(req: &F) -> Result<F::Return, enums::Error> {
   // some code to send `req` as JSON to TDLib and return the result as `F::Return` (or `Error`)
   // `F::Return` is statically associated with `F` via `traits::Function`
 }
 
-let user = api(&functions::getUser { user_id: 123456789 })?;
+let user = api(&fns::getUser { user_id: 123456789 })?;
 let enums::User::user(types::user { first_name, last_name, id, .. }) = user;
 println!("User: {first_name} {last_name} (ID: {id})");
 ```
@@ -63,11 +63,11 @@ cargo fmt --all                         # format codebase according to formattin
 
 1. **Schema**: `td_api.tl` provides the upstream definition.
 2. **Parse**: [`td-parser`](td-parser) transforms TL syntax into an AST.
-3. **Codegen**: [`td-gen`](td-gen) handles dependency graphs, recursive type boxing, and Serde derives.
+3. **Codegen**: [`td-codegen`](td-codegen) handles dependency graphs, recursive type boxing, and Serde derives.
 4. **Build**: [`td-types`](td-types) runs the generator in `build.rs` during compilation.
 
 To emit a standalone reference file (`td/td_api.rs`) for inspection:
 
 ```bash
-cargo test -p td-gen -- full
+cargo test -p td-codegen -- full
 ```

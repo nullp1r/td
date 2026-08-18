@@ -2,7 +2,7 @@ use std::fmt::Debug;
 
 use serde::{Deserialize, Serialize};
 use td_types::traits::Function;
-use td_types::{enums, functions, types};
+use td_types::{enums, fns, types};
 
 #[track_caller]
 fn check<T: Debug + PartialEq + Serialize + for<'de> Deserialize<'de>>(val: &T) {
@@ -56,8 +56,8 @@ fn recursive_boxed_enums() {
 
 #[test]
 fn function_return_types() {
-  check(&<functions::banGroupCallParticipants as Function>::Return::ok);
-  check(&<functions::getMe as Function>::Return::user(types::user {
+  check(&<fns::banGroupCallParticipants as Function>::Return::ok);
+  check(&<fns::getMe as Function>::Return::user(types::user {
     id: 12_345, //.
     first_name: "Alice".into(),
     last_name: "Smith".into(),

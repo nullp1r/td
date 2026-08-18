@@ -129,7 +129,7 @@ pub mod enums {
   }
 }
 
-pub mod functions {
+pub mod fns {
   use serde::Serialize;
   use crate::{serde_with, traits::Function};
   use super::{enums, types};

@@ -42,8 +42,8 @@ pub fn generate(ast: &[Definition]) -> impl fmt::Display {
     write!(f, "{}", enums_mod(&groups))?;
     writeln!(f, "}}")?;
     writeln!(f)?;
-    writeln!(f, "pub mod functions {{")?;
-    write!(f, "{}", functions_mod(&fns, &enums, &scc))?;
+    writeln!(f, "pub mod fns {{")?;
+    write!(f, "{}", fns_mod(&fns, &enums, &scc))?;
     writeln!(f, "}}")
   })
 }
@@ -120,7 +120,7 @@ fn r#enum(category: &str, group: &[&Combinator]) -> impl fmt::Display {
   })
 }
 
-fn functions_mod(fns: &[&Combinator], enums: &[&str], scc: &SccMap) -> impl fmt::Display {
+fn fns_mod(fns: &[&Combinator], enums: &[&str], scc: &SccMap) -> impl fmt::Display {
   fmt::from_fn(move |f| {
     writeln!(f, "{:2}use serde::Serialize;", "")?;
     writeln!(f, "{:2}use crate::{{serde_with, traits::Function}};", "")?;

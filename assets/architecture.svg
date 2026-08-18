@@ -63,7 +63,7 @@
 
       .bg { fill: var(--bg); }
       .panel { fill: var(--panel-bg); stroke: var(--panel-border); stroke-width: 1.5; rx: 12px; }
-      .panel-title { font-family: ui-sans-serif, system-ui, sans-serif; font-size: 12px; font-weight: 700; fill: var(--panel-title); text-transform: uppercase; letter-spacing: 0.05em; }
+      .panel-title { font-family: ui-sans-serif, system-ui, sans-serif; font-size: 12px; font-weight: 700; fill: var(--panel-title); text-transform: uppercase; letter-spacing: 0.1em; }
 
       .node { fill: var(--node-bg); stroke: var(--node-border); stroke-width: 1.2; rx: 8px; }
       .node-highlight { fill: var(--node-hl-bg); stroke: var(--node-hl-border); stroke-width: 1.5; rx: 8px; }
@@ -116,10 +116,10 @@
   <!-- Arrow 2 -> 3 -->
   <line x1="219" y1="228" x2="219" y2="252" class="arrow" marker-end="url(#arrowhead)" />
 
-  <!-- Node 3: td-gen -->
+  <!-- Node 3: td-codegen -->
   <g transform="translate(44, 252)">
     <rect width="350" height="64" class="node" />
-    <text x="18" y="26" class="title">td-gen</text>
+    <text x="18" y="26" class="title">td-codegen</text>
     <text x="18" y="46" class="sub">Generates Rust structs, enums, and Serde impls</text>
   </g>
 

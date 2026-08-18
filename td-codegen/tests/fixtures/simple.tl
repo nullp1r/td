@@ -1,4 +1,4 @@
-// Concise TL schema testing all td-gen codegen features
+// Concise TL schema testing all codegen features
 
 ---types---
 

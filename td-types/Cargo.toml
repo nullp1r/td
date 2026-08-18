@@ -17,4 +17,4 @@ serde_json = "*"
 
 [build-dependencies]
 td-parser = { path = "../td-parser" }
-td-gen = { path = "../td-gen" }
+td-codegen = { path = "../td-codegen" }
