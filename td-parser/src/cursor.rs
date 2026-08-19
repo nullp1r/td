@@ -24,16 +24,16 @@ impl<'a> Cursor<'a> {
     start.get(..start.len() - self.rest.len()).unwrap_or("")
   }
 
-  pub fn take_while(&mut self, mut pred: impl FnMut(u8) -> bool) -> &'a str {
-    let len = self.rest.as_bytes().iter().position(|&b| !pred(b)).unwrap_or(self.rest.len());
-    let (head, tail) = self.rest.split_at_checked(len).unwrap_or((self.rest, ""));
+  pub fn take_while(&mut self, mut pred: impl FnMut(char) -> bool) -> &'a str {
+    let len = self.rest.find(|c| !pred(c)).unwrap_or(self.rest.len());
+    let (head, tail) = self.rest.split_at(len);
     self.rest = tail;
     head
   }
 
   pub fn ident(&mut self) -> Option<&'a str> {
-    matches!(self.rest.as_bytes().first()?, b'a'..=b'z' | b'A'..=b'Z' | b'_')
-      .then(|| self.take_while(|b| matches!(b, b'a'..=b'z' | b'A'..=b'Z' | b'0'..=b'9' | b'_')))
+    matches!(self.rest.chars().next()?, 'a'..='z' | 'A'..='Z' | '_') //.
+      .then(|| self.take_while(|c| matches!(c, 'a'..='z' | 'A'..='Z' | '0'..='9' | '_')))
   }
 
   pub fn expect(&mut self, pat: &'static str) -> Result<(), Error<'a>> {
