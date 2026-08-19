@@ -198,30 +198,31 @@ mod tests {
     // cargo test --release -p td-types throughput -- --ignored --nocapture
     assert!(!cfg!(debug_assertions), "must be run with `--release`");
 
-    let payload = vec![0x42; 1024 * 1024]; // 1 MiB
+    let iters = 100;
+    let mib = 1024 * 1024;
+    let payload = (0..mib).map(|i| i as u8).collect::<Vec<_>>();
     let encoded = encode(&payload, 0);
-    let iterations = 100;
-    let total_bytes = (payload.len() * iterations) as f64;
 
-    let mut buf = String::new();
-    let start = Instant::now();
-    for _ in 0..iterations {
-      buf.clear();
-      encode_to(&mut buf, black_box(&payload), 0);
-      black_box(&buf);
-    }
-    let elapsed = start.elapsed().as_secs_f64();
-    let encode_mib_s = (total_bytes / (1024.0 * 1024.0)) / elapsed;
+    let mut buf_enc = String::new();
+    let mut buf_dec = Vec::new();
 
-    let mut buf = Vec::new();
-    let start = Instant::now();
-    for _ in 0..iterations {
-      buf.clear();
-      decode_to(&mut buf, black_box(&encoded));
-      black_box(&buf);
+    let t0 = Instant::now();
+    for _ in 0..iters {
+      buf_enc.clear();
+      encode_to(&mut buf_enc, black_box(&payload), 0);
+      black_box(&buf_enc);
     }
-    let elapsed = start.elapsed().as_secs_f64();
-    let decode_mib_s = (total_bytes / (1024.0 * 1024.0)) / elapsed;
+    let t1 = Instant::now();
+    for _ in 0..iters {
+      buf_dec.clear();
+      decode_to(&mut buf_dec, black_box(&encoded));
+      black_box(&buf_dec);
+    }
+    let t2 = Instant::now();
+
+    let total_mib = (iters * payload.len()) as f64 / mib as f64;
+    let encode_mib_s = total_mib / t1.duration_since(t0).as_secs_f64();
+    let decode_mib_s = total_mib / t2.duration_since(t1).as_secs_f64();
 
     println!("encoding: {encode_mib_s:.2} MiB/s");
     println!("decoding: {decode_mib_s:.2} MiB/s");
