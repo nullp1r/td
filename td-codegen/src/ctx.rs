@@ -26,15 +26,15 @@ impl<'a> Context<'a> {
     let (mut enums, mut types, mut fns): (Vec<_>, Vec<_>, Vec<_>) = Default::default();
 
     for d in ast {
-      let target = match d.kind {
+      let combs = match d.kind {
         DefinitionKind::Type => &mut types,
         DefinitionKind::Function => &mut fns,
       };
-      target.push(&d.comb);
-      enums.push(d.comb.category);
+      combs.push(&d.comb);
+      enums.push(d.comb.r#type);
     }
 
-    types.sort_unstable_by_key(|c| [c.category, c.name]);
+    types.sort_unstable_by_key(|c| [c.r#type, c.name]);
 
     enums.sort_unstable();
     enums.dedup();
@@ -45,11 +45,11 @@ impl<'a> Context<'a> {
 
   /// Yields non-primitive type combinators grouped by category name.
   pub fn groups(&self) -> impl Iterator<Item = (&'a str, &[&'a Combinator<'a>])> {
-    let groups = self.types.chunk_by(|a, b| a.category == b.category);
+    let groups = self.types.chunk_by(|a, b| a.r#type == b.r#type);
     groups.filter_map(|group| {
       let &[comb, ..] = group else { return None };
-      let None = util::to_native(comb.category) else { return None };
-      Some((comb.category, group))
+      let None = util::to_native(comb.r#type) else { return None };
+      Some((comb.r#type, group))
     })
   }
 

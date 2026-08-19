@@ -24,7 +24,7 @@ impl<'a> SccMap<'a> {
     let mut names: Vec<_> = ast //.
       .iter()
       .filter(|d| d.kind == DefinitionKind::Type)
-      .flat_map(|d| [d.comb.name, d.comb.category])
+      .flat_map(|d| [d.comb.name, d.comb.r#type])
       .collect();
 
     names.sort_unstable();
@@ -34,9 +34,9 @@ impl<'a> SccMap<'a> {
       .iter()
       .filter(|d| d.kind == DefinitionKind::Type)
       .flat_map(|d| {
-        let Combinator { category, name, ref fields, .. } = d.comb;
-        let cat = (!fields.is_empty() && category != name).then_some([category, name]);
-        let fields = fields.iter().filter_map(move |f| Some([name, bare_type(&f.type_expr)?]));
+        let Combinator { r#type, name, ref fields, .. } = d.comb;
+        let cat = (!fields.is_empty() && r#type != name).then_some([r#type, name]);
+        let fields = fields.iter().filter_map(move |f| Some([name, bare(&f.r#type)?]));
         cat.into_iter().chain(fields)
       })
       .filter_map(|pair| match pair.map(|n| names.binary_search(&n)) {
@@ -62,9 +62,9 @@ impl<'a> SccMap<'a> {
 
 /// Extracts a directly embedded custom type name from `expr`, skipping native
 /// primitives and `Vector`s (which allocate on heap and break layout cycles).
-fn bare_type<'a>(expr: &TypeExpr<'a>) -> Option<&'a str> {
+fn bare<'a>(expr: &TypeExpr<'a>) -> Option<&'a str> {
   match expr {
-    &TypeExpr::Bare(name) if let None = util::to_native(name) => Some(name),
+    &TypeExpr::Bare(inner) if let None = util::to_native(inner) => Some(inner),
     _ => None,
   }
 }

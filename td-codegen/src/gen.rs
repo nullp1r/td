@@ -48,52 +48,12 @@ fn enums_mod(ctx: &Context) -> impl fmt::Display {
     writeln!(f, "{:2}use serde::{{Deserialize, Serialize}};", "")?;
     writeln!(f, "{:2}use super::types;", "")?;
 
-    for (category, group) in ctx.groups() {
+    for (name, items) in ctx.groups() {
       writeln!(f)?;
-      writeln!(f, "{}", r#enum(category, group))?;
+      writeln!(f, "{}", r#enum(name, items))?;
     }
 
     Ok(())
-  })
-}
-
-fn r#enum(category: &str, group: &[&Combinator]) -> impl fmt::Display {
-  let has_unit_default = matches!(group, &[first, ..] if first.fields.is_empty());
-  let derive_default = if has_unit_default { ", Default" } else { "" };
-  let derive_serde = ", Serialize, Deserialize";
-  let class_doc = group.iter().find_map(|c| c.class);
-
-  fmt::from_fn(move |f| {
-    write!(f, "{:2}", doc_comment(class_doc))?;
-    writeln!(f, "{:2}#[derive({DERIVES}{derive_default}{derive_serde})]", "")?;
-    writeln!(f, r#"{:2}#[serde(tag = "@type")]"#, "")?;
-    writeln!(f, "{:2}pub enum {category} {{", "")?;
-
-    for (i, c) in group.iter().enumerate() {
-      let name = util::escaped_keyword(c.name);
-      if let Some(_) = class_doc {
-        write!(f, "{:4}", doc_comment(c.desc))?;
-      }
-      if has_unit_default && let 0 = i {
-        writeln!(f, "{:4}#[default]", "")?;
-      }
-      let ty = match c.fields.len() {
-        0 => format_args!(""),
-        _ => format_args!("(types::{name})"),
-      };
-      writeln!(f, "{:4}{name}{ty},", "")?;
-    }
-
-    if !has_unit_default && let [first, ..] = group {
-      let name = util::escaped_keyword(first.name);
-      writeln!(f, "{:2}}}", "")?;
-      writeln!(f)?;
-      writeln!(f, "{:2}impl Default for {category} {{", "")?;
-      writeln!(f, "{:4}fn default() -> Self {{", "")?;
-      writeln!(f, "{:6}Self::{name}(types::{name}::default())", "")?;
-      writeln!(f, "{:4}}}", "")?;
-    }
-    write!(f, "{:2}}}", "")
   })
 }
 
@@ -103,63 +63,107 @@ fn fns_mod(ctx: &Context) -> impl fmt::Display {
     writeln!(f, "{:2}use crate::{{serde_with, traits::Function}};", "")?;
     writeln!(f, "{:2}use super::{{enums, types}};", "")?;
 
-    for c in ctx.fns() {
+    for comb in ctx.fns() {
       writeln!(f)?;
-      writeln!(f, "{}", r#fn(ctx, c))?;
+      writeln!(f, "{}", r#fn(ctx, comb))?;
     }
 
     Ok(())
   })
 }
 
+fn r#enum(enum_name: &str, items: &[&Combinator]) -> impl fmt::Display {
+  let group_desc = items.iter().find_map(|c| c.meta);
+  let has_unit_default = matches!(items, &[first, ..] if first.fields.is_empty());
+  let default_derive = if has_unit_default { ", Default" } else { "" };
+  let serde_derives = ", Serialize, Deserialize";
+  let serde_args = r#"tag = "@type""#;
+
+  fmt::from_fn(move |f| {
+    write!(f, "{:2}", doc_comment(group_desc))?;
+    writeln!(f, "{:2}#[derive({DERIVES}{default_derive}{serde_derives})]", "")?;
+    writeln!(f, "{:2}#[serde({serde_args})]", "")?;
+    writeln!(f, "{:2}pub enum {enum_name} {{", "")?;
+
+    for (i, comb) in items.iter().enumerate() {
+      if let Some(_) = group_desc {
+        write!(f, "{:4}", doc_comment(comb.desc))?;
+      }
+      if has_unit_default && let 0 = i {
+        writeln!(f, "{:4}#[default]", "")?;
+      }
+      let name = util::escaped_keyword(comb.name);
+      let fields = match comb.fields.len() {
+        0 => format_args!(""),
+        _ => format_args!("(types::{name})"),
+      };
+      writeln!(f, "{:4}{name}{fields},", "")?;
+    }
+
+    if !has_unit_default && let [first, ..] = items {
+      let first = util::escaped_keyword(first.name);
+      writeln!(f, "{:2}}}", "")?;
+      writeln!(f)?;
+      writeln!(f, "{:2}impl Default for {enum_name} {{", "")?;
+      writeln!(f, "{:4}fn default() -> Self {{", "")?;
+      writeln!(f, "{:6}Self::{first}(types::{first}::default())", "")?;
+      writeln!(f, "{:4}}}", "")?;
+    }
+    write!(f, "{:2}}}", "")
+  })
+}
+
 fn r#fn(ctx: &Context, comb: &Combinator) -> impl fmt::Display {
   let name = util::escaped_keyword(comb.name);
-  let [ret_path, ret_ty] = match util::to_native(comb.category) {
+  let [ret_path, ret_type] = match util::to_native(comb.r#type) {
     Some(native) => ["", native],
-    None => ["enums::", comb.category],
+    None => ["enums::", comb.r#type],
   };
 
   fmt::from_fn(move |f| {
     writeln!(f, "{}", r#struct(ctx, comb, true))?;
     writeln!(f)?;
-    writeln!(f, "{:2}impl Function for {name} {{", "")?;
-    writeln!(f, "{:4}type Return = {ret_path}{ret_ty};", "")?;
+    writeln!(f, "{:2}impl Function for {} {{", "", name)?;
+    writeln!(f, "{:4}type Return = {ret_path}{ret_type};", "")?;
     write!(f, "{:2}}}", "")
   })
 }
 
 fn r#struct(ctx: &Context, comb: &Combinator, is_fn: bool) -> impl fmt::Display {
-  fmt::from_fn(move |f| {
-    let serde_derive = if is_fn { "Serialize" } else { "Serialize, Deserialize" };
-    let serde_args = if is_fn { r#"tag = "@type""# } else { "default" };
+  let name = util::escaped_keyword(comb.name);
+  let serde_derives = if is_fn { "Serialize" } else { "Serialize, Deserialize" };
+  let serde_args = if is_fn { r#"tag = "@type""# } else { "default" };
 
+  fmt::from_fn(move |f| {
     write!(f, "{:2}", doc_comment(comb.desc))?;
-    writeln!(f, "{:2}#[derive({DERIVES}, Default, {serde_derive})]", "")?;
+    writeln!(f, "{:2}#[derive({DERIVES}, Default, {serde_derives})]", "")?;
     writeln!(f, "{:2}#[serde({serde_args})]", "")?;
-    writeln!(f, "{:2}pub struct {} {{", "", util::escaped_keyword(comb.name))?;
-    for f_field in &comb.fields {
-      writeln!(f, "{}", field(ctx, f_field, is_fn, comb.name))?;
+    writeln!(f, "{:2}pub struct {name} {{", "")?;
+    for cf in &comb.fields {
+      writeln!(f, "{}", field(ctx, cf, is_fn, comb.name))?;
     }
     write!(f, "{:2}}}", "")
   })
 }
 
 fn field(ctx: &Context, field: &Field, is_fn: bool, struct_name: &str) -> impl fmt::Display {
+  let name = util::escaped_keyword(field.name);
+  let expr = type_expr(ctx, &field.r#type, is_fn, struct_name);
+
+  let serde_args = match &field.r#type {
+    t if util::is_bytes(t) => Some(r#"with = "serde_with::bytes""#),
+    t if util::is_int64(t) => Some(r#"with = "serde_with::int64""#),
+    t if util::is_int64_vec(t) => Some(r#"with = "serde_with::int64_vec""#),
+    _ => None,
+  };
+
   fmt::from_fn(move |f| {
     write!(f, "{:4}", doc_comment(field.desc))?;
-    let serde_args = match &field.type_expr {
-      expr if util::is_bytes(expr) => Some(r#"with = "serde_with::bytes""#),
-      expr if util::is_int64(expr) => Some(r#"with = "serde_with::int64""#),
-      expr if util::is_int64_vec(expr) => Some(r#"with = "serde_with::int64_vec""#),
-      _ => None,
-    };
     if let Some(args) = serde_args {
       writeln!(f, "{:4}#[serde({args})]", "")?;
     }
-    let name = util::escaped_keyword(field.name);
-    let ty = type_expr(ctx, &field.type_expr, is_fn, struct_name);
-    let ty = if field.is_optional { format_args!("Option<{ty}>") } else { format_args!("{ty}") };
-    write!(f, "{:4}pub {name}: {ty},", "")
+    let [open, close] = if field.is_optional { ["Option<", ">"] } else { ["", ""] };
+    write!(f, "{:4}pub {name}: {open}{expr}{close},", "")
   })
 }
 
@@ -167,8 +171,8 @@ fn type_expr(ctx: &Context, expr: &TypeExpr, is_fn: bool, struct_name: &str) -> 
   fmt::from_fn(move |f| match expr {
     TypeExpr::Bare(name) if let Some(name) = util::to_native(name) => f.write_str(name),
     TypeExpr::Bare(name) if ctx.is_enum(name) => {
-      let [lhs, rhs] = if ctx.in_same_scc([struct_name, name]) { ["Box<", ">"] } else { ["", ""] };
-      write!(f, "{lhs}enums::{name}{rhs}")
+      let [open, close] = if ctx.in_same_scc([struct_name, name]) { ["Box<", ">"] } else { ["", ""] };
+      write!(f, "{open}enums::{name}{close}")
     }
     TypeExpr::Bare(name) => write!(f, "{}{name}", if is_fn { "types::" } else { "self::" }),
     TypeExpr::Vector(inner) => write!(f, "Vec<{}>", type_expr(ctx, inner, is_fn, "")),

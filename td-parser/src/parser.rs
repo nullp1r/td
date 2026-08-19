@@ -22,10 +22,10 @@ impl<'a> Cursor<'a> {
     let name = self.ident().ok_or(Error::UnexpectedInput(self.rest))?;
     self.skip_ws();
     self.expect(":")?;
-    let type_expr = self.type_expr()?;
+    let r#type = self.type_expr()?;
     let desc = doc_tags(doc).find(|&[n, _]| n == name).map(|[_, d]| d);
     let is_optional = desc.is_some_and(is_optional);
-    Ok(Field { name, type_expr, is_optional, desc })
+    Ok(Field { is_optional, name, r#type, desc })
   }
 
   fn type_expr(&mut self) -> Result<TypeExpr<'a>, Error<'a>> {
@@ -97,7 +97,7 @@ impl<'a> Cursor<'a> {
       self.expect(";")?;
 
       let [class, desc] = doc_class_and_desc(doc);
-      let comb = Combinator { name, fields, category, desc, class };
+      let comb = Combinator { name, fields, r#type: category, desc, meta: class };
       return Ok(Some(Definition { kind: *kind, comb }));
     }
   }
