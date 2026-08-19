@@ -1,4 +1,4 @@
-//! Code generation context for TDLib schema AST definitions.
+//! Code generation context for `TDLib` schema AST definitions.
 //!
 //! Categorizes definitions into types, enums, and functions while providing
 //! SCC recursive cycle lookups.
@@ -34,8 +34,8 @@ impl<'a> Context<'a> {
       enums.push(d.comb.category);
     }
 
-    // Sort types deterministically by category then constructor name.
     types.sort_unstable_by_key(|c| [c.category, c.name]);
+
     enums.sort_unstable();
     enums.dedup();
 
@@ -45,8 +45,8 @@ impl<'a> Context<'a> {
 
   /// Yields non-primitive type combinators grouped by category name.
   pub fn groups(&self) -> impl Iterator<Item = (&'a str, &[&'a Combinator<'a>])> {
-    let chunks = self.types.chunk_by(|a, b| a.category == b.category);
-    chunks.filter_map(|group| {
+    let groups = self.types.chunk_by(|a, b| a.category == b.category);
+    groups.filter_map(|group| {
       let &[comb, ..] = group else { return None };
       let None = util::to_native(comb.category) else { return None };
       Some((comb.category, group))
@@ -63,8 +63,8 @@ impl<'a> Context<'a> {
     self.enums.binary_search(&name).is_ok()
   }
 
-  /// Returns `true` if both type names belong to the same recursive cycle.
-  pub fn in_same_scc(&self, names: [&str; 2]) -> bool {
-    self.scc.in_same_scc(names)
+  /// Returns `true` if both type names belong to the same recursive SCC cycle.
+  pub fn in_same_scc(&self, [a, b]: [&str; 2]) -> bool {
+    self.scc.in_same_scc([a, b])
   }
 }

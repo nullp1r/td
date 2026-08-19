@@ -1,20 +1,20 @@
-//! Strongly Connected Component (SCC) analysis for TDLib type definitions.
+//! Strongly Connected Component (SCC) analysis for `TDLib` type definitions.
 //!
 //! Detects mutually recursive type references that require `Box<...>` indirection
 //! to prevent infinite struct layout size in Rust.
 
 use td_parser::{Definition, DefinitionKind, TypeExpr};
 
-use crate::{graph::CsrGraph, util};
+use crate::{graph::Graph, util};
 
-/// Maps type names to their SCC group ID.
+/// Maps type names to their strongly connected component ID.
 ///
-/// Types sharing the same group ID form a recursive cycle and require boxing.
+/// Types sharing the same component ID form a recursive cycle and require boxing.
 #[derive(Debug)]
 pub struct SccMap<'a> {
   /// Sorted list of unique type and category names for binary search lookups.
   names: Vec<&'a str>,
-  /// SCC group ID corresponding to each name in `names`.
+  /// SCC component ID corresponding to each entry in `names`.
   ids: Vec<usize>,
 }
 
@@ -41,8 +41,8 @@ impl<'a> SccMap<'a> {
         }
         // Add dependency edge from constructor to each referenced field type.
         for field in &def.comb.fields {
-          if let Some(name) = used_type(&field.type_expr)
-            && let Ok(dst) = names.binary_search(&name)
+          if let Some(target) = referenced_type(&field.type_expr)
+            && let Ok(dst) = names.binary_search(&target)
           {
             edges.push([src, dst]);
           }
@@ -50,25 +50,25 @@ impl<'a> SccMap<'a> {
       }
     }
 
-    let graph = CsrGraph::from_pairs(edges, names.len());
+    let graph = Graph::from_edges(edges, names.len());
     let ids = graph.scc();
     Self { names, ids }
   }
 
-  /// Returns the SCC group ID for `name`, if registered.
+  /// Returns the SCC component ID for `name`, if registered.
   pub fn get(&self, name: &str) -> Option<usize> {
     self.names.binary_search(&name).ok().map(|i| self.ids[i])
   }
 
-  /// Returns `true` if both types belong to the same recursive SCC group.
+  /// Returns `true` if both types belong to the same recursive SCC component.
   pub fn in_same_scc(&self, [a, b]: [&str; 2]) -> bool {
     matches!([self.get(a), self.get(b)], [Some(a), Some(b)] if a == b)
   }
 }
 
-/// Extracts a user-defined type name from `expr`, unwrapping any outer `Vector`s
+/// Extracts a referenced custom type name from `expr`, unwrapping any outer `Vector`s
 /// and skipping native primitives.
-fn used_type<'a>(mut expr: &TypeExpr<'a>) -> Option<&'a str> {
+fn referenced_type<'a>(mut expr: &TypeExpr<'a>) -> Option<&'a str> {
   while let TypeExpr::Vector(inner) = expr {
     expr = inner;
   }

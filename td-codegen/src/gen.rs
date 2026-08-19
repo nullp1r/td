@@ -74,7 +74,7 @@ fn r#enum(category: &str, group: &[&Combinator]) -> impl fmt::Display {
       if let Some(_) = class_doc {
         write!(f, "{:4}", doc_comment(c.desc))?;
       }
-      if i == 0 && has_unit_default {
+      if has_unit_default && let 0 = i {
         writeln!(f, "{:4}#[default]", "")?;
       }
       let ty = match c.fields.len() {
