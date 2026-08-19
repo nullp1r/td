@@ -69,5 +69,5 @@ cargo fmt --all                         # format codebase according to formattin
 To emit a standalone reference file (`td/td_api.rs`) for inspection:
 
 ```bash
-cargo test -p td-codegen -- full
+cargo test -p td-codegen -- upstream
 ```

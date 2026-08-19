@@ -4,7 +4,7 @@
 
 use td_parser::{Definition, DefinitionKind, TypeExpr};
 
-use crate::{graph::CsrGraph, utils};
+use crate::{graph::CsrGraph, util};
 
 /// Maps type names to their SCC group ID.
 ///
@@ -57,8 +57,8 @@ impl<'a> SccMap<'a> {
   }
 
   /// Returns `true` if both types are registered and belong to the same SCC group.
-  pub fn in_same_scc(&self, first: &str, second: &str) -> bool {
-    matches!((self.get(first), self.get(second)), (Some(a), Some(b)) if a == b)
+  pub fn in_same_scc(&self, [a, b]: [&str; 2]) -> bool {
+    matches!([self.get(a), self.get(b)], [Some(a), Some(b)] if a == b)
   }
 }
 
@@ -69,7 +69,7 @@ fn used_type<'a>(mut expr: &TypeExpr<'a>) -> Option<&'a str> {
     expr = inner;
   }
   match expr {
-    &TypeExpr::Bare(name) if let None = utils::tl_type_to_rust(name) => Some(name),
+    &TypeExpr::Bare(name) if let None = util::to_native(name) => Some(name),
     _ => None,
   }
 }

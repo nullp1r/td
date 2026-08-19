@@ -3,7 +3,7 @@ use std::path::Path;
 use std::{fs, io};
 
 #[test]
-fn simple() -> io::Result<()> {
+fn fixtures() -> io::Result<()> {
   let tl_input = include_str!("fixtures/simple.tl");
   let rs_input = include_str!("fixtures/simple.rs");
 
@@ -16,7 +16,7 @@ fn simple() -> io::Result<()> {
 }
 
 #[test]
-fn full() -> io::Result<()> {
+fn upstream() -> io::Result<()> {
   let dir = Path::new(env!("CARGO_MANIFEST_DIR"));
   let tl_path = dir.join("../td/td_api.tl");
   let rs_path = dir.join("../td/td_api.rs");
