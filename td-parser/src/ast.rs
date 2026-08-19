@@ -12,9 +12,9 @@ pub enum DefinitionKind {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Combinator<'a> {
+  pub category: &'a str,
   pub name: &'a str,
   pub fields: Vec<Field<'a>>,
-  pub category: &'a str,
   pub desc: Option<&'a str>,
   pub class: Option<&'a str>,
 }

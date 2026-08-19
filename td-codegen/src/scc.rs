@@ -3,7 +3,7 @@
 //! Detects mutually recursive type references that require `Box<...>` indirection
 //! to prevent infinite struct layout size in Rust.
 
-use td_parser::{Definition, DefinitionKind, TypeExpr};
+use td_parser::{Combinator, Definition, DefinitionKind, TypeExpr};
 
 use crate::{graph::Graph, util};
 
@@ -30,28 +30,22 @@ impl<'a> SccMap<'a> {
     names.sort_unstable();
     names.dedup();
 
-    let mut edges = Vec::new();
-    for def in ast.iter().filter(|d| d.kind == DefinitionKind::Type) {
-      if let Ok(src) = names.binary_search(&def.comb.name)
-        && let Ok(cat) = names.binary_search(&def.comb.category)
-      {
-        // Add dependency edge from category (enum) to constructor (variant) if fields exist.
-        if !def.comb.fields.is_empty() && cat != src {
-          edges.push([cat, src]);
-        }
-        // Add dependency edge from constructor to each referenced field type.
-        for field in &def.comb.fields {
-          if let Some(target) = referenced_type(&field.type_expr)
-            && let Ok(dst) = names.binary_search(&target)
-          {
-            edges.push([src, dst]);
-          }
-        }
-      }
-    }
+    let edges = ast
+      .iter()
+      .filter(|d| d.kind == DefinitionKind::Type)
+      .flat_map(|d| {
+        let Combinator { category, name, ref fields, .. } = d.comb;
+        let cat = (!fields.is_empty() && category != name).then_some([category, name]);
+        let fields = fields.iter().filter_map(move |f| Some([name, bare_type(&f.type_expr)?]));
+        cat.into_iter().chain(fields)
+      })
+      .filter_map(|pair| match pair.map(|n| names.binary_search(&n)) {
+        [Ok(src), Ok(dst)] => Some([src, dst]),
+        _ => None,
+      })
+      .collect();
 
-    let graph = Graph::from_edges(edges, names.len());
-    let ids = graph.scc();
+    let ids = Graph::from_edges(edges, names.len()).scc();
     Self { names, ids }
   }
 
@@ -66,14 +60,11 @@ impl<'a> SccMap<'a> {
   }
 }
 
-/// Extracts a referenced custom type name from `expr`, unwrapping any outer `Vector`s
-/// and skipping native primitives.
-fn referenced_type<'a>(mut expr: &TypeExpr<'a>) -> Option<&'a str> {
-  while let TypeExpr::Vector(inner) = expr {
-    expr = inner;
-  }
+/// Extracts a directly embedded custom type name from `expr`, skipping native
+/// primitives and `Vector`s (which allocate on heap and break layout cycles).
+fn bare_type<'a>(expr: &TypeExpr<'a>) -> Option<&'a str> {
   match expr {
-    &TypeExpr::Bare(name) if util::to_native(name).is_none() => Some(name),
+    &TypeExpr::Bare(name) if let None = util::to_native(name) => Some(name),
     _ => None,
   }
 }
@@ -109,5 +100,17 @@ mod tests {
 
     // TreeNode category contains nodeBranch which references TreeNode -> cycle.
     assert!(scc.in_same_scc(["TreeNode", "nodeBranch"]));
+  }
+
+  #[test]
+  fn vector_breaks_cycle() {
+    let input = "
+      folder id:int32 subfolders:vector<Category> = Category;
+    ";
+    let ast = parse(input).unwrap();
+    let scc = SccMap::from_ast(&ast);
+
+    // Vector provides heap indirection, breaking the struct layout cycle.
+    assert!(!scc.in_same_scc(["Category", "folder"]));
   }
 }

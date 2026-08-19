@@ -34,6 +34,13 @@ pub mod types {
 
   #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
   #[serde(default)]
+  pub struct menu {
+    pub id: i32,
+    pub items: Vec<enums::Menu>,
+  }
+
+  #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+  #[serde(default)]
   pub struct node {
     pub value: i32,
     pub left: Box<enums::Tree>,
@@ -104,6 +111,18 @@ pub mod enums {
   impl Default for Loop {
     fn default() -> Self {
       Self::r#loop(types::r#loop::default())
+    }
+  }
+
+  #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+  #[serde(tag = "@type")]
+  pub enum Menu {
+    menu(types::menu),
+  }
+
+  impl Default for Menu {
+    fn default() -> Self {
+      Self::menu(types::menu::default())
     }
   }
 
