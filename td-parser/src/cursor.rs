@@ -32,8 +32,12 @@ impl<'a> Cursor<'a> {
   }
 
   pub fn ident(&mut self) -> Option<&'a str> {
-    matches!(self.rest.chars().next()?, 'a'..='z' | 'A'..='Z' | '_') //.
-      .then(|| self.take_while(|c| matches!(c, 'a'..='z' | 'A'..='Z' | '0'..='9' | '_')))
+    let Some('a'..='z' | 'A'..='Z' | '_') = self.rest.chars().next() else { return None };
+    Some(self.take_while(|c| matches!(c, 'a'..='z' | 'A'..='Z' | '0'..='9' | '_')))
+  }
+
+  pub fn hex(&mut self) -> &'a str {
+    self.take_while(|c| matches!(c, '0'..='9' | 'a'..='f' | 'A'..='F'))
   }
 
   pub fn expect(&mut self, pat: &'static str) -> Result<(), Error<'a>> {
@@ -47,8 +51,8 @@ impl<'a> Cursor<'a> {
   }
 
   pub fn maybe_balanced(&mut self, [open, close]: [char; 2]) -> Result<bool, Error<'a>> {
-    let Some(tail) = self.rest.strip_prefix(open) else { return Ok(false) };
-    let mut chars = tail.chars();
+    let Some(rest) = self.rest.strip_prefix(open) else { return Ok(false) };
+    let mut chars = rest.chars();
     let mut depth = 1usize;
     for c in &mut chars {
       match depth {

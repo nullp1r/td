@@ -9,7 +9,7 @@ impl<'a> Cursor<'a> {
     loop {
       self.skip_ws();
       if self.maybe("#") {
-        self.take_while(|c| matches!(c, '0'..='9' | 'a'..='f' | 'A'..='F'));
+        self.hex();
         self.skip_ws();
         self.maybe_balanced(['[', ']'])?;
       } else if !self.maybe_balanced(['{', '}'])? && !self.maybe("?") {
