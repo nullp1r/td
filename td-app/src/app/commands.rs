@@ -1,17 +1,14 @@
-//! Command router and bot command handlers.
-
 use std::fmt;
 
 use td_client::Error as ClientError;
-use td_types::{enums, fns, types};
+use td_types::{enums, types};
 
 use super::App;
+use crate::client_ext::ClientHandleExt;
 use crate::util;
 
-const MAX_LEADERBOARD_ENTRIES: usize = 20;
-
 impl App {
-  #[tracing::instrument(skip(self))]
+  #[tracing::instrument(skip(self, sender), fields(cmd, args))]
   pub(super) async fn handle_command(&self, chat_id: i64, id: i64, sender: &enums::MessageSender, cmd: &str, args: &str) -> Result<(), ClientError> {
     tracing::info!(%cmd, %args, "executing command");
 
@@ -37,24 +34,17 @@ impl App {
   }
 
   async fn cmd_ratings(&self, chat_id: i64, id: i64) -> Result<(), ClientError> {
-    let scores = self.db.read().map(|db| db.top_ratings(chat_id)).unwrap_or_default();
+    let top = self.db.read().map(|db| db.top_ratings(chat_id)).unwrap_or_default();
 
-    if scores.is_empty() {
+    if top.is_empty() {
       self.client.reply_text(chat_id, id, "📊 No ratings recorded yet! Reply with `+` or `-` to rate chat members.").await?;
       return Ok(());
     }
 
     let leaderboard = fmt::from_fn(|f| {
-      f.write_str("🏆 **Chat Leaderboard:**")?;
-      for (i, &(uid, score)) in scores.iter().take(MAX_LEADERBOARD_ENTRIES).enumerate() {
-        let rank = i + 1;
-        let badge = match rank {
-          1 => "🥇",
-          2 => "🥈",
-          3 => "🥉",
-          _ => "▫️",
-        };
-        write!(f, "\n{badge} {rank}. User {uid}: **{score:+}**")?;
+      writeln!(f, "🏆 **Top Chat Members**:")?;
+      for (rank, (uid, score)) in top.iter().take(20).enumerate() {
+        writeln!(f, "{}. User `{uid}`: **{score:+}**", rank + 1)?;
       }
       Ok(())
     });
@@ -75,8 +65,7 @@ impl App {
   }
 
   async fn cmd_me(&self, chat_id: i64, id: i64) -> Result<(), ClientError> {
-    let res = self.client.execute(&fns::getMe {}).await?;
-    let enums::User::user(types::user { id: user_id, first_name, usernames, .. }) = res;
+    let types::user { id: user_id, first_name, usernames, .. } = self.client.get_me().await?;
 
     let username = util::primary_username(usernames.as_ref());
     let info = fmt::from_fn(|f| {

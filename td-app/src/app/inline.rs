@@ -1,9 +1,8 @@
-//! Inline query handlers and result builders.
-
 use td_client::Error as ClientError;
-use td_types::{enums, fns, types};
+use td_types::{enums, types};
 
 use super::App;
+use crate::client_ext::ClientHandleExt;
 
 impl App {
   #[tracing::instrument(skip(self))]
@@ -17,9 +16,7 @@ impl App {
       make_article("3", "🏆 Leaderboard", "View top members", "Use `/ratings` to view chat karma leaderboard!"),
     ];
 
-    let req = fns::answerInlineQuery { inline_query_id: query_id, results, cache_time: 10, ..Default::default() };
-    self.client.execute(&req).await?;
-    Ok(())
+    self.client.answer_inline_query(query_id, results, 10).await
   }
 }
 

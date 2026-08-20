@@ -1,5 +1,3 @@
-//! In-memory state and chat rating store for `td-app`.
-
 use std::cmp::Reverse;
 use std::collections::HashMap;
 
@@ -10,7 +8,6 @@ pub struct Database {
 }
 
 impl Database {
-  #[must_use]
   pub fn new() -> Self {
     Self::default()
   }
@@ -23,13 +20,11 @@ impl Database {
   }
 
   /// Gets the rating of a user in a chat.
-  #[must_use]
   pub fn get_rating(&self, chat_id: i64, user_id: i64) -> i64 {
     self.ratings.get(&chat_id).and_then(|c| c.get(&user_id)).copied().unwrap_or_default()
   }
 
   /// Returns chat member ratings sorted by score in descending order.
-  #[must_use]
   pub fn top_ratings(&self, chat_id: i64) -> Vec<(i64, i64)> {
     let Some(chat) = self.ratings.get(&chat_id) else {
       return Vec::new();

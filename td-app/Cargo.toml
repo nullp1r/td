@@ -7,8 +7,14 @@ edition.workspace = true
 workspace = true
 
 [dependencies]
-td-client = { path = "../td-client" }
-td-types = { path = "../td-types" }
-tokio = { version = "*", features = ["macros", "rt-multi-thread", "time"] }
-tracing = "*"
-tracing-subscriber = { version = "*", features = ["env-filter"] }
+anyhow.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+td-client.workspace = true
+td-types.workspace = true
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time"] }
+tracing.workspace = true
+tracing-subscriber.workspace = true
+
+[build-dependencies]
+td-sys.workspace = true

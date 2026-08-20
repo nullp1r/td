@@ -4,10 +4,10 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
-td-parser = { path = "../td-parser" }
+td-parser.workspace = true
 
 [lints]
 workspace = true
 
 [dev-dependencies]
-syn = { version = "*", features = ["full"] }
+syn.workspace = true

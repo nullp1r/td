@@ -10,11 +10,11 @@ doctest = false
 workspace = true
 
 [dependencies]
-serde = { version = "*", features = ["derive"] }
+serde.workspace = true
 
 [dev-dependencies]
-serde_json = "*"
+serde_json.workspace = true
 
 [build-dependencies]
-td-parser = { path = "../td-parser" }
-td-codegen = { path = "../td-codegen" }
+td-codegen.workspace = true
+td-parser.workspace = true

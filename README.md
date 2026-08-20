@@ -22,9 +22,10 @@ TDLib is Telegram's official library providing full access to the Telegram MTPro
 - [x] **[`td-sys`](td-sys)**: Minimal, low-level C FFI bindings to `libtdjson`.
   - Modern multi-client ID interface (`td_create_client_id`, `td_send`, `td_receive`, `td_execute`) and legacy pointer interface.
   - Global logging configuration, callback hooks, and build script with automatic `$ORIGIN` / `@loader_path` rpath linkage.
-- [ ] **[`td-client`](td-client)**: Safe, async client runtime for TDLib.
-  - Asynchronous request execution and correlation with typed response return types.
-  - Event streaming for incoming TDLib updates and authentication helpers.
+- [x] **[`td-client`](td-client)**: Safe, async client runtime for TDLib.
+  - Multi-client routing and async request correlation over background receiver thread.
+  - Interactive authentication flows (bot token, user phone + SMS code, 2FA cloud password).
+  - Built-in device presets (`DESKTOP`, `ANDROID`, `IOS`, `MACOS`, `WEB_Z`, etc.).
 - [x] **[`td-app`](td-app)**: Example Telegram bot showcasing `td-client` and `td-types`.
   - Demonstrates bot authentication, handling incoming updates, dispatching commands, and handling inline queries.
 
@@ -38,22 +39,22 @@ use td_types::{enums, fns, types};
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
   let config = Config {
-    api_id: 123_456,
-    api_hash: "your_api_hash".into(),
-    ..Default::default()
+    td: fns::setTdlibParameters {
+      api_id: 123456789,
+      api_hash: "abcdefghijklmnopqrstuvwxyz".into(),
+      ..Config::default().td
+    },
+    ..Config::default()
   };
 
-  // 1. Initialize client and authenticate
   let (handle, mut updates) = Client::new(config)
-    .auth_bot("123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11")
+    .auth_bot("123456789:abcdefghijklmnopqrstuvwxyz")
     .await?;
 
-  // 2. Execute strongly-typed API requests (return types are statically inferred)
   let me = handle.execute(&fns::getMe {}).await?;
   let enums::User::user(types::user { first_name, username, id, .. }) = me;
   println!("Authenticated as @{username:?} ({first_name}, ID: {id})");
 
-  // 3. Process real-time updates
   while let Some(update) = updates.recv().await {
     if let enums::Update::updateNewMessage(types::updateNewMessage { message, .. }) = update {
       println!("New message received: ID {}", message.id);

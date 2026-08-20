@@ -7,5 +7,5 @@ edition.workspace = true
 workspace = true
 
 [dev-dependencies]
-serde_json = "*"
-td-types = { path = "../td-types" }
+serde_json.workspace = true
+td-types.workspace = true

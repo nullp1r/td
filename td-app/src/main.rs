@@ -1,37 +1,52 @@
-//! # `td-app`
-//!
-//! Example consumer demonstrating `td-client` using modern, expressive Rust.
+use std::fs;
+
+use serde::Deserialize;
+use tracing_subscriber::EnvFilter;
+
+use td_client::{Client, Config};
+use td_types::fns;
+
+use self::app::App;
 
 mod app;
+mod client_ext;
 mod db;
 mod util;
 
-use std::error::Error;
-use td_client::{Client, Config};
-use tracing_subscriber::EnvFilter;
-
-use crate::app::App;
+#[derive(Debug, Deserialize)]
+pub struct AppConfig {
+  pub api_id: i32,
+  pub api_hash: String,
+  pub bot_token: String,
+}
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn Error>> {
-  tracing_subscriber::fmt()
-    .with_env_filter({
-      EnvFilter::try_from_default_env() //.
-        .unwrap_or_else(|_| EnvFilter::new("info,td_app=debug,td_client=debug"))
-    })
+async fn main() -> anyhow::Result<()> {
+  let filter = match EnvFilter::try_from_default_env() {
+    Err(_) => EnvFilter::new("info,td_app=debug,td_client=debug"),
+    Ok(filter) => filter,
+  };
+
+  tracing_subscriber::fmt() //.
+    .with_env_filter(filter)
+    .without_time()
     .init();
 
-  tracing::info!("starting td-app client...");
+  let cfg = fs::read_to_string("config.json")?;
+  let cfg = serde_json::from_str::<AppConfig>(&cfg)?;
 
-  let (handle, updates) = Client::new(Config {
-    api_id: 123_456, //.
-    api_hash: "0123456789abcdef".into(),
-    ..Default::default()
-  })
-  .auth_bot("123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11")
-  .await?;
+  let client_cfg = Config {
+    td: fns::setTdlibParameters {
+      api_id: cfg.api_id,
+      api_hash: cfg.api_hash,
+      ..Config::default().td //.
+    },
+    ..Config::default()
+  };
 
-  tracing::info!("authenticated as bot");
+  let (handle, updates) = Client::new(client_cfg) //.
+    .auth_bot(&cfg.bot_token)
+    .await?;
 
   let app = App::new(handle);
   app.run(updates).await?;

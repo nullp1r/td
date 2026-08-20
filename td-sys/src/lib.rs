@@ -1,6 +1,4 @@
-//! # `td-sys`
-//!
-//! Low-level FFI bindings to Telegram's `libtdjson`.
+pub mod build;
 
 use core::ffi::{c_char, c_double, c_int, c_void};
 

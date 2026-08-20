@@ -1,17 +1,17 @@
-//! Application core state, event router, and rating system.
-
-mod commands;
-mod inline;
-
 use std::any::type_name_of_val;
 use std::sync::{Arc, RwLock};
 
-use td_client::{ClientHandle, Error as ClientError, UpdateReceiver};
-use td_types::{enums, fns, types};
 use tokio::time::sleep;
 
+use td_client::{ClientHandle, Error as ClientError, UpdateReceiver};
+use td_types::{enums, types};
+
+use crate::client_ext::ClientHandleExt;
 use crate::db::Database;
 use crate::util;
+
+mod commands;
+mod inline;
 
 #[derive(Clone)]
 pub struct App {
@@ -20,7 +20,6 @@ pub struct App {
 }
 
 impl App {
-  #[must_use]
   pub fn new(client: ClientHandle) -> Self {
     Self { client, db: Arc::new(RwLock::new(Database::new())) }
   }
@@ -95,8 +94,7 @@ impl App {
     };
 
     // Fetch replied message only after validating sender is a user
-    let req = fns::getMessage { chat_id, message_id: target_msg_id };
-    let Ok(enums::Message::message(target_msg)) = self.client.execute(&req).await else {
+    let Ok(enums::Message::message(target_msg)) = self.client.get_message(chat_id, target_msg_id).await else {
       tracing::debug!(chat_id, target_msg_id, "replied message not found or inaccessible");
       return Ok(());
     };
