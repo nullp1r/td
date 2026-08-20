@@ -32,32 +32,31 @@ TDLib is Telegram's official library providing full access to the Telegram MTPro
 ## Quick Look
 
 ```rust
-use std::error::Error;
 use td_client::{Client, Config};
-use td_types::{enums, fns, types};
+use td_types::enums::{MessageContent, Update, User};
+use td_types::{fns, types};
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn Error>> {
-  let config = Config {
-    td: fns::setTdlibParameters {
-      api_id: 123456789,
-      api_hash: "abcdefghijklmnopqrstuvwxyz".into(),
-      ..Config::default().td
-    },
-    ..Config::default()
-  };
+async fn main() -> td_client::Result<()> {
+  let api_id = 123456789;
+  let api_hash = "abcdefghijklmnopqrstuvwxyz".into();
+  let bot_token = "123456789:abcdefghijklmnopqrstuvwxyz";
 
-  let (handle, mut updates) = Client::new(config)
-    .auth_bot("123456789:abcdefghijklmnopqrstuvwxyz")
+  let td = fns::setTdlibParameters { api_id, api_hash, ..Config::default().td };
+  let (client, mut updates) = Client::new(Config { td, ..Config::default() })
+    .auth_bot(bot_token)
     .await?;
 
-  let me = handle.execute(&fns::getMe {}).await?;
-  let enums::User::user(types::user { first_name, username, id, .. }) = me;
-  println!("Authenticated as @{username:?} ({first_name}, ID: {id})");
+  let User::user(me) = client.execute(&fns::getMe {}).await?;
+  let types::user { usernames, first_name, id, .. } = me;
+  let username = usernames.iter().find_map(|u| u.active_usernames.first()).map_or("…", |u| u);
+  println!("signed in as {first_name} (@{username}, id {id})");
 
   while let Some(update) = updates.recv().await {
-    if let enums::Update::updateNewMessage(types::updateNewMessage { message, .. }) = update {
-      println!("New message received: ID {}", message.id);
+    if let Update::updateNewMessage(u) = &update
+      && let MessageContent::messageText(m) = &u.message.content
+    {
+      println!("text message: {}", m.text.text);
     }
   }
 
