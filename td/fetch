@@ -24,9 +24,14 @@ esac
 
 cd "${0%/*}"
 
-log 2 "fetching" "td_api.tl"
+log 3 "fetching…" "td_api.tl"
 curl -fsSL "https://raw.githubusercontent.com/tdlib/td/master/td/generate/scheme/td_api.tl" -o td_api.tl
 
-log 2 "fetching" "$lib ($pkg)"
+log 3 "fetching…" "$lib ($pkg)"
 tarball=$(curl -fsSL "https://registry.npmjs.org/@prebuilt-tdlib/$pkg/latest" | jq -r .dist.tarball)
 curl -fsSL "$tarball" | tar -xz --strip-components=1 "package/$lib"
+
+if [[ $lib == *.so && $(readelf -d "$lib") =~ libtdjson\.so\.[0-9.]+ ]]; then
+  ln -sf "$lib" "${BASH_REMATCH[0]}"
+  log 6 "symlink" "${BASH_REMATCH[0]} -> $lib"
+fi

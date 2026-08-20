@@ -5,3 +5,7 @@ edition.workspace = true
 
 [lints]
 workspace = true
+
+[dev-dependencies]
+serde_json = "*"
+td-types = { path = "../td-types" }

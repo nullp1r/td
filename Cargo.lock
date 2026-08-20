@@ -224,6 +224,10 @@ version = "0.1.0"
 [[package]]
 name = "td-sys"
 version = "0.1.0"
+dependencies = [
+ "serde_json",
+ "td-types",
+]
 
 [[package]]
 name = "td-types"

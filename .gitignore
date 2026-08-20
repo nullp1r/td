@@ -1,4 +1,3 @@
 /target/
-/td/*.tl
-/td/*.rs
-/td/*.so
+/td/*
+!/td/fetch

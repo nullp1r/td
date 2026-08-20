@@ -3,6 +3,7 @@
 mod commands;
 mod inline;
 
+use std::any::type_name_of_val;
 use std::sync::{Arc, RwLock};
 
 use td_client::{ClientHandle, Error as ClientError, UpdateReceiver};
@@ -51,7 +52,7 @@ impl App {
       enums::Update::updateUserStatus(u) => handle_user_status(u.user_id, &u.status),
       enums::Update::updateChatAction(u) => handle_chat_action(u.chat_id, &u.action),
       enums::Update::updateFile(u) => handle_file_progress(&u.file),
-      other => tracing::trace!(update_type = std::any::type_name_of_val(&other), "unhandled update"),
+      other => tracing::trace!(update_type = type_name_of_val(&other), "unhandled update"),
     }
 
     Ok(())
