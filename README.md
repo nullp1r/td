@@ -19,22 +19,49 @@ TDLib is Telegram's official library providing full access to the Telegram MTPro
 - [x] **[`td-types`](td-types)**: Generated Rust API definitions for TDLib.
   - Complete, strongly-typed models for all TDLib objects, updates, and functions.
   - `traits::Function` associating each request with its compile-time return type (`type Return = ...`).
-- [ ] **[`td-sys`](td-sys)**: Minimal, low-level C FFI bindings to `libtdjson` *(planned)*.
-- [ ] **[`td-client`](td-client)**: High-level async client runtime and event dispatcher *(planned)*.
+- [x] **[`td-sys`](td-sys)**: Minimal, low-level C FFI bindings to `libtdjson`.
+  - Modern multi-client ID interface (`td_create_client_id`, `td_send`, `td_receive`, `td_execute`) and legacy pointer interface.
+  - Global logging configuration, callback hooks, and build script with automatic `$ORIGIN` / `@loader_path` rpath linkage.
+- [ ] **[`td-client`](td-client)**: Safe, async client runtime for TDLib.
+  - Asynchronous request execution and correlation with typed response return types.
+  - Event streaming for incoming TDLib updates and authentication helpers.
+- [x] **[`td-app`](td-app)**: Example Telegram bot showcasing `td-client` and `td-types`.
+  - Demonstrates bot authentication, handling incoming updates, dispatching commands, and handling inline queries.
 
 ## Quick Look
 
 ```rust
-use td_types::{enums, fns, traits, types};
+use std::error::Error;
+use td_client::{Client, Config};
+use td_types::{enums, fns, types};
 
-fn api<F: traits::Function>(req: &F) -> Result<F::Return, enums::Error> {
-  // some code to send `req` as JSON to TDLib and return the result as `F::Return` (or `Error`)
-  // `F::Return` is statically associated with `F` via `traits::Function`
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn Error>> {
+  let config = Config {
+    api_id: 123_456,
+    api_hash: "your_api_hash".into(),
+    ..Default::default()
+  };
+
+  // 1. Initialize client and authenticate
+  let (handle, mut updates) = Client::new(config)
+    .auth_bot("123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11")
+    .await?;
+
+  // 2. Execute strongly-typed API requests (return types are statically inferred)
+  let me = handle.execute(&fns::getMe {}).await?;
+  let enums::User::user(types::user { first_name, username, id, .. }) = me;
+  println!("Authenticated as @{username:?} ({first_name}, ID: {id})");
+
+  // 3. Process real-time updates
+  while let Some(update) = updates.recv().await {
+    if let enums::Update::updateNewMessage(types::updateNewMessage { message, .. }) = update {
+      println!("New message received: ID {}", message.id);
+    }
+  }
+
+  Ok(())
 }
-
-let user = api(&fns::getUser { user_id: 123456789 })?;
-let enums::User::user(types::user { first_name, last_name, id, .. }) = user;
-println!("User: {first_name} {last_name} (ID: {id})");
 ```
 
 ## Development
