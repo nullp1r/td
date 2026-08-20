@@ -1,0 +1,14 @@
+[package]
+name = "td-app"
+version.workspace = true
+edition.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+td-client = { path = "../td-client" }
+td-types = { path = "../td-types" }
+tokio = { version = "*", features = ["macros", "rt-multi-thread", "time"] }
+tracing = "*"
+tracing-subscriber = { version = "*", features = ["env-filter"] }
