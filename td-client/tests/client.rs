@@ -40,6 +40,7 @@ async fn lifecycle() {
 
   let fut = async {
     td_client::set_log_verbosity_level(0);
+    td_client::set_receive_timeout(0.01);
 
     let mut invalid = params("invalid");
     invalid.system_language_code.clear();

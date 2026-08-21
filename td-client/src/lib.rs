@@ -62,7 +62,6 @@ impl fmt::Debug for Client {
 impl Client {
   pub async fn new(params: fns::setTdlibParameters) -> Result<Self> {
     let client = Self::create();
-
     if let Err(error) = client.execute(&params).await {
       let _ = client.shutdown().await;
       return Err(error);
@@ -125,9 +124,10 @@ impl Client {
     // SAFETY: TDLib creates and returns a new client identifier.
     let id = unsafe { td_sys::td_create_client_id() };
     let (tx, events) = mpsc::unbounded_channel();
-    let state = Arc::new(State { id, extra: 0.into(), pending: Default::default(), events: tx });
+    let (extra, pending, queued, closed) = Default::default();
+    let state = Arc::new(State { id, extra, pending, events: tx });
     ROUTER.insert(id, Arc::downgrade(&state));
-    Self { state, events, queued: Default::default(), closed: false }
+    Self { state, events, queued, closed }
   }
 
   async fn authorize_bot(&mut self, token: &str) -> Result {
@@ -211,6 +211,7 @@ struct Router {
   clients: Mutex<HashMap<i32, Weak<State>>>,
   worker: OnceLock<thread::Thread>,
   changed: watch::Sender<()>,
+  timeout: AtomicU64,
 }
 
 impl Router {
@@ -255,9 +256,15 @@ impl Router {
     }
   }
 
+  fn set_receive_timeout(&self, seconds: f64) {
+    self.timeout.store(seconds.to_bits(), Ordering::Relaxed);
+  }
+
   fn receive(&self) {
+    let timeout = f64::from_bits(self.timeout.load(Ordering::Relaxed));
+
     // SAFETY: this method is called only by the sole receiver thread.
-    let raw = unsafe { td_sys::td_receive(1.0) };
+    let raw = unsafe { td_sys::td_receive(timeout) };
     if raw.is_null() {
       return;
     }
@@ -269,7 +276,9 @@ impl Router {
 
 static ROUTER: LazyLock<Router> = LazyLock::new(|| {
   let (changed, _) = watch::channel(());
-  Router { clients: Default::default(), worker: Default::default(), changed }
+  let (clients, worker) = Default::default();
+  let timeout = 1f64.to_bits().into();
+  Router { clients, worker, changed, timeout }
 });
 
 fn worker() {
@@ -285,6 +294,10 @@ fn worker() {
 
 fn td_error(raw: &[u8]) -> Error {
   serde_json::from_slice(raw).map_or_else(Error::Json, Error::Td)
+}
+
+pub fn set_receive_timeout(seconds: f64) {
+  ROUTER.set_receive_timeout(seconds);
 }
 
 pub fn set_log_verbosity_level(level: i32) {
