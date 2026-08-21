@@ -3,7 +3,10 @@
 use std::future::Future as Fut;
 
 use td_client::{ClientHandle, Error as ClientError};
-use td_types::{enums::*, fns, types};
+use td_types::{
+  enums::{Chat, File, FileType, InputFile, InputInlineQueryResult, InputMessageContent, InputMessageReplyTo, Message, User},
+  fns, types,
+};
 
 pub trait ClientExt {
   fn send_text(&self, cid: i64, text: impl Into<String>) -> impl Fut<Output = Result<Message, ClientError>>;

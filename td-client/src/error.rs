@@ -12,15 +12,11 @@ pub enum Error {
   /// Error returned by `TDLib` core.
   Td(enums::Error),
   /// JSON serialization or deserialization failure, preserving raw data if available.
-  Json { source: serde_json::Error, raw: Option<String> },
+  Json { source: serde_json::Error, raw: Option<Vec<u8>> },
   /// Client was destroyed or disconnected.
   Disconnected,
-  /// Request timed out waiting for `TDLib` response.
-  Timeout,
   /// Authentication flow failed.
   Auth(String),
-  /// Low-level FFI or system error.
-  Sys(String),
 }
 
 impl StdError for Error {
@@ -36,12 +32,10 @@ impl fmt::Display for Error {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     match self {
       Self::Td(enums::Error::error(types::error { code, message })) => write!(f, "TDLib {code}: {message}"),
-      Self::Json { source, raw: Some(raw) } => write!(f, "JSON error: {source} (payload: {raw})"),
+      Self::Json { source, raw: Some(raw) } => write!(f, "JSON error: {source} (payload: {})", String::from_utf8_lossy(raw)),
       Self::Json { source, raw: None } => write!(f, "JSON error: {source}"),
       Self::Disconnected => f.write_str("client disconnected"),
-      Self::Timeout => f.write_str("request timeout"),
       Self::Auth(msg) => write!(f, "auth failed: {msg}"),
-      Self::Sys(msg) => write!(f, "system error: {msg}"),
     }
   }
 }
@@ -53,6 +47,10 @@ impl From<serde_json::Error> for Error {
 }
 
 impl Error {
+  pub(crate) fn json(source: serde_json::Error, raw: &[u8]) -> Self {
+    Self::Json { source, raw: Some(raw.to_vec()) }
+  }
+
   /// Returns the `TDLib` error code and message, if this is a `TDLib` error.
   pub fn td(&self) -> Option<(i32, &str)> {
     let Self::Td(enums::Error::error(e)) = self else { return None };
@@ -62,8 +60,7 @@ impl Error {
   /// Checks if the error is a Telegram `FLOOD_WAIT` error, returning the wait duration.
   pub fn flood_wait(&self) -> Option<Duration> {
     let (_, msg) = self.td()?;
-    let digits = msg.strip_prefix("FLOOD_WAIT_")?.split(|c: char| !c.is_ascii_digit()).next()?;
-    digits.parse().ok().map(Duration::from_secs)
+    msg.strip_prefix("FLOOD_WAIT_")?.parse().ok().map(Duration::from_secs)
   }
 
   /// Checks if this is an unauthorized (401) error.

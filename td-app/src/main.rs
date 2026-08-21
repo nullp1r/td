@@ -29,14 +29,14 @@ async fn main() -> anyhow::Result<()> {
     })
     .without_time()
     .init();
+  td_client::set_log_verbosity_level(1);
 
   let cfg = fs::read_to_string("config.json")?;
   let cfg = serde_json::from_str::<AppConfig>(&cfg)?;
   let AppConfig { api_id, api_hash, bot_token } = cfg;
 
   let td = fns::setTdlibParameters { api_id, api_hash, ..Config::default().td };
-  let cfg = Config { td, ..Config::default() };
-  let auth = Client::new(cfg).auth().await?;
+  let auth = Client::new(Config { td }).auth().await?;
   let (client, updates) = auth.bot(&bot_token).await?;
 
   let app = App::new(client);

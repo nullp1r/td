@@ -13,10 +13,10 @@ td-sys.workspace = true
 td-types.workspace = true
 tokio = { workspace = true, features = ["sync", "rt"] }
 tracing.workspace = true
-tracing-subscriber.workspace = true
 
 [build-dependencies]
 td-sys.workspace = true
 
 [dev-dependencies]
+tracing-subscriber.workspace = true
 tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time"] }

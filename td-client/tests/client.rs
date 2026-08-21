@@ -12,6 +12,7 @@ static INIT_LOGS: Once = Once::new();
 
 fn init_logs() {
   INIT_LOGS.call_once(|| {
+    td_client::set_log_verbosity_level(1);
     let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("debug,td_client=trace"));
     let _ = tracing_subscriber::fmt().with_env_filter(filter).with_test_writer().try_init();
   });
@@ -26,7 +27,6 @@ fn test_config(name: &str) -> Config {
       files_directory: format!("../target/test/{name}_{uid}/files"),
       ..presets::DESKTOP.into()
     },
-    ..Config::default()
   }
 }
 

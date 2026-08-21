@@ -43,9 +43,8 @@ async fn main() -> td_client::Result<()> {
   let bot_token = "123456789:abcdefghijklmnopqrstuvwxyz";
 
   let td = fns::setTdlibParameters { api_id, api_hash, ..Config::default().td };
-  let (client, mut updates) = Client::new(Config { td, ..Config::default() })
-    .auth_bot(bot_token)
-    .await?;
+  let auth = Client::new(Config { td, ..Config::default() }).auth().await?;
+  let (client, mut updates) = auth.bot(bot_token).await?;
 
   let User::user(me) = client.execute(&fns::getMe {}).await?;
   let types::user { usernames, first_name, id, .. } = me;
