@@ -1,4 +1,4 @@
-use std::any::type_name_of_val;
+use std::borrow::Cow;
 use std::sync::{Arc, RwLock};
 
 use tokio::time::sleep;
@@ -6,7 +6,7 @@ use tokio::time::sleep;
 use td_client::{ClientHandle, Error as ClientError, UpdateReceiver};
 use td_types::{enums, types};
 
-use crate::client_ext::ClientHandleExt;
+use crate::client_ext::ClientExt;
 use crate::db::Database;
 use crate::util;
 
@@ -42,7 +42,6 @@ impl App {
     Ok(())
   }
 
-  #[tracing::instrument(skip(self, update))]
   pub async fn dispatch(&self, update: enums::Update) -> Result<(), ClientError> {
     match update {
       enums::Update::updateNewMessage(u) if !u.message.is_outgoing => self.handle_message(u.message).await?,
@@ -51,15 +50,20 @@ impl App {
       enums::Update::updateUserStatus(u) => handle_user_status(u.user_id, &u.status),
       enums::Update::updateChatAction(u) => handle_chat_action(u.chat_id, &u.action),
       enums::Update::updateFile(u) => handle_file_progress(&u.file),
-      other => tracing::trace!(update_type = type_name_of_val(&other), "unhandled update"),
+      _ => tracing::trace!("unhandled update"),
     }
 
     Ok(())
   }
 
-  #[tracing::instrument(skip(self, msg), fields(chat_id = msg.chat_id, msg_id = msg.id))]
   async fn handle_message(&self, msg: types::message) -> Result<(), ClientError> {
     let types::message { chat_id, id, sender_id, reply_to, content, .. } = msg;
+
+    // Trigger: for any DM message with media, download and upload back as a document
+    if let (Some(file), 0..) = (util::extract_media_file(&content), chat_id) {
+      return self.handle_dm_media(chat_id, id, file, &content).await;
+    }
+
     let Some(raw_text) = util::message_text(&content) else {
       tracing::trace!("ignoring non-text message content");
       return Ok(());
@@ -85,6 +89,31 @@ impl App {
 
     // 3. Conversational patterns
     self.handle_pattern(chat_id, id, trimmed).await
+  }
+
+  async fn handle_dm_media(&self, chat_id: i64, id: i64, file: &types::file, content: &enums::MessageContent) -> Result<(), ClientError> {
+    tracing::info!(file_id = file.id, "downloading media from DM");
+
+    let downloaded = if file.local.is_downloading_completed && !file.local.path.is_empty() {
+      Cow::Borrowed(file)
+    } else {
+      Cow::Owned(self.client.download(file.id, 32).await?)
+    };
+
+    if downloaded.local.path.is_empty() {
+      tracing::warn!(file_id = downloaded.id, "download completed but local path is empty");
+      return Ok(());
+    }
+
+    tracing::info!(file_id = downloaded.id, path = %downloaded.local.path, "download completed, starting upload");
+    let file = self.client.upload(&downloaded.local.path, 32).await?;
+
+    tracing::info!(file_id = file.id, path = %downloaded.local.path, "upload started, sending back as document");
+    let caption = util::message_caption(content).map(Into::into);
+    let document = enums::InputFile::inputFileId(types::inputFileId { id: file.id });
+    self.client.reply_document(chat_id, id, document, caption).await?;
+
+    Ok(())
   }
 
   async fn handle_rating_reply(&self, chat_id: i64, id: i64, sender: &enums::MessageSender, target_msg_id: i64, delta: i64) -> Result<(), ClientError> {
@@ -143,20 +172,19 @@ impl App {
 fn parse_rating_delta(text: &str) -> Option<i64> {
   let trimmed = text.trim();
   match trimmed {
-    "+" | "++" | "+1" | "+ 1" | "👍" | "👍🏻" | "👍🏼" | "👍🏽" | "👍🏾" | "👍🏿" => Some(1),
-    "-" | "--" | "-1" | "- 1" | "👎" | "👎🏻" | "👎🏼" | "👎🏽" | "👎🏾" | "👎🏿" => Some(-1),
+    "+" | "+1" | "👍" | "👍🏻" | "👍🏼" | "👍🏽" | "👍🏾" | "👍🏿" => Some(1),
+    "-" | "-1" | "👎" | "👎🏻" | "👎🏼" | "👎🏽" | "👎🏾" | "👎🏿" => Some(-1),
     _ => {
-      let cleaned = trimmed.trim_matches(|c: char| !c.is_alphanumeric());
-      match cleaned {
-        w if w.eq_ignore_ascii_case("thanks")
-          || w.eq_ignore_ascii_case("ty")
-          || w.eq_ignore_ascii_case("thank you")
-          || w.eq_ignore_ascii_case("tysm")
-          || w.eq_ignore_ascii_case("thx") =>
-        {
-          Some(1)
-        }
-        _ => None,
+      let w = trimmed.trim_matches(|c: char| !c.is_alphanumeric());
+      if w.eq_ignore_ascii_case("thanks")
+        || w.eq_ignore_ascii_case("ty")
+        || w.eq_ignore_ascii_case("thank you")
+        || w.eq_ignore_ascii_case("tysm")
+        || w.eq_ignore_ascii_case("thx")
+      {
+        Some(1)
+      } else {
+        None
       }
     }
   }

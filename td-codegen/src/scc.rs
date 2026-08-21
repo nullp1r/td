@@ -1,25 +1,14 @@
-//! Strongly Connected Component (SCC) analysis for `TDLib` type definitions.
-//!
-//! Detects mutually recursive type references that require `Box<...>` indirection
-//! to prevent infinite struct layout size in Rust.
-
 use td_parser::{Combinator, Definition, DefinitionKind, TypeExpr};
 
 use crate::{graph::Graph, util};
 
-/// Maps type names to their strongly connected component ID.
-///
-/// Types sharing the same component ID form a recursive cycle and require boxing.
 #[derive(Debug)]
 pub struct SccMap<'a> {
-  /// Sorted list of unique type and category names for binary search lookups.
   names: Vec<&'a str>,
-  /// SCC component ID corresponding to each entry in `names`.
   ids: Vec<usize>,
 }
 
 impl<'a> SccMap<'a> {
-  /// Builds the SCC mapping from parsed AST type definitions.
   pub fn from_ast(ast: &[Definition<'a>]) -> Self {
     let mut names: Vec<_> = ast //.
       .iter()
@@ -49,19 +38,13 @@ impl<'a> SccMap<'a> {
     Self { names, ids }
   }
 
-  /// Returns the SCC component ID for `name`, if registered.
-  pub fn get(&self, name: &str) -> Option<usize> {
-    self.names.binary_search(&name).ok().map(|i| self.ids[i])
-  }
-
-  /// Returns `true` if both types belong to the same recursive SCC component.
-  pub fn in_same_scc(&self, [a, b]: [&str; 2]) -> bool {
-    matches!([self.get(a), self.get(b)], [Some(a), Some(b)] if a == b)
+  pub fn in_same_scc(&self, names: [&str; 2]) -> bool {
+    let [Ok(i), Ok(j)] = names.map(|n| self.names.binary_search(&n)) else { return false };
+    let [Some(&a), Some(&b)] = [i, j].map(|x| self.ids.get(x)) else { return false };
+    a == b
   }
 }
 
-/// Extracts a directly embedded custom type name from `expr`, skipping native
-/// primitives and `Vector`s (which allocate on heap and break layout cycles).
 fn bare<'a>(expr: &TypeExpr<'a>) -> Option<&'a str> {
   match expr {
     &TypeExpr::Bare(inner) if let None = util::to_native(inner) => Some(inner),

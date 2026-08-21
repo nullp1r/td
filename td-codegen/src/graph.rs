@@ -51,7 +51,7 @@ impl Graph {
   /// Returns the outgoing neighbor vertices for vertex `v`.
   pub fn neighbors(&self, v: usize) -> &[usize] {
     match self.offsets.get(v..) {
-      Some(&[start, end, ..]) => &self.edges[start..end],
+      Some(&[start, end, ..]) if let Some(ns) = self.edges.get(start..end) => ns,
       _ => &[],
     }
   }

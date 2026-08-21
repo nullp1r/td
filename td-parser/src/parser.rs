@@ -87,8 +87,8 @@ impl<'a> Cursor<'a> {
       }
 
       self.skip_ws();
-      let Some(category) = self.ident() else {
-        return Err(Error::ExpectedCategory);
+      let Some(r#type) = self.ident() else {
+        return Err(Error::ExpectedEnum);
       };
       self.skip_ws();
       while let Some(_) = self.ident() {
@@ -96,8 +96,8 @@ impl<'a> Cursor<'a> {
       }
       self.expect(";")?;
 
-      let [class, desc] = doc_class_and_desc(doc);
-      let comb = Combinator { name, fields, r#type: category, desc, meta: class };
+      let [desc, meta] = desc_and_meta_desc(doc);
+      let comb = Combinator { r#type, name, fields, desc, meta };
       return Ok(Some(Definition { kind: *kind, comb }));
     }
   }
@@ -107,11 +107,11 @@ fn is_optional(desc: &str) -> bool {
   desc.contains("may be null") || desc.contains("pass null")
 }
 
-fn doc_class_and_desc(doc: &str) -> [Option<&str>; 2] {
-  doc_tags(doc).fold([None; 2], |[class, desc], [k, v]| match k {
-    "class" if let Some((_, v)) = v.split_once(" @description ") => [Some(v), desc],
-    "description" => [class, Some(v)],
-    _ => [class, desc],
+fn desc_and_meta_desc(doc: &str) -> [Option<&str>; 2] {
+  doc_tags(doc).fold([None; 2], |[desc, meta], [k, v]| match k {
+    "class" if let Some((_, v)) = v.split_once(" @description ") => [desc, Some(v)],
+    "description" => [Some(v), meta],
+    _ => [desc, meta],
   })
 }
 

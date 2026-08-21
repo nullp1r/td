@@ -4,7 +4,7 @@ use td_client::Error as ClientError;
 use td_types::{enums, types};
 
 use super::App;
-use crate::client_ext::ClientHandleExt;
+use crate::client_ext::ClientExt;
 use crate::util;
 
 impl App {

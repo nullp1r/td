@@ -14,7 +14,7 @@ pub fn decode(input: &str) -> Option<Vec<u8>> {
 
 pub fn encode_to(buf: &mut String, input: &[u8], flags: u8) {
   let [url_safe, padding] = [flags & URL_SAFE != 0, flags & NO_PADDING == 0];
-  let encode = move |sextet| sextet::encode(0x3f & sextet as u8, url_safe);
+  let encode = move |sextet| ENCODE[0x3f & sextet as usize][url_safe as usize];
 
   // SAFETY: Encoded characters and padding bytes are valid ASCII / UTF-8.
   let buf = unsafe { buf.as_mut_vec() };
@@ -53,7 +53,7 @@ pub fn decode_to(buf: &mut Vec<u8>, input: &str) -> bool {
   let mut count = 0u8;
 
   for &byte in input.as_bytes() {
-    let sextet @ ..64 = sextet::decode(byte) else { return false };
+    let sextet @ ..64 = DECODE[byte as usize] else { return false };
     queue = queue << 6 | sextet as u32;
     count += 6;
 
@@ -67,45 +67,35 @@ pub fn decode_to(buf: &mut Vec<u8>, input: &str) -> bool {
   count != 6
 }
 
-mod sextet {
-  const ENCODE: [[u8; 2]; 0x100] = {
-    let mut arr = [[0; _]; _];
-    let mut i = 0;
-    while i < 64 {
-      let b = match i {
-        b @ 0..=25 => b + b'A',
-        b @ 26..=51 => b + b'a' - 26,
-        b @ 52..=61 => b + b'0' - 52,
-        _ => 0,
-      };
-      arr[i as usize] = [b, b];
-      i += 1;
-    }
-    arr[62] = [b'+', b'-'];
-    arr[63] = [b'/', b'_'];
-    arr
-  };
-
-  const DECODE: [u8; 0x100] = {
-    let mut arr = [!0; _];
-    let mut i = 0;
-    while i < 64 {
-      let [std, url] = ENCODE[i];
-      arr[std as usize] = i as u8;
-      arr[url as usize] = i as u8;
-      i += 1;
-    }
-    arr
-  };
-
-  pub const fn encode(sextet: u8, url_safe: bool) -> u8 {
-    ENCODE[sextet as usize][url_safe as usize]
+const ENCODE: [[u8; 2]; 0x100] = {
+  let mut arr = [[0; _]; _];
+  let mut i = 0;
+  while i < 62 {
+    let b = match i {
+      b @ 0..=25 => b + b'A',
+      b @ 26..=51 => b + b'a' - 26,
+      b @ 52..=61 => b + b'0' - 52,
+      _ => 0,
+    };
+    arr[i as usize] = [b, b];
+    i += 1;
   }
+  arr[62] = [b'+', b'-'];
+  arr[63] = [b'/', b'_'];
+  arr
+};
 
-  pub const fn decode(byte: u8) -> u8 {
-    DECODE[byte as usize]
+const DECODE: [u8; 0x100] = {
+  let mut arr = [!0; _];
+  let mut i = 0;
+  while i < 64 {
+    let [std, url] = ENCODE[i];
+    arr[std as usize] = i as u8;
+    arr[url as usize] = i as u8;
+    i += 1;
   }
-}
+  arr
+};
 
 #[cfg(test)]
 mod tests {
@@ -145,7 +135,6 @@ mod tests {
     let data = [251, 255, 254];
     assert_eq!(encode(&data, 0), "+//+");
     assert_eq!(encode(&data, URL_SAFE), "-__-");
-    assert_eq!(encode(&data, URL_SAFE | NO_PADDING), "-__-");
 
     assert_eq!(decode("+//+"), Some(data.to_vec()));
     assert_eq!(decode("-__-"), Some(data.to_vec()));

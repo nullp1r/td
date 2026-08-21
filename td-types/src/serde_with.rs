@@ -1,45 +1,43 @@
-use std::fmt::Display;
+use std::io::{Cursor, Write as _};
+use std::str;
 
-use serde::de;
+use serde::de::{self, Deserialize, Deserializer};
 use serde::ser::{Serialize, Serializer};
 
-#[derive(serde::Deserialize)]
-#[serde(untagged)]
-enum Int64<'a> {
-  Raw(i64),
-  Str(&'a str),
-}
+struct Int64(i64);
 
-impl Int64<'_> {
-  fn into_i64<E: de::Error>(self) -> Result<i64, E> {
-    match self {
-      Self::Raw(n) => Ok(n),
-      Self::Str(s) => s.parse().map_err(de::Error::custom),
-    }
+impl<'de> Deserialize<'de> for Int64 {
+  fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+    <&str>::deserialize(d)?.parse().map(Self).map_err(de::Error::custom)
   }
 }
 
-struct Str<T>(T);
-
-impl<T: Display> Serialize for Str<T> {
+impl Serialize for Int64 {
   fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
-    s.collect_str(&self.0)
+    let mut buf = [0; 20];
+    let len = {
+      let mut w = Cursor::new(&mut buf[..]);
+      let _ = write!(w, "{}", self.0);
+      w.position() as usize
+    };
+    // SAFETY: formatting an i64 produces only ASCII.
+    s.serialize_str(unsafe { str::from_utf8_unchecked(&buf[..len]) })
   }
 }
 
 pub mod int64 {
   use serde::de::{Deserialize as _, Deserializer};
-  use serde::ser::Serializer;
+  use serde::ser::{Serialize as _, Serializer};
 
   use super::Int64;
 
   pub fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<i64, D::Error> {
-    Int64::deserialize(d)?.into_i64()
+    Ok(Int64::deserialize(d)?.0)
   }
 
-  #[expect(clippy::trivially_copy_pass_by_ref, reason = "required by serde serialize_with signature")]
-  pub fn serialize<S: Serializer>(v: &i64, s: S) -> Result<S::Ok, S::Error> {
-    s.collect_str(v)
+  #[expect(clippy::trivially_copy_pass_by_ref, reason = "serde signature")]
+  pub fn serialize<S: Serializer>(&v: &i64, s: S) -> Result<S::Ok, S::Error> {
+    Int64(v).serialize(s)
   }
 }
 
@@ -47,16 +45,16 @@ pub mod int64_vec {
   use serde::de::{Deserialize as _, Deserializer};
   use serde::ser::{SerializeSeq as _, Serializer};
 
-  use super::{Int64, Str};
+  use super::Int64;
 
   pub fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<Vec<i64>, D::Error> {
-    Vec::deserialize(d)?.into_iter().map(Int64::into_i64).collect()
+    Ok(Vec::deserialize(d)?.into_iter().map(|Int64(i)| i).collect())
   }
 
-  pub fn serialize<S: Serializer>(v: &[i64], s: S) -> Result<S::Ok, S::Error> {
-    let mut seq = s.serialize_seq(Some(v.len()))?;
-    for &item in v {
-      seq.serialize_element(&Str(item))?;
+  pub fn serialize<S: Serializer>(ints: &[i64], s: S) -> Result<S::Ok, S::Error> {
+    let mut seq = s.serialize_seq(Some(ints.len()))?;
+    for &int in ints {
+      seq.serialize_element(&Int64(int))?;
     }
     seq.end()
   }

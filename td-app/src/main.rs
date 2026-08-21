@@ -22,33 +22,24 @@ pub struct AppConfig {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-  let filter = match EnvFilter::try_from_default_env() {
-    Err(_) => EnvFilter::new("info,td_app=debug,td_client=debug"),
-    Ok(filter) => filter,
-  };
-
-  tracing_subscriber::fmt() //.
-    .with_env_filter(filter)
+  tracing_subscriber::fmt()
+    .with_env_filter(match EnvFilter::try_from_default_env() {
+      Err(_) => EnvFilter::new("info,td_app=debug,td_client=debug"),
+      Ok(filter) => filter,
+    })
     .without_time()
     .init();
 
   let cfg = fs::read_to_string("config.json")?;
   let cfg = serde_json::from_str::<AppConfig>(&cfg)?;
+  let AppConfig { api_id, api_hash, bot_token } = cfg;
 
-  let client_cfg = Config {
-    td: fns::setTdlibParameters {
-      api_id: cfg.api_id,
-      api_hash: cfg.api_hash,
-      ..Config::default().td //.
-    },
-    ..Config::default()
-  };
+  let td = fns::setTdlibParameters { api_id, api_hash, ..Config::default().td };
+  let cfg = Config { td, ..Config::default() };
+  let auth = Client::new(cfg).auth().await?;
+  let (client, updates) = auth.bot(&bot_token).await?;
 
-  let (handle, updates) = Client::new(client_cfg) //.
-    .auth_bot(&cfg.bot_token)
-    .await?;
-
-  let app = App::new(handle);
+  let app = App::new(client);
   app.run(updates).await?;
 
   Ok(())

@@ -5,7 +5,7 @@ pub enum Error<'a> {
   UnterminatedGroup([char; 2]),
   Expected(&'static str),
   ExpectedTypeExpr,
-  ExpectedCategory,
+  ExpectedEnum,
   ExpectedDefinitionKind,
   UnexpectedInput(&'a str),
 }
@@ -18,9 +18,12 @@ impl fmt::Display for Error<'_> {
       Self::UnterminatedGroup([open, close]) => write!(f, "unterminated '{open}{close}' group"),
       Self::Expected(pat) => write!(f, "expected '{pat}'"),
       Self::ExpectedTypeExpr => f.write_str("expected type expression"),
-      Self::ExpectedCategory => f.write_str("expected category"),
+      Self::ExpectedEnum => f.write_str("expected enum name"),
       Self::ExpectedDefinitionKind => f.write_str("expected definition kind"),
-      Self::UnexpectedInput(rest) => write!(f, "unexpected input: {}", rest.get(..20).unwrap_or(rest)),
+      Self::UnexpectedInput(rest) => {
+        let [slice, ellipsis] = if let Some(s) = rest.get(..20) { [s, "…"] } else { [rest, ""] };
+        write!(f, "unexpected input: {slice}{ellipsis}")
+      }
     }
   }
 }

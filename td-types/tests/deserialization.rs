@@ -3,22 +3,15 @@ use std::assert_matches;
 use td_types::{enums, types};
 
 #[test]
-fn int64_from_raw_numbers() {
-  let de: types::optionValueInteger = serde_json::from_str(r#"{"value":42}"#).unwrap();
-  assert_eq!(de.value, 42);
-
-  let de: types::optionValueInteger = serde_json::from_str(r#"{"value":-42}"#).unwrap();
-  assert_eq!(de.value, -42);
-
-  let res = serde_json::from_str::<types::optionValueInteger>(r#"{"value":"invalid"}"#);
+fn raw_int64() {
+  let res = serde_json::from_str::<types::optionValueInteger>(r#"{"value":123}"#);
   assert_matches!(res, Err(_));
 }
 
 #[test]
-fn int64_vec_flexible_formats() {
-  let json = r#"{"custom_emoji_ids":[100, "200", -300]}"#;
-  let de: types::emojiStatusCustomEmojis = serde_json::from_str(json).unwrap();
-  assert_eq!(de.custom_emoji_ids, vec![100, 200, -300]);
+fn raw_int64_vec() {
+  let res = serde_json::from_str::<types::emojiStatusCustomEmojis>(r#"{"custom_emoji_ids":[1,2,3]}"#);
+  assert_matches!(res, Err(_));
 }
 
 #[test]

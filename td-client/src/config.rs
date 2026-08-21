@@ -5,14 +5,14 @@ use crate::presets::Preset;
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Config {
-  pub log_verbosity_level: i32,
+  pub td_log_level: i32,
   pub td: fns::setTdlibParameters,
 }
 
 impl Default for Config {
   fn default() -> Self {
     Self {
-      log_verbosity_level: 1,
+      td_log_level: 1,
       td: fns::setTdlibParameters {
         database_directory: ".td/db".into(),
         files_directory: ".td/files".into(),
@@ -30,13 +30,13 @@ impl Default for Config {
 
 impl From<fns::setTdlibParameters> for Config {
   fn from(td: fns::setTdlibParameters) -> Self {
-    Self { log_verbosity_level: 1, td }
+    Self { td, ..Default::default() }
   }
 }
 
 impl From<Preset> for Config {
   fn from(preset: Preset) -> Self {
-    Self { log_verbosity_level: 1, td: preset.into() }
+    Self { td: preset.into(), ..Default::default() }
   }
 }
 
