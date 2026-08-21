@@ -1,11 +1,9 @@
-use std::error::Error as StdError;
-use std::fmt;
-use std::result;
 use std::time::Duration;
+use std::{error, fmt, result};
 
 use td_types::{enums, types};
 
-pub type Result<T, E = Error> = result::Result<T, E>;
+pub type Result<T = ()> = result::Result<T, Error>;
 
 #[derive(Debug)]
 pub enum Error {
@@ -19,8 +17,8 @@ pub enum Error {
   Auth(String),
 }
 
-impl StdError for Error {
-  fn source(&self) -> Option<&(dyn StdError + 'static)> {
+impl error::Error for Error {
+  fn source(&self) -> Option<&(dyn error::Error + 'static)> {
     match self {
       Self::Json { source, .. } => Some(source),
       _ => None,

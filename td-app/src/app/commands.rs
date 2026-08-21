@@ -1,7 +1,7 @@
 use std::fmt;
 
-use td_client::Error as ClientError;
-use td_types::{enums, types};
+use td_types::enums::MessageSender;
+use td_types::types;
 
 use super::App;
 use crate::client_ext::ClientExt;
@@ -9,7 +9,7 @@ use crate::util;
 
 impl App {
   #[tracing::instrument(skip(self, sender), fields(cmd, args))]
-  pub(super) async fn handle_command(&self, chat_id: i64, id: i64, sender: &enums::MessageSender, cmd: &str, args: &str) -> Result<(), ClientError> {
+  pub(super) async fn handle_command(&self, chat_id: i64, id: i64, sender: &MessageSender, cmd: &str, args: &str) -> td_client::Result {
     tracing::info!(%cmd, %args, "executing command");
 
     match cmd {
@@ -23,17 +23,17 @@ impl App {
     Ok(())
   }
 
-  async fn cmd_ping(&self, chat_id: i64, id: i64) -> Result<(), ClientError> {
+  async fn cmd_ping(&self, chat_id: i64, id: i64) -> td_client::Result {
     self.client.reply_text(chat_id, id, "🏓 Pong!").await?;
     Ok(())
   }
 
-  async fn cmd_help(&self, chat_id: i64, id: i64) -> Result<(), ClientError> {
+  async fn cmd_help(&self, chat_id: i64, id: i64) -> td_client::Result {
     self.client.reply_text(chat_id, id, "💡 Commands: `/ratings`, `/rating`, `/ping` | Reply with `+` or `-` to rate users").await?;
     Ok(())
   }
 
-  async fn cmd_ratings(&self, chat_id: i64, id: i64) -> Result<(), ClientError> {
+  async fn cmd_ratings(&self, chat_id: i64, id: i64) -> td_client::Result {
     let top = self.db.read().map(|db| db.top_ratings(chat_id)).unwrap_or_default();
 
     if top.is_empty() {
@@ -53,7 +53,7 @@ impl App {
     Ok(())
   }
 
-  async fn cmd_my_rating(&self, chat_id: i64, id: i64, sender: &enums::MessageSender) -> Result<(), ClientError> {
+  async fn cmd_my_rating(&self, chat_id: i64, id: i64, sender: &MessageSender) -> td_client::Result {
     let Some(user_id) = util::extract_user_id(sender) else {
       self.client.reply_text(chat_id, id, "⚠️ Ratings are only available for individual users.").await?;
       return Ok(());
@@ -64,7 +64,7 @@ impl App {
     Ok(())
   }
 
-  async fn cmd_me(&self, chat_id: i64, id: i64) -> Result<(), ClientError> {
+  async fn cmd_me(&self, chat_id: i64, id: i64) -> td_client::Result {
     let types::user { id: user_id, first_name, usernames, .. } = self.client.get_me().await?;
 
     let username = util::primary_username(usernames.as_ref());

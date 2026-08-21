@@ -1,11 +1,11 @@
-use td_client::Error as ClientError;
-use td_types::{enums, types};
+use td_types::enums::{InputInlineQueryResult, InputMessageContent};
+use td_types::types;
 
 use super::App;
 use crate::client_ext::ClientExt;
 
 impl App {
-  pub(super) async fn handle_inline_query(&self, query_id: i64, query: &str) -> Result<(), ClientError> {
+  pub(super) async fn handle_inline_query(&self, query_id: i64, query: &str) -> td_client::Result {
     let trimmed = query.trim();
     tracing::debug!(%trimmed, "processing inline query");
 
@@ -19,13 +19,13 @@ impl App {
   }
 }
 
-fn article(id: &str, title: &str, desc: &str, text: &str) -> enums::InputInlineQueryResult {
-  let content = enums::InputMessageContent::inputMessageText(types::inputMessageText {
+fn article(id: &str, title: &str, desc: &str, text: &str) -> InputInlineQueryResult {
+  let content = InputMessageContent::inputMessageText(types::inputMessageText {
     text: types::formattedText { text: text.into(), ..Default::default() },
     ..Default::default()
   });
 
-  enums::InputInlineQueryResult::inputInlineQueryResultArticle(types::inputInlineQueryResultArticle {
+  InputInlineQueryResult::inputInlineQueryResultArticle(types::inputInlineQueryResultArticle {
     id: id.into(),
     title: title.into(),
     description: desc.into(),

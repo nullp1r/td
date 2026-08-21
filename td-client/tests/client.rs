@@ -5,7 +5,7 @@ use std::time::{Duration, UNIX_EPOCH};
 use tokio::time::timeout;
 use tracing_subscriber::EnvFilter;
 
-use td_client::{Config, Error, auth, presets, start};
+use td_client::{Config, Error};
 use td_types::{enums, fns, types};
 
 static INIT_LOGS: Once = Once::new();
@@ -20,14 +20,13 @@ fn init_logs() {
 
 fn test_config(name: &str) -> Config {
   let uid = UNIX_EPOCH.elapsed().map_or(0, |d| d.as_nanos());
+  let td = fns::setTdlibParameters {
+    database_directory: format!("../target/test/{name}_{uid}/db"),
+    files_directory: format!("../target/test/{name}_{uid}/files"),
+    ..td_client::defaults()
+  };
 
-  Config {
-    td: fns::setTdlibParameters {
-      database_directory: format!("../target/test/{name}_{uid}/db"),
-      files_directory: format!("../target/test/{name}_{uid}/files"),
-      ..presets::DESKTOP.into()
-    },
-  }
+  Config { td }
 }
 
 #[tokio::test]
@@ -47,7 +46,7 @@ async fn sync_execution() {
 async fn async_test_calls() {
   init_logs();
 
-  let (client, _updates) = start();
+  let (client, _updates) = td_client::start();
 
   let res = client.execute(&fns::testCallEmpty {}).await.expect("testCallEmpty");
   assert_eq!(res, enums::Ok::ok);
@@ -76,7 +75,7 @@ async fn async_test_calls() {
 async fn concurrent_request_correlation() {
   init_logs();
 
-  let (client, _updates) = start();
+  let (client, _updates) = td_client::start();
 
   let mut handles = Vec::new();
   for i in 1..=25 {
@@ -97,8 +96,8 @@ async fn concurrent_request_correlation() {
 async fn multi_client_routing() {
   init_logs();
 
-  let (client1, _updates1) = start();
-  let (client2, _updates2) = start();
+  let (client1, _updates1) = td_client::start();
+  let (client2, _updates2) = td_client::start();
 
   assert_ne!(client1.id(), client2.id());
 
@@ -115,7 +114,7 @@ async fn multi_client_routing() {
 async fn update_receiver_stream() {
   init_logs();
 
-  let (client, mut updates) = start();
+  let (client, mut updates) = td_client::start();
 
   // Sending the first request to an active client triggers TDLib initialization updates
   let _ = client.execute(&fns::getOption { name: "version".into() }).await.expect("execute getOption");
@@ -129,7 +128,7 @@ async fn update_receiver_stream() {
 async fn auth_lifecycle() {
   init_logs();
 
-  let _auth = auth(test_config("auth_lifecycle")).await.expect("start auth");
+  let _auth = td_client::auth(test_config("auth_lifecycle")).await.expect("start auth");
 }
 
 #[tokio::test]
@@ -137,7 +136,7 @@ async fn raii_cleanup_on_drop() {
   init_logs();
 
   let client_id = {
-    let (client, _updates) = start();
+    let (client, _updates) = td_client::start();
     let res = client.execute(&fns::testSquareInt { x: 3 }).await.expect("testSquareInt");
     assert_eq!(res, enums::TestInt::testInt(types::testInt { value: 9 }));
     client.id()

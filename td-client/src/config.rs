@@ -1,9 +1,7 @@
-use serde::Serialize;
 use td_types::fns;
 
 use crate::presets::Preset;
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Config {
   pub td: fns::setTdlibParameters,
 }

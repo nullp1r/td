@@ -2,68 +2,67 @@
 
 use std::future::Future as Fut;
 
-use td_client::{ClientHandle, Error as ClientError};
-use td_types::{
-  enums::{Chat, File, FileType, InputFile, InputInlineQueryResult, InputMessageContent, InputMessageReplyTo, Message, User},
-  fns, types,
-};
+use td_client::ClientHandle;
+use td_types::enums::{Chat, File, FileType, Message, User};
+use td_types::enums::{InputFile, InputInlineQueryResult, InputMessageContent, InputMessageReplyTo};
+use td_types::{fns, types};
 
 pub trait ClientExt {
-  fn send_text(&self, cid: i64, text: impl Into<String>) -> impl Fut<Output = Result<Message, ClientError>>;
-  fn reply_text(&self, cid: i64, mid: i64, text: impl Into<String>) -> impl Fut<Output = Result<Message, ClientError>>;
-  fn send_document(&self, cid: i64, path: impl Into<String>, caption: Option<String>) -> impl Fut<Output = Result<Message, ClientError>>;
-  fn reply_document(&self, cid: i64, mid: i64, document: InputFile, caption: Option<String>) -> impl Fut<Output = Result<Message, ClientError>>;
-  fn get_message(&self, cid: i64, mid: i64) -> impl Fut<Output = Result<Message, ClientError>>;
-  fn get_chat(&self, cid: i64) -> impl Fut<Output = Result<types::chat, ClientError>>;
-  fn get_me(&self) -> impl Fut<Output = Result<types::user, ClientError>>;
-  fn download(&self, fid: i32, priority: i32) -> impl Fut<Output = Result<types::file, ClientError>>;
-  fn upload(&self, path: impl Into<String>, priority: i32) -> impl Fut<Output = Result<types::file, ClientError>>;
-  fn answer_inline_query(&self, qid: i64, results: Vec<InputInlineQueryResult>, cache_time: i32) -> impl Fut<Output = Result<(), ClientError>>;
+  fn send_text(&self, cid: i64, text: impl Into<String>) -> impl Fut<Output = td_client::Result<Message>>;
+  fn reply_text(&self, cid: i64, mid: i64, text: impl Into<String>) -> impl Fut<Output = td_client::Result<Message>>;
+  fn send_document(&self, cid: i64, path: impl Into<String>, caption: Option<String>) -> impl Fut<Output = td_client::Result<Message>>;
+  fn reply_document(&self, cid: i64, mid: i64, document: InputFile, caption: Option<String>) -> impl Fut<Output = td_client::Result<Message>>;
+  fn get_message(&self, cid: i64, mid: i64) -> impl Fut<Output = td_client::Result<Message>>;
+  fn get_chat(&self, cid: i64) -> impl Fut<Output = td_client::Result<types::chat>>;
+  fn get_me(&self) -> impl Fut<Output = td_client::Result<types::user>>;
+  fn download(&self, fid: i32, priority: i32) -> impl Fut<Output = td_client::Result<types::file>>;
+  fn upload(&self, path: impl Into<String>, priority: i32) -> impl Fut<Output = td_client::Result<types::file>>;
+  fn answer_inline_query(&self, qid: i64, results: Vec<InputInlineQueryResult>, cache_time: i32) -> impl Fut<Output = td_client::Result<()>>;
 }
 
 impl ClientExt for ClientHandle {
-  async fn send_text(&self, cid: i64, text: impl Into<String>) -> Result<Message, ClientError> {
+  async fn send_text(&self, cid: i64, text: impl Into<String>) -> td_client::Result<Message> {
     send_message(self, cid, None, text_content(text)).await
   }
 
-  async fn reply_text(&self, cid: i64, mid: i64, text: impl Into<String>) -> Result<Message, ClientError> {
+  async fn reply_text(&self, cid: i64, mid: i64, text: impl Into<String>) -> td_client::Result<Message> {
     send_message(self, cid, Some(mid), text_content(text)).await
   }
 
-  async fn send_document(&self, cid: i64, path: impl Into<String>, caption: Option<String>) -> Result<Message, ClientError> {
+  async fn send_document(&self, cid: i64, path: impl Into<String>, caption: Option<String>) -> td_client::Result<Message> {
     let document = InputFile::inputFileLocal(types::inputFileLocal { path: path.into() });
     send_message(self, cid, None, document_content(document, caption)).await
   }
 
-  async fn reply_document(&self, cid: i64, mid: i64, document: InputFile, caption: Option<String>) -> Result<Message, ClientError> {
+  async fn reply_document(&self, cid: i64, mid: i64, document: InputFile, caption: Option<String>) -> td_client::Result<Message> {
     send_message(self, cid, Some(mid), document_content(document, caption)).await
   }
 
-  async fn get_message(&self, cid: i64, mid: i64) -> Result<Message, ClientError> {
+  async fn get_message(&self, cid: i64, mid: i64) -> td_client::Result<Message> {
     let req = fns::getMessage { chat_id: cid, message_id: mid };
     self.execute(&req).await
   }
 
-  async fn get_chat(&self, cid: i64) -> Result<types::chat, ClientError> {
+  async fn get_chat(&self, cid: i64) -> td_client::Result<types::chat> {
     let res = self.execute(&fns::getChat { chat_id: cid }).await?;
     let Chat::chat(chat) = res;
     Ok(chat)
   }
 
-  async fn get_me(&self) -> Result<types::user, ClientError> {
+  async fn get_me(&self) -> td_client::Result<types::user> {
     let res = self.execute(&fns::getMe {}).await?;
     let User::user(user) = res;
     Ok(user)
   }
 
-  async fn download(&self, fid: i32, priority: i32) -> Result<types::file, ClientError> {
+  async fn download(&self, fid: i32, priority: i32) -> td_client::Result<types::file> {
     let req = fns::downloadFile { synchronous: true, priority, file_id: fid, ..Default::default() };
     let res = self.execute(&req).await?;
     let File::file(file) = res;
     Ok(file)
   }
 
-  async fn upload(&self, path: impl Into<String>, priority: i32) -> Result<types::file, ClientError> {
+  async fn upload(&self, path: impl Into<String>, priority: i32) -> td_client::Result<types::file> {
     let input = InputFile::inputFileLocal(types::inputFileLocal { path: path.into() });
     let req = fns::preliminaryUploadFile { priority, file: input, file_type: Some(FileType::fileTypeDocument) };
     let res = self.execute(&req).await?;
@@ -71,13 +70,13 @@ impl ClientExt for ClientHandle {
     Ok(file)
   }
 
-  async fn answer_inline_query(&self, qid: i64, results: Vec<InputInlineQueryResult>, cache_time: i32) -> Result<(), ClientError> {
+  async fn answer_inline_query(&self, qid: i64, results: Vec<InputInlineQueryResult>, cache_time: i32) -> td_client::Result<()> {
     let req = fns::answerInlineQuery { inline_query_id: qid, results, cache_time, ..Default::default() };
     self.execute(&req).await.map(|_| ())
   }
 }
 
-async fn send_message(client: &ClientHandle, cid: i64, mid: Option<i64>, msg: InputMessageContent) -> Result<Message, ClientError> {
+async fn send_message(client: &ClientHandle, cid: i64, mid: Option<i64>, msg: InputMessageContent) -> td_client::Result<Message> {
   let req = fns::sendMessage { chat_id: cid, reply_to: mid.map(reply_do), input_message_content: msg, ..Default::default() };
   client.execute(&req).await
 }

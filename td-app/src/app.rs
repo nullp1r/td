@@ -3,8 +3,9 @@ use std::sync::{Arc, RwLock};
 
 use tokio::time::sleep;
 
-use td_client::{ClientHandle, Error as ClientError, UpdateReceiver};
-use td_types::{enums, types};
+use td_client::{ClientHandle, UpdateReceiver};
+use td_types::enums::{ChatAction, InputFile, Message, MessageContent, MessageSender, Update, UserStatus};
+use td_types::types;
 
 use crate::client_ext::ClientExt;
 use crate::db::Database;
@@ -24,7 +25,7 @@ impl App {
     Self { client, db: Arc::new(RwLock::new(Database::new())) }
   }
 
-  pub async fn run(&self, mut updates: UpdateReceiver) -> Result<(), ClientError> {
+  pub async fn run(&self, mut updates: UpdateReceiver) -> td_client::Result {
     tracing::info!("listening for updates...");
 
     while let Some(update) = updates.recv().await {
@@ -42,21 +43,21 @@ impl App {
     Ok(())
   }
 
-  pub async fn dispatch(&self, update: enums::Update) -> Result<(), ClientError> {
+  pub async fn dispatch(&self, update: Update) -> td_client::Result {
     match update {
-      enums::Update::updateNewMessage(u) if !u.message.is_outgoing => self.handle_message(u.message).await?,
-      enums::Update::updateNewMessage(_) => tracing::trace!("ignoring outgoing message update"),
-      enums::Update::updateNewInlineQuery(u) => self.handle_inline_query(u.id, &u.query).await?,
-      enums::Update::updateUserStatus(u) => handle_user_status(u.user_id, &u.status),
-      enums::Update::updateChatAction(u) => handle_chat_action(u.chat_id, &u.action),
-      enums::Update::updateFile(u) => handle_file_progress(&u.file),
+      Update::updateNewMessage(u) if !u.message.is_outgoing => self.handle_message(u.message).await?,
+      Update::updateNewMessage(_) => tracing::trace!("ignoring outgoing message update"),
+      Update::updateNewInlineQuery(u) => self.handle_inline_query(u.id, &u.query).await?,
+      Update::updateUserStatus(u) => handle_user_status(u.user_id, &u.status),
+      Update::updateChatAction(u) => handle_chat_action(u.chat_id, &u.action),
+      Update::updateFile(u) => handle_file_progress(&u.file),
       _ => tracing::trace!("unhandled update"),
     }
 
     Ok(())
   }
 
-  async fn handle_message(&self, msg: types::message) -> Result<(), ClientError> {
+  async fn handle_message(&self, msg: types::message) -> td_client::Result {
     let types::message { chat_id, id, sender_id, reply_to, content, .. } = msg;
 
     // Trigger: for any DM message with media, download and upload back as a document
@@ -91,7 +92,7 @@ impl App {
     self.handle_pattern(chat_id, id, trimmed).await
   }
 
-  async fn handle_dm_media(&self, chat_id: i64, id: i64, file: &types::file, content: &enums::MessageContent) -> Result<(), ClientError> {
+  async fn handle_dm_media(&self, chat_id: i64, id: i64, file: &types::file, content: &MessageContent) -> td_client::Result {
     tracing::info!(file_id = file.id, "downloading media from DM");
 
     let downloaded = if file.local.is_downloading_completed && !file.local.path.is_empty() {
@@ -110,20 +111,20 @@ impl App {
 
     tracing::info!(file_id = file.id, path = %downloaded.local.path, "upload started, sending back as document");
     let caption = util::message_caption(content).map(Into::into);
-    let document = enums::InputFile::inputFileId(types::inputFileId { id: file.id });
+    let document = InputFile::inputFileId(types::inputFileId { id: file.id });
     self.client.reply_document(chat_id, id, document, caption).await?;
 
     Ok(())
   }
 
-  async fn handle_rating_reply(&self, chat_id: i64, id: i64, sender: &enums::MessageSender, target_msg_id: i64, delta: i64) -> Result<(), ClientError> {
+  async fn handle_rating_reply(&self, chat_id: i64, id: i64, sender: &MessageSender, target_msg_id: i64, delta: i64) -> td_client::Result {
     let Some(from_id) = util::extract_user_id(sender) else {
       tracing::debug!(chat_id, "ignoring rating: sender is not an individual user");
       return Ok(());
     };
 
     // Fetch replied message only after validating sender is a user
-    let Ok(enums::Message::message(target_msg)) = self.client.get_message(chat_id, target_msg_id).await else {
+    let Ok(Message::message(target_msg)) = self.client.get_message(chat_id, target_msg_id).await else {
       tracing::debug!(chat_id, target_msg_id, "replied message not found or inaccessible");
       return Ok(());
     };
@@ -147,7 +148,7 @@ impl App {
     Ok(())
   }
 
-  async fn handle_pattern(&self, chat_id: i64, id: i64, text: &str) -> Result<(), ClientError> {
+  async fn handle_pattern(&self, chat_id: i64, id: i64, text: &str) -> td_client::Result {
     let (first_word, rest) = text.split_once(char::is_whitespace).unwrap_or((text, ""));
 
     if first_word.eq_ignore_ascii_case("!roll") {
@@ -190,18 +191,18 @@ fn parse_rating_delta(text: &str) -> Option<i64> {
   }
 }
 
-fn handle_user_status(user_id: i64, status: &enums::UserStatus) {
+fn handle_user_status(user_id: i64, status: &UserStatus) {
   match status {
-    enums::UserStatus::userStatusOnline(_) => tracing::info!("User {user_id} online"),
-    enums::UserStatus::userStatusOffline(types::userStatusOffline { was_online }) => {
+    UserStatus::userStatusOnline(_) => tracing::info!("User {user_id} online"),
+    UserStatus::userStatusOffline(types::userStatusOffline { was_online }) => {
       tracing::info!("User {user_id} offline (last seen {was_online})");
     }
     _ => {}
   }
 }
 
-fn handle_chat_action(chat_id: i64, action: &enums::ChatAction) {
-  if matches!(action, enums::ChatAction::chatActionTyping) {
+fn handle_chat_action(chat_id: i64, action: &ChatAction) {
+  if matches!(action, ChatAction::chatActionTyping) {
     tracing::debug!("Typing in {chat_id}");
   }
 }

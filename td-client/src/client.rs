@@ -36,13 +36,13 @@ pub async fn auth(config: impl Into<Config>) -> Result<Auth> {
   Ok(Auth::new(state, updates, auth_rx))
 }
 
-#[derive(Deserialize)]
-struct RawStatelessEnvelope<'a> {
-  #[serde(rename = "@type")]
-  r#type: &'a str,
-}
-
 pub fn execute_sync<F: Function>(req: &F) -> Result<F::Return> {
+  #[derive(Deserialize)]
+  struct RawStatelessEnvelope<'a> {
+    #[serde(rename = "@type")]
+    r#type: &'a str,
+  }
+
   let c_req = util::to_c_json(req)?;
 
   tracing::debug!("executing synchronous stateless request");
