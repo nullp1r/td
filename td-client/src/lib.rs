@@ -1,7 +1,7 @@
 use std::collections::{HashMap, VecDeque};
 use std::ffi::CStr;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Arc, LazyLock, Mutex, OnceLock, Weak};
+use std::sync::{Arc, LazyLock, Mutex, MutexGuard, OnceLock, Weak};
 use std::{error, fmt, result, thread};
 
 use serde::{Deserialize, Serialize};
@@ -61,12 +61,7 @@ impl fmt::Debug for Client {
 
 impl Client {
   pub async fn new(params: fns::setTdlibParameters) -> Result<Self> {
-    // SAFETY: TDLib creates and returns a new client identifier.
-    let id = unsafe { td_sys::td_create_client_id() };
-    let (tx, events) = mpsc::unbounded_channel();
-    let state = Arc::new(State { id, extra: 0.into(), pending: Default::default(), events: tx });
-    ROUTER.insert(id, Arc::downgrade(&state));
-    let client = Self { state, events, queued: Default::default(), closed: false };
+    let client = Self::create();
 
     if let Err(error) = client.execute(&params).await {
       let _ = client.shutdown().await;
@@ -77,20 +72,7 @@ impl Client {
 
   pub async fn bot(params: fns::setTdlibParameters, token: &str) -> Result<Self> {
     let mut client = Self::new(params).await?;
-    let fut = async {
-      loop {
-        match client.auth().await? {
-          AuthorizationState::authorizationStateWaitTdlibParameters => {}
-          AuthorizationState::authorizationStateWaitPhoneNumber => {
-            client.execute(&fns::checkAuthenticationBotToken { token: token.into() }).await?;
-          }
-          AuthorizationState::authorizationStateReady => return Ok(()),
-          state => return Err(Error::Auth(state)),
-        }
-      }
-    };
-
-    if let Err(error) = fut.await {
+    if let Err(error) = client.authorize_bot(token).await {
       let _ = client.shutdown().await;
       return Err(error);
     }
@@ -101,13 +83,7 @@ impl Client {
     let extra = self.state.extra.fetch_add(1, Ordering::Relaxed);
     let mut request = serde_json::to_vec(&Request { extra, request })?;
     request.push(0);
-
-    let (tx, rx) = oneshot::channel();
-    self.state.pending.lock().unwrap().insert(extra, tx);
-
-    // SAFETY: the client is live and `request` is NUL-terminated.
-    unsafe { td_sys::td_send(self.state.id, request.as_ptr().cast()) };
-    let response = rx.await.map_err(|_| Error::Disconnected)??;
+    let response = self.state.send(extra, &request).await.map_err(|_| Error::Disconnected)??;
     serde_json::from_slice(&response).map_err(Into::into)
   }
 
@@ -145,6 +121,28 @@ impl Client {
     Ok(())
   }
 
+  fn create() -> Self {
+    // SAFETY: TDLib creates and returns a new client identifier.
+    let id = unsafe { td_sys::td_create_client_id() };
+    let (tx, events) = mpsc::unbounded_channel();
+    let state = Arc::new(State { id, extra: 0.into(), pending: Default::default(), events: tx });
+    ROUTER.insert(id, Arc::downgrade(&state));
+    Self { state, events, queued: Default::default(), closed: false }
+  }
+
+  async fn authorize_bot(&mut self, token: &str) -> Result {
+    loop {
+      match self.auth().await? {
+        AuthorizationState::authorizationStateReady => return Ok(()),
+        AuthorizationState::authorizationStateWaitTdlibParameters => {}
+        AuthorizationState::authorizationStateWaitPhoneNumber => {
+          self.execute(&fns::checkAuthenticationBotToken { token: token.into() }).await?;
+        }
+        state => return Err(Error::Auth(state)),
+      }
+    }
+  }
+
   async fn event(&mut self) -> Result<Update> {
     let update = self.events.recv().await.ok_or(Error::Disconnected)??;
     if let Update::updateAuthorizationState(update) = &update
@@ -171,6 +169,34 @@ struct State {
   events: mpsc::UnboundedSender<Result<Update>>,
 }
 
+impl State {
+  fn send(&self, extra: u64, request: &[u8]) -> oneshot::Receiver<Result<Vec<u8>>> {
+    let (tx, rx) = oneshot::channel();
+    self.pending.lock().unwrap().insert(extra, tx);
+
+    // SAFETY: the client is live and `request` is NUL-terminated.
+    unsafe { td_sys::td_send(self.id, request.as_ptr().cast()) };
+    rx
+  }
+
+  fn respond(&self, extra: u64, r#type: &str, raw: &[u8]) {
+    let Some(tx) = self.pending.lock().unwrap().remove(&extra) else { return };
+    let response = match r#type {
+      "error" => Err(td_error(raw)),
+      _ => Ok(raw.to_vec()),
+    };
+    let _ = tx.send(response);
+  }
+
+  fn emit(&self, r#type: &str, raw: &[u8]) {
+    let event = match r#type {
+      "error" => Err(td_error(raw)),
+      _ => serde_json::from_slice(raw).map_err(Error::Json),
+    };
+    let _ = self.events.send(event);
+  }
+}
+
 #[derive(Deserialize)]
 struct Envelope<'a> {
   #[serde(rename = "@client_id")]
@@ -188,25 +214,32 @@ struct Router {
 }
 
 impl Router {
-  fn insert(&self, id: i32, state: Weak<State>) {
+  fn live_clients(&self) -> MutexGuard<'_, HashMap<i32, Weak<State>>> {
     let mut clients = self.clients.lock().unwrap();
     clients.retain(|_, state| state.strong_count() > 0);
-    clients.insert(id, state);
-    drop(clients);
+    clients
+  }
 
+  fn state(&self, id: i32) -> Option<Arc<State>> {
+    Weak::upgrade(self.live_clients().get(&id)?)
+  }
+
+  fn insert(&self, id: i32, state: Weak<State>) {
+    self.live_clients().insert(id, state);
     self.worker.get_or_init(|| thread::spawn(worker).thread().clone()).unpark();
     self.changed.send_replace(());
+  }
+
+  fn idle(&self) -> bool {
+    self.live_clients().is_empty()
   }
 
   async fn remove_and_wait(&self, id: i32) {
     let mut changed = self.changed.subscribe();
     {
-      let mut clients = self.clients.lock().unwrap();
+      let mut clients = self.live_clients();
       clients.remove(&id);
-      clients.retain(|_, state| state.strong_count() > 0);
-      if !clients.is_empty() {
-        return;
-      }
+      let 0 = clients.len() else { return };
       changed.borrow_and_update();
     }
     let _ = changed.changed().await;
@@ -214,20 +247,23 @@ impl Router {
 
   fn dispatch(&self, raw: &[u8]) {
     let Ok(envelope) = serde_json::from_slice::<Envelope<'_>>(raw) else { return };
-    let Some(state) = self.clients.lock().unwrap().get(&envelope.client).and_then(Weak::upgrade) else { return };
+    let Some(state) = self.state(envelope.client) else { return };
 
-    if let Some(extra) = envelope.extra {
-      let Some(tx) = state.pending.lock().unwrap().remove(&extra) else { return };
-      let response = if let "error" = envelope.r#type { Err(td_error(raw)) } else { Ok(raw.to_vec()) };
-      let _ = tx.send(response);
+    match envelope.extra {
+      Some(extra) => state.respond(extra, envelope.r#type, raw),
+      None => state.emit(envelope.r#type, raw),
+    }
+  }
+
+  fn receive(&self) {
+    // SAFETY: this method is called only by the sole receiver thread.
+    let raw = unsafe { td_sys::td_receive(1.0) };
+    if raw.is_null() {
       return;
     }
 
-    let event = match envelope.r#type {
-      "error" => Err(td_error(raw)),
-      _ => serde_json::from_slice(raw).map_err(Error::Json),
-    };
-    let _ = state.events.send(event);
+    // SAFETY: TDLib returned a non-null NUL-terminated string.
+    self.dispatch(unsafe { CStr::from_ptr(raw) }.to_bytes());
   }
 }
 
@@ -238,32 +274,22 @@ static ROUTER: LazyLock<Router> = LazyLock::new(|| {
 
 fn worker() {
   loop {
-    let idle = {
-      let mut clients = ROUTER.clients.lock().unwrap();
-      clients.retain(|_, state| state.strong_count() > 0);
-      clients.is_empty()
-    };
-
-    if idle {
+    if ROUTER.idle() {
       ROUTER.changed.send_replace(());
       thread::park();
-      continue;
+    } else {
+      ROUTER.receive();
     }
-
-    // SAFETY: this is the sole thread that calls `td_receive`.
-    let raw = unsafe { td_sys::td_receive(1.0) };
-    if raw.is_null() {
-      continue;
-    }
-
-    // SAFETY: TDLib returned a non-null NUL-terminated string.
-    let raw = unsafe { CStr::from_ptr(raw) }.to_bytes();
-    ROUTER.dispatch(raw);
   }
 }
 
 fn td_error(raw: &[u8]) -> Error {
   serde_json::from_slice(raw).map_or_else(Error::Json, Error::Td)
+}
+
+pub fn set_log_verbosity_level(level: i32) {
+  // SAFETY: TDLib accepts every integer verbosity level.
+  unsafe { td_sys::td_set_log_verbosity_level(level) };
 }
 
 pub fn defaults() -> fns::setTdlibParameters {
@@ -278,9 +304,4 @@ pub fn defaults() -> fns::setTdlibParameters {
     application_version: env!("CARGO_PKG_VERSION").into(),
     ..Default::default()
   }
-}
-
-pub fn set_log_verbosity_level(level: i32) {
-  // SAFETY: TDLib accepts every integer verbosity level.
-  unsafe { td_sys::td_set_log_verbosity_level(level) };
 }

@@ -14,7 +14,7 @@ use td_types::{enums, fns, types};
 struct BadRequest;
 
 impl Serialize for BadRequest {
-  fn serialize<S: serde::Serializer>(&self, _serializer: S) -> Result<S::Ok, S::Error> {
+  fn serialize<S: serde::Serializer>(&self, _: S) -> Result<S::Ok, S::Error> {
     Err(S::Error::custom("intentional failure"))
   }
 }
@@ -72,7 +72,7 @@ async fn lifecycle() {
     loop {
       match first.auth().await.expect("authorization failed") {
         AuthorizationState::authorizationStateWaitPhoneNumber => break,
-        _ => (),
+        _ => {}
       }
     }
     assert_matches!(first.recv().await, Ok(Some(Update::updateOption(_))));
