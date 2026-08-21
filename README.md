@@ -37,7 +37,7 @@ use td_types::fns::setTdlibParameters as Params;
 use td_types::{fns, types};
 
 #[tokio::main]
-async fn main() -> td_client::Result<()> {
+async fn main() -> td_client::Result {
   let api_id = 123456789;
   let api_hash = "abcdefghijklmnopqrstuvwxyz".into();
   let bot_token = "123456789:abcdefghijklmnopqrstuvwxyz";

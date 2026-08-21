@@ -5,7 +5,7 @@ use std::time::{Duration, UNIX_EPOCH};
 use tokio::time::timeout;
 use tracing_subscriber::EnvFilter;
 
-use td_client::{Config, Error};
+use td_client::{Config, Error, presets};
 use td_types::{enums, fns, types};
 
 static INIT_LOGS: Once = Once::new();
@@ -23,7 +23,7 @@ fn test_config(name: &str) -> Config {
   let td = fns::setTdlibParameters {
     database_directory: format!("../target/test/{name}_{uid}/db"),
     files_directory: format!("../target/test/{name}_{uid}/files"),
-    ..td_client::defaults()
+    ..presets::DESKTOP.into()
   };
 
   Config { td }
@@ -34,8 +34,8 @@ async fn sync_execution() {
   init_logs();
 
   let req = fns::getOption { name: "version".into() };
-  let res = td_client::execute_sync(&req).expect("execute getOption");
-  assert_matches!(res, enums::OptionValue::optionValueString(ver) if ver.value.split('.').count() == 3);
+  let res = td_client::execute_sync(&req);
+  assert_matches!(res, Ok(enums::OptionValue::optionValueString(ver)) if ver.value.split('.').count() == 3);
 
   let err_req = fns::testReturnError { error: types::error { code: 418, message: "I'm a teapot".into() } };
   let err_res = td_client::execute_sync(&err_req);
@@ -48,23 +48,22 @@ async fn async_test_calls() {
 
   let (client, _updates) = td_client::start();
 
-  let res = client.execute(&fns::testCallEmpty {}).await.expect("testCallEmpty");
-  assert_eq!(res, enums::Ok::ok);
+  assert_matches!(client.execute(&fns::testCallEmpty {}).await, Ok(enums::Ok::ok));
 
-  let input_str = "Async TDLib runtime test 🚀".to_string();
-  let res_str = client.execute(&fns::testCallString { x: input_str.clone() }).await.expect("testCallString");
-  assert_eq!(res_str, enums::TestString::testString(types::testString { value: input_str }));
+  let input = "Async TDLib runtime test 🚀".to_string();
+  let res = client.execute(&fns::testCallString { x: input.clone() }).await;
+  assert_matches!(res, Ok(enums::TestString::testString(types::testString { value })) if value == input);
 
-  let input_bytes = b"\x00\xFFbinary\xFE\x01".to_vec();
-  let res_bytes = client.execute(&fns::testCallBytes { x: input_bytes.clone() }).await.expect("testCallBytes");
-  assert_eq!(res_bytes, enums::TestBytes::testBytes(types::testBytes { value: input_bytes }));
+  let input = b"\x00\xFFbinary\xFE\x01".to_vec();
+  let res = client.execute(&fns::testCallBytes { x: input.clone() }).await;
+  assert_matches!(res, Ok(enums::TestBytes::testBytes(types::testBytes { value })) if value == input);
 
-  let input_vec = vec![1, 2, 3, 4, 5];
-  let res_vec = client.execute(&fns::testCallVectorInt { x: input_vec.clone() }).await.expect("testCallVectorInt");
-  assert_eq!(res_vec, enums::TestVectorInt::testVectorInt(types::testVectorInt { value: input_vec }));
+  let input = vec![1, 2, 3, 4, 5];
+  let res = client.execute(&fns::testCallVectorInt { x: input.clone() }).await;
+  assert_matches!(res, Ok(enums::TestVectorInt::testVectorInt(types::testVectorInt { value })) if value == input);
 
-  let res_sq = client.execute(&fns::testSquareInt { x: 7 }).await.expect("testSquareInt");
-  assert_eq!(res_sq, enums::TestInt::testInt(types::testInt { value: 49 }));
+  let res = client.execute(&fns::testSquareInt { x: 7 }).await;
+  assert_matches!(res, Ok(enums::TestInt::testInt(types::testInt { value: 49 })));
 
   let err_req = fns::testReturnError { error: types::error { code: 404, message: "Not Found".into() } };
   let err_res = client.execute(&err_req).await;
@@ -81,14 +80,13 @@ async fn concurrent_request_correlation() {
   for i in 1..=25 {
     let cl = client.clone();
     handles.push(tokio::spawn(async move {
-      let res = cl.execute(&fns::testSquareInt { x: i }).await.expect("execute square");
-      let enums::TestInt::testInt(val) = res;
-      assert_eq!(val.value, i * i);
+      let res = cl.execute(&fns::testSquareInt { x: i }).await;
+      assert_matches!(res, Ok(enums::TestInt::testInt(types::testInt { value })) if value == i * i);
     }));
   }
 
   for h in handles {
-    h.await.expect("task join");
+    assert_matches!(h.await, Ok(()));
   }
 }
 
@@ -101,10 +99,9 @@ async fn multi_client_routing() {
 
   assert_ne!(client1.id(), client2.id());
 
-  let (res1, res2) = tokio::join! {
-    client1.execute(&fns::testSquareInt { x: 4 }),
-    client2.execute(&fns::testSquareInt { x: 6 }),
-  };
+  let req1 = client1.execute(&fns::testSquareInt { x: 4 });
+  let req2 = client2.execute(&fns::testSquareInt { x: 6 });
+  let (res1, res2) = tokio::join!(req1, req2);
 
   assert_matches!(res1, Ok(enums::TestInt::testInt(types::testInt { value: 16 })));
   assert_matches!(res2, Ok(enums::TestInt::testInt(types::testInt { value: 36 })));
@@ -117,31 +114,23 @@ async fn update_receiver_stream() {
   let (client, mut updates) = td_client::start();
 
   // Sending the first request to an active client triggers TDLib initialization updates
-  let _ = client.execute(&fns::getOption { name: "version".into() }).await.expect("execute getOption");
+  let res = client.execute(&fns::getOption { name: "version".into() }).await;
+  assert_matches!(res, Ok(enums::OptionValue::optionValueString(_)));
 
-  let update = timeout(Duration::from_secs(3), updates.recv()).await.expect("receive update within timeout").expect("update stream not closed");
-
-  assert_matches!(update, enums::Update::updateOption(_) | enums::Update::updateAuthorizationState(_));
+  let update = timeout(Duration::from_secs(3), updates.recv()).await;
+  assert_matches!(update, Ok(Some(enums::Update::updateOption(_) | enums::Update::updateAuthorizationState(_))));
 }
 
 #[tokio::test]
 async fn auth_lifecycle() {
   init_logs();
 
-  let _auth = td_client::auth(test_config("auth_lifecycle")).await.expect("start auth");
-}
+  let mut auth = td_client::auth(test_config("auth_lifecycle")).await.expect("start auth failed");
 
-#[tokio::test]
-async fn raii_cleanup_on_drop() {
-  init_logs();
+  let state = timeout(Duration::from_secs(3), auth.next()).await;
+  assert_matches!(state, Ok(Ok(Some(enums::AuthorizationState::authorizationStateWaitPhoneNumber))));
 
-  let client_id = {
-    let (client, _updates) = td_client::start();
-    let res = client.execute(&fns::testSquareInt { x: 3 }).await.expect("testSquareInt");
-    assert_eq!(res, enums::TestInt::testInt(types::testInt { value: 9 }));
-    client.id()
-  };
-
-  // After client is dropped, client_id is out of scope and cleaned up from router
-  assert!(client_id > 0);
+  let (client, _updates) = auth.finish();
+  let res = client.execute(&fns::testSquareInt { x: 5 }).await;
+  assert_matches!(res, Ok(enums::TestInt::testInt(types::testInt { value: 25 })));
 }
