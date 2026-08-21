@@ -6,7 +6,7 @@ use tokio::sync::mpsc;
 use td_types::enums;
 use td_types::traits::Function;
 
-use crate::auth::Authenticator;
+use crate::auth::Auth;
 use crate::config::Config;
 use crate::error::{Error, Result};
 use crate::router::ClientState;
@@ -21,36 +21,25 @@ pub fn set_log_verbosity_level(level: i32) {
   unsafe { td_sys::td_set_log_verbosity_level(level) };
 }
 
-#[derive(Debug, Clone)]
-pub struct Client {
-  config: Config,
+pub fn start() -> (ClientHandle, UpdateReceiver) {
+  let (state, updates, _) = ClientState::create();
+  (state, updates)
 }
 
-impl Client {
-  pub fn new(config: impl Into<Config>) -> Self {
-    Self { config: config.into() }
-  }
+pub async fn auth(config: impl Into<Config>) -> Result<Auth> {
+  let config = config.into();
+  let (state, updates, auth_rx) = ClientState::create();
+  tracing::info!("beginning client authentication");
+  tracing::debug!("setting tdlib parameters");
+  state.execute(&config.td).await?;
 
-  pub fn start(self) -> (ClientHandle, UpdateReceiver) {
-    let (state, updates, _) = ClientState::create();
-    (state, updates)
-  }
-
-  pub async fn auth(self) -> Result<Authenticator> {
-    let (state, updates, auth_rx) = ClientState::create();
-    tracing::info!("beginning client authentication");
-
-    tracing::debug!("setting tdlib parameters");
-    state.execute(&self.config.td).await?;
-
-    Ok(Authenticator::new(state, updates, auth_rx))
-  }
+  Ok(Auth::new(state, updates, auth_rx))
 }
 
 #[derive(Deserialize)]
 struct RawStatelessEnvelope<'a> {
   #[serde(rename = "@type")]
-  type_name: &'a str,
+  r#type: &'a str,
 }
 
 pub fn execute_sync<F: Function>(req: &F) -> Result<F::Return> {
@@ -71,7 +60,7 @@ pub fn execute_sync<F: Function>(req: &F) -> Result<F::Return> {
   let res_bytes = unsafe { util::c_json(res_ptr) };
 
   if let Ok(env) = util::from_c_json::<RawStatelessEnvelope<'_>>(res_bytes)
-    && let "error" = env.type_name
+    && let "error" = env.r#type
     && let Ok(err) = util::from_c_json(res_bytes)
   {
     tracing::debug!(?err, "td_execute returned error");

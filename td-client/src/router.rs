@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Arc, LazyLock, Mutex, Once, RwLock, Weak};
+use std::sync::{Arc, LazyLock, Mutex, Once, Weak};
 use std::thread;
 
 use serde::{Deserialize, Serialize};
@@ -30,12 +30,10 @@ struct RawEnvelope<'a> {
   r#type: &'a str,
 }
 
-type ResponseSender = oneshot::Sender<Result<Vec<u8>>>;
-
 pub struct ClientState {
   client_id: i32,
   extra: AtomicU64,
-  pending: Mutex<HashMap<u64, ResponseSender>>,
+  pending: Mutex<HashMap<u64, oneshot::Sender<Result<Vec<u8>>>>>,
   updates_tx: mpsc::Sender<enums::Update>,
   auth_state_tx: mpsc::Sender<enums::AuthorizationState>,
 }
@@ -52,7 +50,7 @@ impl Drop for ClientState {
 }
 
 impl ClientState {
-  pub fn create() -> (Arc<Self>, mpsc::Receiver<enums::Update>, mpsc::Receiver<enums::AuthorizationState>) {
+  pub(crate) fn create() -> (Arc<Self>, mpsc::Receiver<enums::Update>, mpsc::Receiver<enums::AuthorizationState>) {
     // SAFETY: TDLib creates and returns a new client ID.
     let client_id = unsafe { td_sys::td_create_client_id() };
     tracing::debug!(client_id, "created new TDLib client instance");
@@ -60,7 +58,7 @@ impl ClientState {
     let (updates_tx, updates_rx) = mpsc::channel(2048);
     let (auth_state_tx, auth_state_rx) = mpsc::channel(2048);
 
-    let extra = 1.into();
+    let extra = AtomicU64::new(1);
     let pending = Default::default();
     let state = Arc::new(Self { client_id, extra, pending, updates_tx, auth_state_tx });
 
@@ -98,17 +96,17 @@ impl ClientState {
 static ROUTER: LazyLock<Router> = LazyLock::new(Router::new);
 
 struct Router {
-  clients: RwLock<HashMap<i32, Weak<ClientState>>>,
+  clients: Mutex<HashMap<i32, Weak<ClientState>>>,
   started: Once,
 }
 
 impl Router {
   fn new() -> Self {
-    Self { clients: RwLock::new(HashMap::new()), started: Once::new() }
+    Self { clients: Mutex::new(HashMap::new()), started: Once::new() }
   }
 
   fn register(&self, client_id: i32, state: Weak<ClientState>) {
-    let mut clients = self.clients.write().into_inner();
+    let mut clients = self.clients.lock().into_inner();
     clients.retain(|_, weak| weak.strong_count() > 0);
     clients.insert(client_id, state);
 
@@ -118,7 +116,7 @@ impl Router {
   }
 
   fn unregister(&self, client_id: i32) {
-    self.clients.write().into_inner().remove(&client_id);
+    self.clients.lock().into_inner().remove(&client_id);
   }
 
   fn worker_loop() {
@@ -140,11 +138,10 @@ impl Router {
   }
 
   fn dispatch(&self, env: &RawEnvelope<'_>, raw: &[u8]) {
-    let state = env.client_id.and_then(|id| self.clients.read().into_inner().get(&id).and_then(Weak::upgrade));
-    let update = env.extra.is_none().then(|| util::from_c_json(raw));
+    let state = env.client_id.and_then(|id| self.clients.lock().into_inner().get(&id).and_then(Weak::upgrade));
 
-    match (env.extra, state, update) {
-      (Some(extra), Some(state), _) => {
+    match (env.extra, state) {
+      (Some(extra), Some(state)) => {
         let Some(sender) = state.pending.lock().into_inner().remove(&extra) else {
           tracing::warn!(client_id = state.client_id, extra, type = env.r#type, "no pending request matching extra id");
           return;
@@ -164,27 +161,31 @@ impl Router {
         let _ = sender.send(res);
       }
 
-      (Some(extra), None, _) => {
+      (Some(extra), None) => {
         tracing::warn!(client_id = ?env.client_id, extra, type = env.r#type, "dropped response: no matching client found");
       }
 
-      (None, Some(state), Some(Ok(enums::Update::updateAuthorizationState(auth)))) if !state.auth_state_tx.is_closed() => {
-        if let Err(e) = state.auth_state_tx.try_send(auth.authorization_state) {
-          tracing::warn!(client_id = state.client_id, ?e, "failed to deliver authorization state");
+      (None, Some(state)) => {
+        let Ok(update) = util::from_c_json(raw) else {
+          tracing::error!(client_id = state.client_id, type = env.r#type, "failed to parse update payload");
+          return;
+        };
+
+        match update {
+          enums::Update::updateAuthorizationState(auth) if !state.auth_state_tx.is_closed() => {
+            if let Err(e) = state.auth_state_tx.try_send(auth.authorization_state) {
+              tracing::warn!(client_id = state.client_id, ?e, "failed to deliver authorization state");
+            }
+          }
+          update => {
+            if let Err(e) = state.updates_tx.try_send(update) {
+              tracing::warn!(client_id = state.client_id, ?e, "failed to deliver update to receiver channel");
+            }
+          }
         }
       }
 
-      (None, Some(state), Some(Ok(update))) => {
-        if let Err(e) = state.updates_tx.try_send(update) {
-          tracing::warn!(client_id = state.client_id, ?e, "failed to deliver update to receiver channel");
-        }
-      }
-
-      (None, None, Some(Ok(_))) => {
-        tracing::warn!(client_id = ?env.client_id, type = env.r#type, "dropped update: client instance not found");
-      }
-
-      (None, _, _) => match env.r#type {
+      (None, None) => match env.r#type {
         "ok" => {}
         "error" => match util::from_c_json(raw) {
           Ok(enums::Error::error(err)) => tracing::error!(client_id = ?env.client_id, ?err, "unsolicited tdlib error received"),

@@ -5,7 +5,7 @@ use std::time::{Duration, UNIX_EPOCH};
 use tokio::time::timeout;
 use tracing_subscriber::EnvFilter;
 
-use td_client::{Client, Config, Error, presets};
+use td_client::{Config, Error, auth, presets, start};
 use td_types::{enums, fns, types};
 
 static INIT_LOGS: Once = Once::new();
@@ -47,7 +47,7 @@ async fn sync_execution() {
 async fn async_test_calls() {
   init_logs();
 
-  let (client, _updates) = Client::new(test_config("async_calls")).start();
+  let (client, _updates) = start();
 
   let res = client.execute(&fns::testCallEmpty {}).await.expect("testCallEmpty");
   assert_eq!(res, enums::Ok::ok);
@@ -76,7 +76,7 @@ async fn async_test_calls() {
 async fn concurrent_request_correlation() {
   init_logs();
 
-  let (client, _updates) = Client::new(test_config("concurrent_reqs")).start();
+  let (client, _updates) = start();
 
   let mut handles = Vec::new();
   for i in 1..=25 {
@@ -97,8 +97,8 @@ async fn concurrent_request_correlation() {
 async fn multi_client_routing() {
   init_logs();
 
-  let (client1, _updates1) = Client::new(test_config("multi_client_1")).start();
-  let (client2, _updates2) = Client::new(test_config("multi_client_2")).start();
+  let (client1, _updates1) = start();
+  let (client2, _updates2) = start();
 
   assert_ne!(client1.id(), client2.id());
 
@@ -115,7 +115,7 @@ async fn multi_client_routing() {
 async fn update_receiver_stream() {
   init_logs();
 
-  let (client, mut updates) = Client::new(test_config("updates_stream")).start();
+  let (client, mut updates) = start();
 
   // Sending the first request to an active client triggers TDLib initialization updates
   let _ = client.execute(&fns::getOption { name: "version".into() }).await.expect("execute getOption");
@@ -126,10 +126,10 @@ async fn update_receiver_stream() {
 }
 
 #[tokio::test]
-async fn authenticator_lifecycle() {
+async fn auth_lifecycle() {
   init_logs();
 
-  let _auth = Client::new(test_config("auth_lifecycle")).auth().await.expect("start auth");
+  let _auth = auth(test_config("auth_lifecycle")).await.expect("start auth");
 }
 
 #[tokio::test]
@@ -137,7 +137,7 @@ async fn raii_cleanup_on_drop() {
   init_logs();
 
   let client_id = {
-    let (client, _updates) = Client::new(test_config("raii_cleanup")).start();
+    let (client, _updates) = start();
     let res = client.execute(&fns::testSquareInt { x: 3 }).await.expect("testSquareInt");
     assert_eq!(res, enums::TestInt::testInt(types::testInt { value: 9 }));
     client.id()

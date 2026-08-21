@@ -10,19 +10,7 @@ pub struct Config {
 
 impl Default for Config {
   fn default() -> Self {
-    Self {
-      td: fns::setTdlibParameters {
-        database_directory: ".td/db".into(),
-        files_directory: ".td/files".into(),
-        use_file_database: true,
-        use_chat_info_database: true,
-        use_message_database: true,
-        system_language_code: "en".into(),
-        device_model: "Server".into(),
-        application_version: env!("CARGO_PKG_VERSION").into(),
-        ..Default::default()
-      },
-    }
+    Self { td: defaults() }
   }
 }
 
@@ -47,7 +35,21 @@ impl From<Preset> for fns::setTdlibParameters {
       system_version: p.system_version.into(),
       application_version: p.app_version.into(),
       system_language_code: p.system_lang_code.into(),
-      ..Config::default().td
+      ..defaults()
     }
+  }
+}
+
+pub fn defaults() -> fns::setTdlibParameters {
+  fns::setTdlibParameters {
+    database_directory: ".td/db".into(),
+    files_directory: ".td/files".into(),
+    use_file_database: true,
+    use_chat_info_database: true,
+    use_message_database: true,
+    system_language_code: "en".into(),
+    device_model: "Server".into(),
+    application_version: env!("CARGO_PKG_VERSION").into(),
+    ..Default::default()
   }
 }

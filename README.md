@@ -32,7 +32,6 @@ TDLib is Telegram's official library providing full access to the Telegram MTPro
 ## Quick Look
 
 ```rust
-use td_client::{Client, Config};
 use td_types::enums::{MessageContent, Update, User};
 use td_types::{fns, types};
 
@@ -42,8 +41,8 @@ async fn main() -> td_client::Result<()> {
   let api_hash = "abcdefghijklmnopqrstuvwxyz".into();
   let bot_token = "123456789:abcdefghijklmnopqrstuvwxyz";
 
-  let td = fns::setTdlibParameters { api_id, api_hash, ..Config::default().td };
-  let auth = Client::new(Config { td, ..Config::default() }).auth().await?;
+  let params = fns::setTdlibParameters { api_id, api_hash, ..td_client::defaults() };
+  let auth = td_client::auth(params).await?;
   let (client, mut updates) = auth.bot(bot_token).await?;
 
   let User::user(me) = client.execute(&fns::getMe {}).await?;
@@ -52,11 +51,9 @@ async fn main() -> td_client::Result<()> {
   println!("signed in as {first_name} (@{username}, id {id})");
 
   while let Some(update) = updates.recv().await {
-    if let Update::updateNewMessage(u) = &update
-      && let MessageContent::messageText(m) = &u.message.content
-    {
-      println!("text message: {}", m.text.text);
-    }
+    let Update::updateNewMessage(u) = &update else { continue };
+    let MessageContent::messageText(m) = &u.message.content else { continue };
+    println!("text message: {}", m.text.text);
   }
 
   Ok(())
