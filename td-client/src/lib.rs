@@ -1,17 +1,15 @@
 use std::collections::{HashMap, VecDeque};
-use std::error::Error as StdError;
 use std::ffi::CStr;
-use std::fmt;
-use std::result;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, LazyLock, Mutex, OnceLock, Weak};
-use std::thread;
+use std::{error, fmt, result, thread};
 
 use serde::{Deserialize, Serialize};
+use tokio::sync::{mpsc, oneshot, watch};
+
 use td_types::enums::{AuthorizationState, Update};
 use td_types::traits::Function;
 use td_types::{fns, types};
-use tokio::sync::{mpsc, oneshot, watch};
 
 pub type Result<T = ()> = result::Result<T, Error>;
 
@@ -34,8 +32,8 @@ impl fmt::Display for Error {
   }
 }
 
-impl StdError for Error {
-  fn source(&self) -> Option<&(dyn StdError + 'static)> {
+impl error::Error for Error {
+  fn source(&self) -> Option<&(dyn error::Error + 'static)> {
     let Self::Json(error) = self else { return None };
     Some(error)
   }
@@ -55,6 +53,12 @@ pub struct Client {
   closed: bool,
 }
 
+impl fmt::Debug for Client {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    f.debug_struct("Client").field("id", &self.state.id).finish_non_exhaustive()
+  }
+}
+
 impl Client {
   pub async fn new(params: fns::setTdlibParameters) -> Result<Self> {
     // SAFETY: TDLib creates and returns a new client identifier.
@@ -62,7 +66,7 @@ impl Client {
     let (tx, events) = mpsc::unbounded_channel();
     let state = Arc::new(State { id, extra: 0.into(), pending: Default::default(), events: tx });
     ROUTER.insert(id, Arc::downgrade(&state));
-    let client = Self { state, events, queued: VecDeque::new(), closed: false };
+    let client = Self { state, events, queued: Default::default(), closed: false };
 
     if let Err(error) = client.execute(&params).await {
       let _ = client.shutdown().await;
@@ -174,7 +178,7 @@ struct Envelope<'a> {
   #[serde(rename = "@extra")]
   extra: Option<u64>,
   #[serde(rename = "@type")]
-  kind: &'a str,
+  r#type: &'a str,
 }
 
 struct Router {
@@ -214,12 +218,15 @@ impl Router {
 
     if let Some(extra) = envelope.extra {
       let Some(tx) = state.pending.lock().unwrap().remove(&extra) else { return };
-      let response = if envelope.kind == "error" { Err(td_error(raw)) } else { Ok(raw.to_vec()) };
+      let response = if let "error" = envelope.r#type { Err(td_error(raw)) } else { Ok(raw.to_vec()) };
       let _ = tx.send(response);
       return;
     }
 
-    let event = if envelope.kind == "error" { Err(td_error(raw)) } else { serde_json::from_slice(raw).map_err(Error::Json) };
+    let event = match envelope.r#type {
+      "error" => Err(td_error(raw)),
+      _ => serde_json::from_slice(raw).map_err(Error::Json),
+    };
     let _ = state.events.send(event);
   }
 }

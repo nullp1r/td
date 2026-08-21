@@ -3,8 +3,8 @@ use std::fs;
 use serde::Deserialize;
 use tracing_subscriber::EnvFilter;
 
-use td_client::defaults;
-use td_types::fns::setTdlibParameters as Params;
+use td_client::{Client, defaults};
+use td_types::fns;
 
 use self::app::App;
 
@@ -31,12 +31,18 @@ async fn main() -> anyhow::Result<()> {
     .init();
 
   let cfg = fs::read_to_string("config.json")?;
-  let AppConfig { api_id, api_hash, bot_token } = serde_json::from_str(&cfg)?;
-  let params = Params { api_id, api_hash, ..defaults() };
+  let cfg = serde_json::from_str::<AppConfig>(&cfg)?;
+
+  let params = fns::setTdlibParameters {
+    api_id: cfg.api_id,
+    api_hash: cfg.api_hash,
+    ..defaults() //.
+  };
 
   td_client::set_log_verbosity_level(1);
 
-  let client = td_client::Client::bot(params, &bot_token).await?;
+  let client = Client::bot(params, &cfg.bot_token).await?;
+
   App::new(client).run().await?;
 
   Ok(())
