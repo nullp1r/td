@@ -122,7 +122,9 @@ impl Router {
   fn worker_loop() {
     loop {
       // SAFETY: TDLib returns either null or a valid pointer to a nul-terminated JSON string.
+      tracing::trace!("receiving…");
       let json_ptr = unsafe { td_sys::td_receive(1.0) };
+      tracing::trace!("received: {:#?}", json_ptr);
       let 1.. = json_ptr.addr() else { continue };
 
       // SAFETY: `json_ptr` is non-null and TDLib guarantees a nul-terminated response.
@@ -143,7 +145,7 @@ impl Router {
     match (env.extra, state) {
       (Some(extra), Some(state)) => {
         let Some(sender) = state.pending.lock().into_inner().remove(&extra) else {
-          tracing::warn!(client_id = state.client_id, extra, type = env.r#type, "no pending request matching extra id");
+          tracing::warn!(client_id = state.client_id, extra, type = %env.r#type, "no pending request matching extra id");
           return;
         };
 
@@ -162,12 +164,12 @@ impl Router {
       }
 
       (Some(extra), None) => {
-        tracing::warn!(client_id = ?env.client_id, extra, type = env.r#type, "dropped response: no matching client found");
+        tracing::warn!(client_id = ?env.client_id, extra, type = %env.r#type, "dropped response: no matching client found");
       }
 
       (None, Some(state)) => {
         let Ok(update) = util::from_c_json(raw) else {
-          tracing::error!(client_id = state.client_id, type = env.r#type, "failed to parse update payload");
+          tracing::error!(client_id = state.client_id, type = %env.r#type, "failed to parse update payload");
           return;
         };
 
@@ -191,7 +193,7 @@ impl Router {
           Ok(enums::Error::error(err)) => tracing::error!(client_id = ?env.client_id, ?err, "unsolicited tdlib error received"),
           Err(e) => tracing::error!(client_id = ?env.client_id, %e, "unsolicited unparseable tdlib error received"),
         },
-        _ => tracing::warn!(client_id = ?env.client_id, type = env.r#type, "ignored unhandled tdlib event"),
+        _ => tracing::warn!(client_id = ?env.client_id, type = %env.r#type, "ignored unhandled tdlib event"),
       },
     }
   }

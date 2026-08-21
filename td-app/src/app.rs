@@ -1,8 +1,6 @@
 use std::borrow::Cow;
 use std::sync::{Arc, RwLock};
 
-use tokio::time::sleep;
-
 use td_client::{ClientHandle, UpdateReceiver};
 use td_types::enums::{ChatAction, InputFile, Message, MessageContent, MessageSender, Update, UserStatus};
 use td_types::types;
@@ -30,12 +28,7 @@ impl App {
 
     while let Some(update) = updates.recv().await {
       if let Err(err) = self.dispatch(update).await {
-        if let Some(wait) = err.flood_wait() {
-          tracing::warn!(?wait, "hit Telegram FLOOD_WAIT, backing off");
-          sleep(wait).await;
-        } else {
-          tracing::error!(error = %err, "failed to dispatch update");
-        }
+        tracing::error!(error = %err, "failed to dispatch update");
       }
     }
 
