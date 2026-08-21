@@ -23,15 +23,15 @@ TDLib is Telegram's official library providing full access to the Telegram MTPro
   - Modern multi-client ID interface (`td_create_client_id`, `td_send`, `td_receive`, `td_execute`) and legacy pointer interface.
   - Global logging configuration, callback hooks, and build script with automatic `$ORIGIN` / `@loader_path` rpath linkage.
 - [x] **[`td-client`](td-client)**: Safe, async client runtime for TDLib.
-  - Multi-client routing and async request correlation over background receiver thread.
-  - Interactive authentication flows (bot token, user phone + SMS code, 2FA cloud password).
-  - Built-in device presets (`DESKTOP`, `ANDROID`, `IOS`, `MACOS`, `WEB_Z`, etc.).
+  - Multiple independently owned clients sharing one process-wide receiver thread.
+  - Typed concurrent requests, ordered updates, bot authentication, and graceful shutdown.
 - [x] **[`td-app`](td-app)**: Example Telegram bot showcasing `td-client` and `td-types`.
   - Demonstrates bot authentication, handling incoming updates, dispatching commands, and handling inline queries.
 
 ## Quick Look
 
 ```rust
+use td_client::{Client, defaults};
 use td_types::enums::{MessageContent, Update, User};
 use td_types::fns::setTdlibParameters as Params;
 use td_types::{fns, types};
@@ -42,22 +42,24 @@ async fn main() -> td_client::Result {
   let api_hash = "abcdefghijklmnopqrstuvwxyz".into();
   let bot_token = "123456789:abcdefghijklmnopqrstuvwxyz";
 
-  let params = Params { api_id, api_hash, ..td_client::defaults() };
-  let auth = td_client::auth(params).await?;
-  let (client, mut updates) = auth.bot(bot_token).await?;
+  let params = Params { api_id, api_hash, ..defaults() };
+  let mut client = Client::bot(params, bot_token).await?;
 
   let User::user(me) = client.execute(&fns::getMe {}).await?;
   let types::user { usernames, first_name, id, .. } = me;
-  let username = usernames.iter().find_map(|u| u.active_usernames.first()).map_or("…", |u| u);
-  println!("signed in as {first_name} (@{username}, id {id})");
+  let me = usernames.iter().find_map(|u| u.active_usernames.first()).map_or("…", String::as_str);
+  println!("signed in as {first_name} (@{me}, id {id})");
 
-  while let Some(update) = updates.recv().await {
-    let Update::updateNewMessage(u) = &update else { continue };
-    let MessageContent::messageText(m) = &u.message.content else { continue };
+  while let Some(u) = tokio::select! {
+    update = client.recv() => update?,
+    _ = tokio::signal::ctrl_c() => None,
+  } {
+    let Update::updateNewMessage(u) = u else { continue };
+    let MessageContent::messageText(m) = u.message.content else { continue };
     println!("text message: {}", m.text.text);
   }
 
-  Ok(())
+  client.shutdown().await
 }
 ```
 

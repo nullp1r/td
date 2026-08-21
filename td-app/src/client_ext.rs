@@ -2,7 +2,7 @@
 
 use std::future::Future as Fut;
 
-use td_client::ClientHandle;
+use td_client::Client;
 use td_types::enums::{Chat, File, FileType, Message, User};
 use td_types::enums::{InputFile, InputInlineQueryResult, InputMessageContent, InputMessageReplyTo};
 use td_types::{fns, types};
@@ -20,7 +20,7 @@ pub trait ClientExt {
   fn answer_inline_query(&self, qid: i64, results: Vec<InputInlineQueryResult>, cache_time: i32) -> impl Fut<Output = td_client::Result<()>>;
 }
 
-impl ClientExt for ClientHandle {
+impl ClientExt for Client {
   async fn send_text(&self, cid: i64, text: impl Into<String>) -> td_client::Result<Message> {
     send_message(self, cid, None, text_content(text)).await
   }
@@ -76,7 +76,7 @@ impl ClientExt for ClientHandle {
   }
 }
 
-async fn send_message(client: &ClientHandle, cid: i64, mid: Option<i64>, msg: InputMessageContent) -> td_client::Result<Message> {
+async fn send_message(client: &Client, cid: i64, mid: Option<i64>, msg: InputMessageContent) -> td_client::Result<Message> {
   let req = fns::sendMessage { chat_id: cid, reply_to: mid.map(reply_do), input_message_content: msg, ..Default::default() };
   client.execute(&req).await
 }

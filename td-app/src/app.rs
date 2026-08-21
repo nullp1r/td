@@ -1,7 +1,9 @@
 use std::borrow::Cow;
-use std::sync::{Arc, RwLock};
+use std::sync::RwLock;
 
-use td_client::{ClientHandle, UpdateReceiver};
+use tokio::signal;
+
+use td_client::Client;
 use td_types::enums::{ChatAction, InputFile, Message, MessageContent, MessageSender, Update, UserStatus};
 use td_types::types;
 
@@ -12,28 +14,41 @@ use crate::util;
 mod commands;
 mod inline;
 
-#[derive(Clone)]
 pub struct App {
-  client: ClientHandle,
-  db: Arc<RwLock<Database>>,
+  client: Client,
+  db: RwLock<Database>,
 }
 
 impl App {
-  pub fn new(client: ClientHandle) -> Self {
-    Self { client, db: Arc::new(RwLock::new(Database::new())) }
+  pub fn new(client: Client) -> Self {
+    Self { client, db: RwLock::new(Database::new()) }
   }
 
-  pub async fn run(&self, mut updates: UpdateReceiver) -> td_client::Result {
+  pub async fn run(mut self) -> td_client::Result {
     tracing::info!("listening for updates...");
 
-    while let Some(update) = updates.recv().await {
-      if let Err(err) = self.dispatch(update).await {
-        tracing::error!(error = %err, "failed to dispatch update");
+    loop {
+      let update = tokio::select! {
+        update = self.client.recv() => update,
+        _ = signal::ctrl_c() => break,
+      };
+
+      let update = match update {
+        Ok(Some(update)) => update,
+        Ok(None) => break,
+        Err(error) => {
+          tracing::error!(%error, "update stream failed");
+          break;
+        }
+      };
+
+      if let Err(error) = self.dispatch(update).await {
+        tracing::error!(%error, "failed to dispatch update");
       }
     }
 
     tracing::info!("update stream closed, shutting down");
-    Ok(())
+    self.client.shutdown().await
   }
 
   pub async fn dispatch(&self, update: Update) -> td_client::Result {
@@ -195,7 +210,7 @@ fn handle_user_status(user_id: i64, status: &UserStatus) {
 }
 
 fn handle_chat_action(chat_id: i64, action: &ChatAction) {
-  if matches!(action, ChatAction::chatActionTyping) {
+  if let ChatAction::chatActionTyping = action {
     tracing::debug!("Typing in {chat_id}");
   }
 }

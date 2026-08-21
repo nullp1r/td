@@ -2,6 +2,7 @@
 name = "td-client"
 version.workspace = true
 edition.workspace = true
+rust-version = "1.96"
 
 [lints]
 workspace = true
@@ -11,12 +12,10 @@ serde.workspace = true
 serde_json.workspace = true
 td-sys.workspace = true
 td-types.workspace = true
-tokio = { workspace = true, features = ["sync", "rt"] }
-tracing.workspace = true
+tokio = { workspace = true, features = ["sync"] }
 
 [build-dependencies]
 td-sys.workspace = true
 
 [dev-dependencies]
-tracing-subscriber.workspace = true
 tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time"] }

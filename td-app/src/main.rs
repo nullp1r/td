@@ -36,11 +36,8 @@ async fn main() -> anyhow::Result<()> {
 
   td_client::set_log_verbosity_level(1);
 
-  let auth = td_client::auth(params).await?;
-  let (client, updates) = auth.bot(&bot_token).await?;
-
-  let app = App::new(client);
-  app.run(updates).await?;
+  let client = td_client::Client::bot(params, &bot_token).await?;
+  App::new(client).run().await?;
 
   Ok(())
 }
