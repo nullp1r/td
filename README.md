@@ -31,9 +31,10 @@ TDLib is Telegram's official library providing full access to the Telegram MTPro
 ## Quick Look
 
 ```rust
+use std::{fmt, time::Duration};
+
 use td_client::{Client, defaults};
-use td_types::enums::{MessageContent, Update, User};
-use td_types::fns::setTdlibParameters as Params;
+use td_types::enums::{MessageContent, MessageSender, Update, User};
 use td_types::{fns, types};
 
 #[tokio::main]
@@ -42,24 +43,69 @@ async fn main() -> td_client::Result {
   let api_hash = "abcdefghijklmnopqrstuvwxyz".into();
   let bot_token = "123456789:abcdefghijklmnopqrstuvwxyz";
 
-  let params = Params { api_id, api_hash, ..defaults() };
+  tracing_subscriber::fmt().without_time().init();
+
+  td_client::set_log_level(1);
+  td_client::set_receive_timeout(Duration::from_millis(100));
+
+  let params = fns::setTdlibParameters { api_id, api_hash, ..defaults() };
   let mut client = Client::bot(params, bot_token).await?;
 
+  if let Err(err) = run(&mut client).await {
+    tracing::error!(%err, "failed to run");
+  }
+  if let Err(err) = client.shutdown().await {
+    tracing::error!(%err, "failed to shut down");
+  }
+  Ok(())
+}
+
+async fn run(client: &mut Client) -> td_client::Result {
   let User::user(me) = client.send(&fns::getMe {}).await?;
   let types::user { usernames, first_name, id, .. } = me;
   let me = usernames.iter().find_map(|u| u.active_usernames.first()).map_or("…", |u| u);
-  println!("signed in as {first_name} (@{me}, id {id})");
+  tracing::info!(as=%first_name, "@"=%me, id, "signed in");
 
   while let Some(update) = tokio::select! {
-    res = client.recv() => res?,
-    _ = tokio::signal::ctrl_c() => None,
+    r = client.recv() => r?,
+    _ = tokio::signal::ctrl_c() => None
   } {
-    let Update::updateNewMessage(u) = update else { continue };
-    let MessageContent::messageText(m) = u.message.content else { continue };
-    println!("text message: {}", m.text.text);
+    match update {
+      Update::updateNewMessage(upd) if !upd.message.is_outgoing => {
+        let types::message { id, chat_id, sender_id, content, .. } = upd.message;
+        let content = display(&content);
+        let sender_id = match sender_id {
+          MessageSender::messageSenderChat(s) => s.chat_id,
+          MessageSender::messageSenderUser(s) => s.user_id,
+        };
+        tracing::info!(sender_id, chat_id, id, %content, "new message");
+      }
+      _ => {}
+    }
   }
 
-  client.shutdown().await
+  Ok(())
+}
+
+fn display(content: &MessageContent) -> impl fmt::Display {
+  fmt::from_fn(move |f| match &content {
+    MessageContent::messageText(m) =>
+      write!(f, "{}", m.text.text),
+    MessageContent::messageSticker(m) =>
+      write!(f, "<sticker {}>", m.sticker.sticker.remote.id),
+    MessageContent::messageAnimation(m) =>
+      write!(f, "<gif {}>", m.animation.animation.remote.id),
+    MessageContent::messageAudio(m) =>
+      write!(f, "<audio {}>", m.audio.audio.remote.id),
+    MessageContent::messageDocument(m) =>
+      write!(f, "<file {}>", m.document.document.remote.id),
+    MessageContent::messagePhoto(m) =>
+      write!(f, "<photo {}>", m.photo.sizes.last().map_or("", |s| &s.photo.remote.id)),
+    MessageContent::messageVideo(m) =>
+      write!(f, "<video {}>", m.video.video.remote.id),
+    _ =>
+      write!(f, "{content:?}"),
+  })
 }
 ```
 

@@ -20,8 +20,8 @@ impl ClientExt for Client {
     reply_message(self, cid, mid, text_content(text)).await
   }
 
-  async fn reply_document(&self, cid: i64, mid: i64, document: InputFile, caption: Option<String>) -> td_client::Result<Message> {
-    reply_message(self, cid, mid, document_content(document, caption)).await
+  async fn reply_document(&self, cid: i64, mid: i64, doc: InputFile, caption: Option<String>) -> td_client::Result<Message> {
+    reply_message(self, cid, mid, document_content(doc, caption)).await
   }
 
   async fn get_message(&self, cid: i64, mid: i64) -> td_client::Result<Message> {
@@ -43,8 +43,9 @@ impl ClientExt for Client {
   }
 
   async fn upload(&self, path: impl Into<String>, priority: i32) -> td_client::Result<types::file> {
-    let input = InputFile::inputFileLocal(types::inputFileLocal { path: path.into() });
-    let req = fns::preliminaryUploadFile { priority, file: input, file_type: Some(FileType::fileTypeDocument) };
+    let file_type = Some(FileType::fileTypeDocument);
+    let file = types::inputFileLocal { path: path.into() }.into();
+    let req = fns::preliminaryUploadFile { priority, file, file_type };
     let res = self.send(&req).await?;
     let File::file(file) = res;
     Ok(file)
@@ -57,24 +58,27 @@ impl ClientExt for Client {
 }
 
 async fn reply_message(client: &Client, cid: i64, mid: i64, msg: InputMessageContent) -> td_client::Result<Message> {
-  let req = fns::sendMessage { chat_id: cid, reply_to: Some(reply_do(mid)), input_message_content: msg, ..Default::default() };
+  let reply_to = Some(reply_do(mid));
+  let req = fns::sendMessage { reply_to, chat_id: cid, input_message_content: msg, ..Default::default() };
   client.send(&req).await
 }
 
 fn reply_do(mid: i64) -> InputMessageReplyTo {
-  InputMessageReplyTo::inputMessageReplyToMessage(types::inputMessageReplyToMessage { message_id: mid, ..Default::default() })
+  types::inputMessageReplyToMessage { message_id: mid, ..Default::default() }.into()
 }
 
 fn formatted_text(text: impl Into<String>) -> types::formattedText {
-  types::formattedText { text: text.into(), ..Default::default() }
+  let text = text.into();
+  types::formattedText { text, ..Default::default() }
 }
 
 fn text_content(text: impl Into<String>) -> InputMessageContent {
-  InputMessageContent::inputMessageText(types::inputMessageText { text: formatted_text(text), ..Default::default() })
+  let text = formatted_text(text);
+  types::inputMessageText { text, ..Default::default() }.into()
 }
 
 fn document_content(document: InputFile, caption: Option<String>) -> InputMessageContent {
   let document = types::inputDocument { document, ..Default::default() };
   let caption = caption.map(formatted_text);
-  InputMessageContent::inputMessageDocument(types::inputMessageDocument { document, caption })
+  types::inputMessageDocument { document, caption }.into()
 }

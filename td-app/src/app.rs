@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use tokio::signal;
 
 use td_client::Client;
-use td_types::enums::{ChatAction, InputFile, Message, MessageContent, MessageSender, Update, UserStatus};
+use td_types::enums::{ChatAction, Message, MessageContent, MessageSender, Update, UserStatus};
 use td_types::types;
 
 use crate::client_ext::ClientExt;
@@ -118,7 +118,7 @@ impl App {
 
     tracing::info!(file_id = file.id, path = %downloaded.local.path, "upload started, sending back as document");
     let caption = util::message_caption(content).map(Into::into);
-    let document = InputFile::inputFileId(types::inputFileId { id: file.id });
+    let document = types::inputFileId { id: file.id }.into();
     self.client.reply_document(chat_id, id, document, caption).await?;
 
     Ok(())

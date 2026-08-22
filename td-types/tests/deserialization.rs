@@ -43,13 +43,9 @@ fn struct_defaults_and_ignored_fields() {
 
 #[test]
 fn enum_defaults() {
-  assert_eq!(
-    enums::TextEntityType::default(), // Unit default
-    enums::TextEntityType::textEntityTypeBankCardNumber
-  );
+  // Unit default
+  assert_eq!(enums::TextEntityType::default(), enums::TextEntityType::textEntityTypeBankCardNumber);
 
-  assert_eq!(
-    enums::OptionValue::default(), // Struct-wrapping default (instantiates first variant)
-    enums::OptionValue::optionValueBoolean(types::optionValueBoolean { value: false })
-  );
+  // Struct-wrapping default (instantiates first variant)
+  assert_eq!(enums::OptionValue::default(), types::optionValueBoolean { value: false }.into());
 }

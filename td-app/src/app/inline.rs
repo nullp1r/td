@@ -1,4 +1,4 @@
-use td_types::enums::{InputInlineQueryResult, InputMessageContent};
+use td_types::enums::InputInlineQueryResult;
 use td_types::types;
 
 use super::App;
@@ -19,16 +19,8 @@ impl App {
 }
 
 fn article(id: &str, title: &str, desc: &str, text: &str) -> InputInlineQueryResult {
-  let content = InputMessageContent::inputMessageText(types::inputMessageText {
-    text: types::formattedText { text: text.into(), ..Default::default() },
-    ..Default::default()
-  });
-
-  InputInlineQueryResult::inputInlineQueryResultArticle(types::inputInlineQueryResultArticle {
-    id: id.into(),
-    title: title.into(),
-    description: desc.into(),
-    input_message_content: content,
-    ..Default::default()
-  })
+  let (id, title, description) = (id.into(), title.into(), desc.into());
+  let text = types::formattedText { text: text.into(), ..Default::default() };
+  let input_message_content = types::inputMessageText { text, ..Default::default() }.into();
+  types::inputInlineQueryResultArticle { id, title, description, input_message_content, ..Default::default() }.into()
 }

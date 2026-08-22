@@ -69,7 +69,7 @@ fn call_string() {
   let client_id = create_client();
   let input = "Hello Telegram FFI! 🦀🚀".to_string();
   let res = send_and_receive(client_id, &fns::testCallString { x: input.clone() });
-  assert_eq!(res, enums::TestString::testString(types::testString { value: input }));
+  assert_eq!(res, types::testString { value: input }.into());
 }
 
 #[test]
@@ -77,7 +77,7 @@ fn call_bytes() {
   let client_id = create_client();
   let input = b"\x00\x01\x02\xFF\xFEbinary-test".to_vec();
   let res = send_and_receive(client_id, &fns::testCallBytes { x: input.clone() });
-  assert_eq!(res, enums::TestBytes::testBytes(types::testBytes { value: input }));
+  assert_eq!(res, types::testBytes { value: input }.into());
 }
 
 #[test]
@@ -85,7 +85,7 @@ fn call_vector_int() {
   let client_id = create_client();
   let input = vec![-100, 0, 42, 1337, i32::MAX];
   let res = send_and_receive(client_id, &fns::testCallVectorInt { x: input.clone() });
-  assert_eq!(res, enums::TestVectorInt::testVectorInt(types::testVectorInt { value: input }));
+  assert_eq!(res, types::testVectorInt { value: input }.into());
 }
 
 #[test]
@@ -93,7 +93,7 @@ fn call_vector_int_object() {
   let client_id = create_client();
   let input = vec![types::testInt { value: 7 }, types::testInt { value: 42 }];
   let res = send_and_receive(client_id, &fns::testCallVectorIntObject { x: input.clone() });
-  assert_eq!(res, enums::TestVectorIntObject::testVectorIntObject(types::testVectorIntObject { value: input }));
+  assert_eq!(res, types::testVectorIntObject { value: input }.into());
 }
 
 #[test]
@@ -101,7 +101,7 @@ fn call_vector_string() {
   let client_id = create_client();
   let input = vec!["apple".into(), "banana".into(), "cherry".into()];
   let res = send_and_receive(client_id, &fns::testCallVectorString { x: input.clone() });
-  assert_eq!(res, enums::TestVectorString::testVectorString(types::testVectorString { value: input }));
+  assert_eq!(res, types::testVectorString { value: input }.into());
 }
 
 #[test]
@@ -109,21 +109,21 @@ fn call_vector_string_object() {
   let client_id = create_client();
   let input = vec![types::testString { value: "first".into() }, types::testString { value: "second".into() }];
   let res = send_and_receive(client_id, &fns::testCallVectorStringObject { x: input.clone() });
-  assert_eq!(res, enums::TestVectorStringObject::testVectorStringObject(types::testVectorStringObject { value: input }));
+  assert_eq!(res, types::testVectorStringObject { value: input }.into());
 }
 
 #[test]
 fn square_int() {
   let client_id = create_client();
   let res = send_and_receive(client_id, &fns::testSquareInt { x: 10 });
-  assert_eq!(res, enums::TestInt::testInt(types::testInt { value: 100 }));
+  assert_eq!(res, types::testInt { value: 100 }.into());
 }
 
 #[test]
 fn return_error_synchronously() {
   let err = types::error { code: 418, message: "I'm a teapot".into() };
   let res = execute_sync(&fns::testReturnError { error: err.clone() });
-  assert_eq!(res, enums::Error::error(err));
+  assert_eq!(res, err.into());
 }
 
 #[test]

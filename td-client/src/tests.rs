@@ -43,12 +43,12 @@ fn router(states: &[&Arc<ClientState>]) -> Router {
 }
 
 fn option(name: &str) -> Update {
-  let value = OptionValue::optionValueString(types::optionValueString { value: name.into() });
-  Update::updateOption(types::updateOption { name: name.into(), value })
+  let value = types::optionValueString { value: name.into() }.into();
+  types::updateOption { name: name.into(), value }.into()
 }
 
 fn auth(authorization_state: AuthorizationState) -> Update {
-  Update::updateAuthorizationState(types::updateAuthorizationState { authorization_state })
+  types::updateAuthorizationState { authorization_state }.into()
 }
 
 fn emit(client: &Client, update: Update) {
@@ -58,7 +58,7 @@ fn emit(client: &Client, update: Update) {
 #[test]
 fn debug_describes_client_state() {
   let client = fake_client(42);
-  assert_eq!(format!("{client:?}"), "Client { id: 42, closed: false, buffered_updates: 0, accepting_requests: true, pending_requests: 0, .. }");
+  assert_eq!(format!("{client:?}"), "Client { id: 42, .. }");
 }
 
 #[tokio::test]

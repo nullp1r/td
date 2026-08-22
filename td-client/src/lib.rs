@@ -65,14 +65,7 @@ pub struct Client {
 
 impl fmt::Debug for Client {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    let reqs = self.state.requests.lock().unwrap();
-    f.debug_struct("Client")
-      .field("id", &self.state.id)
-      .field("closed", &self.closed)
-      .field("buffered_updates", &self.buffered_updates.len())
-      .field("accepting_requests", &reqs.accepting)
-      .field("pending_requests", &reqs.replies.len())
-      .finish_non_exhaustive()
+    f.debug_struct("Client").field("id", &self.state.id).finish_non_exhaustive()
   }
 }
 
@@ -151,11 +144,11 @@ impl Client {
   async fn authorize_bot(&mut self, token: &str) -> Result {
     loop {
       match self.recv_auth().await? {
-        AuthorizationState::authorizationStateReady => return Ok(()),
         AuthorizationState::authorizationStateWaitTdlibParameters => {}
         AuthorizationState::authorizationStateWaitPhoneNumber => {
           self.send(&fns::checkAuthenticationBotToken { token: token.into() }).await?;
         }
+        AuthorizationState::authorizationStateReady => return Ok(()),
         state => return Err(Error::Auth(state)),
       }
     }

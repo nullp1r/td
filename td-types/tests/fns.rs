@@ -1,4 +1,4 @@
-use td_types::{enums, fns, types};
+use td_types::{fns, types};
 
 #[test]
 fn unit_function() {
@@ -15,10 +15,7 @@ fn function_with_args() {
 
 #[test]
 fn function_with_enum_arg() {
-  let set = fns::setOption {
-    name: "online".into(), //.
-    value: Some(enums::OptionValue::optionValueBoolean(types::optionValueBoolean { value: true })),
-  };
+  let set = fns::setOption { name: "online".into(), value: Some(types::optionValueBoolean { value: true }.into()) };
   let json = serde_json::to_string(&set).unwrap();
   assert_eq!(json, r#"{"@type":"setOption","name":"online","value":{"@type":"optionValueBoolean","value":true}}"#);
 }

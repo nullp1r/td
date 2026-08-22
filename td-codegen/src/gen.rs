@@ -99,17 +99,32 @@ fn r#enum(enum_name: &str, items: &[&Combinator]) -> impl fmt::Display {
       };
       writeln!(f, "{:4}{name}{fields},", "")?;
     }
+    write!(f, "{:2}}}", "")?;
 
     if !has_unit_default && let [first, ..] = items {
       let first = util::escaped_keyword(first.name);
-      writeln!(f, "{:2}}}", "")?;
+      writeln!(f)?;
       writeln!(f)?;
       writeln!(f, "{:2}impl Default for {enum_name} {{", "")?;
       writeln!(f, "{:4}fn default() -> Self {{", "")?;
-      writeln!(f, "{:6}Self::{first}(types::{first}::default())", "")?;
+      writeln!(f, "{:6}types::{first}::default().into()", "")?;
       writeln!(f, "{:4}}}", "")?;
+      write!(f, "{:2}}}", "")?;
     }
-    write!(f, "{:2}}}", "")
+
+    for comb in items {
+      let 1.. = comb.fields.len() else { continue };
+      let name = util::escaped_keyword(comb.name);
+      writeln!(f)?;
+      writeln!(f)?;
+      writeln!(f, "{:2}impl From<types::{name}> for {enum_name} {{", "")?;
+      writeln!(f, "{:4}fn from(value: types::{name}) -> Self {{", "")?;
+      writeln!(f, "{:6}Self::{name}(value)", "")?;
+      writeln!(f, "{:4}}}", "")?;
+      write!(f, "{:2}}}", "")?;
+    }
+
+    Ok(())
   })
 }
 

@@ -82,7 +82,13 @@ pub mod enums {
 
   impl Default for Entity {
     fn default() -> Self {
-      Self::entity(types::entity::default())
+      types::entity::default().into()
+    }
+  }
+
+  impl From<types::entity> for Entity {
+    fn from(value: types::entity) -> Self {
+      Self::entity(value)
     }
   }
 
@@ -98,7 +104,13 @@ pub mod enums {
 
   impl Default for Item {
     fn default() -> Self {
-      Self::itemData(types::itemData::default())
+      types::itemData::default().into()
+    }
+  }
+
+  impl From<types::itemData> for Item {
+    fn from(value: types::itemData) -> Self {
+      Self::itemData(value)
     }
   }
 
@@ -110,7 +122,13 @@ pub mod enums {
 
   impl Default for Loop {
     fn default() -> Self {
-      Self::r#loop(types::r#loop::default())
+      types::r#loop::default().into()
+    }
+  }
+
+  impl From<types::r#loop> for Loop {
+    fn from(value: types::r#loop) -> Self {
+      Self::r#loop(value)
     }
   }
 
@@ -122,7 +140,13 @@ pub mod enums {
 
   impl Default for Menu {
     fn default() -> Self {
-      Self::menu(types::menu::default())
+      types::menu::default().into()
+    }
+  }
+
+  impl From<types::menu> for Menu {
+    fn from(value: types::menu) -> Self {
+      Self::menu(value)
     }
   }
 
@@ -134,6 +158,12 @@ pub mod enums {
     node(types::node),
   }
 
+  impl From<types::node> for Tree {
+    fn from(value: types::node) -> Self {
+      Self::node(value)
+    }
+  }
+
   #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
   #[serde(tag = "@type")]
   pub enum User {
@@ -143,7 +173,19 @@ pub mod enums {
 
   impl Default for User {
     fn default() -> Self {
-      Self::user(types::user::default())
+      types::user::default().into()
+    }
+  }
+
+  impl From<types::user> for User {
+    fn from(value: types::user) -> Self {
+      Self::user(value)
+    }
+  }
+
+  impl From<types::userGroup> for User {
+    fn from(value: types::userGroup) -> Self {
+      Self::userGroup(value)
     }
   }
 }

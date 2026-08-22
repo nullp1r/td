@@ -40,28 +40,27 @@ fn bytes() {
 #[test]
 fn tagged_enums() {
   check(&enums::OptionValue::optionValueEmpty);
-  check(&enums::OptionValue::optionValueBoolean(types::optionValueBoolean { value: true }));
-  check(&enums::OptionValue::optionValueInteger(types::optionValueInteger { value: 42 }));
-  check(&enums::OptionValue::optionValueString(types::optionValueString { value: "hello".into() }));
+  check(&enums::OptionValue::from(types::optionValueBoolean { value: true }));
+  check(&enums::OptionValue::from(types::optionValueInteger { value: 42 }));
+  check(&enums::OptionValue::from(types::optionValueString { value: "hello".into() }));
 }
 
 #[test]
 fn recursive_boxed_enums() {
-  check(&enums::RichText::richTextBold(types::richTextBold {
-    text: Box::new(enums::RichText::richTextItalic(types::richTextItalic {
-      text: Box::new(enums::RichText::richTextPlain(types::richTextPlain { text: "nested rich text".into() })),
-    })),
-  }));
+  let plain = types::richTextPlain { text: "nested rich text".into() }.into();
+  let italic = types::richTextItalic { text: Box::new(plain) }.into();
+  let bold: enums::RichText = types::richTextBold { text: Box::new(italic) }.into();
+  check(&bold);
 }
 
 #[test]
 fn function_return_types() {
   check(&<fns::banGroupCallParticipants as Function>::Return::ok);
-  check(&<fns::getMe as Function>::Return::user(types::user {
-    id: 12_345, //.
+  check(&<fns::getMe as Function>::Return::from(types::user {
+    id: 12_345,
     first_name: "Alice".into(),
     last_name: "Smith".into(),
-    ..Default::default()
+    ..Default::default() //.
   }));
 }
 
@@ -75,7 +74,7 @@ fn composite_structures() {
     ],
   });
 
-  check(&enums::User::user(types::user {
+  check(&enums::User::from(types::user {
     id: 9_876_543_210,
     first_name: "John".into(),
     last_name: "Doe".into(),
