@@ -20,7 +20,7 @@ impl Serialize for Int64 {
       let _ = write!(w, "{}", self.0);
       w.position() as usize
     };
-    // SAFETY: formatting an i64 produces only ASCII.
+    // SAFETY: `buf[..len]` was written by `i64`'s ASCII decimal formatter.
     s.serialize_str(unsafe { str::from_utf8_unchecked(&buf[..len]) })
   }
 }

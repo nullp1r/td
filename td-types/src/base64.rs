@@ -16,7 +16,8 @@ pub fn encode_to(buf: &mut String, input: &[u8], flags: u8) {
   let [url_safe, padding] = [flags & URL_SAFE != 0, flags & NO_PADDING == 0];
   let encode = move |sextet| ENCODE[0x3f & sextet as usize][url_safe as usize];
 
-  // SAFETY: Encoded characters and padding bytes are valid ASCII / UTF-8.
+  // SAFETY: The existing bytes are UTF-8. Every appended byte is ASCII,
+  // so the `String` invariant is preserved.
   let buf = unsafe { buf.as_mut_vec() };
   let len_start = buf.len();
   let len_padded = (input.len() + 2) / 3 * 4;

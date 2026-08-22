@@ -125,7 +125,7 @@ impl Client {
   }
 
   fn create() -> Self {
-    // SAFETY: TDLib creates and returns a new client identifier.
+    // SAFETY: The call takes no arguments and returns an opaque ID by value.
     let id = unsafe { td_sys::td_create_client_id() };
     let (tx, events) = mpsc::unbounded_channel();
     let (extra, pending, queued, closed) = Default::default();
@@ -178,7 +178,7 @@ impl State {
     let (tx, rx) = oneshot::channel();
     self.pending.lock().unwrap().insert(extra, tx);
 
-    // SAFETY: the client is live and `request` is NUL-terminated.
+    // SAFETY: `self.id` came from TDLib. `request` is live and NUL-terminated.
     unsafe { td_sys::td_send(self.id, request.as_ptr().cast()) };
     rx
   }
@@ -267,13 +267,15 @@ impl Router {
   fn receive(&self) {
     let timeout = f64::from_bits(self.timeout.load(Ordering::Relaxed));
 
-    // SAFETY: this method is called only by the sole receiver thread.
+    // SAFETY: Only the process-wide receiver thread calls `td_receive`;
+    // this crate never calls `td_execute`.
     let raw = unsafe { td_sys::td_receive(timeout) };
     if raw.is_null() {
       return;
     }
 
-    // SAFETY: TDLib returned a non-null NUL-terminated string.
+    // SAFETY: `raw` is non-null and points to TDLib's NUL-terminated buffer,
+    // which remains valid until the next receive or execute call.
     self.dispatch(unsafe { CStr::from_ptr(raw) }.to_bytes());
   }
 }
@@ -305,7 +307,7 @@ pub fn set_receive_timeout(seconds: f64) {
 }
 
 pub fn set_log_verbosity_level(level: i32) {
-  // SAFETY: TDLib accepts every integer verbosity level.
+  // SAFETY: The call passes no pointers or borrowed storage.
   unsafe { td_sys::td_set_log_verbosity_level(level) };
 }
 

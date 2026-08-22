@@ -8,14 +8,14 @@ static LOCK: Mutex<()> = Mutex::new(());
 static SILENCE: Once = Once::new();
 
 fn silence_logs() {
-  // SAFETY: Suppressing all TDLib log output for quiet test execution.
+  // SAFETY: The call passes no pointers or borrowed storage.
   SILENCE.call_once(|| unsafe { td_sys::td_set_log_verbosity_level(0) });
 }
 
 fn create_client() -> i32 {
   silence_logs();
 
-  // SAFETY: Creating client ID for test run.
+  // SAFETY: The call takes no arguments and returns an opaque ID by value.
   unsafe { td_sys::td_create_client_id() }
 }
 
@@ -24,15 +24,15 @@ fn send_and_receive<F: Function>(client_id: i32, req: &F) -> F::Return {
   let req_json = serde_json::to_string(req).expect("serialize request");
   let c_req = CString::new(req_json).expect("valid CString");
 
-  // SAFETY: Passing a valid null-terminated C string and active client ID.
+  // SAFETY: `client_id` came from TDLib; `c_req` is live and NUL-terminated.
   unsafe { td_sys::td_send(client_id, c_req.as_ptr()) };
 
   loop {
-    // SAFETY: td_receive is thread-safe when called sequentially (guaranteed by mutex).
+    // SAFETY: `LOCK` serializes all `td_receive` and `td_execute` calls.
     let res_ptr = unsafe { td_sys::td_receive(1.0) };
     assert!(!res_ptr.is_null(), "timeout waiting for response");
 
-    // SAFETY: res_ptr points to a valid null-terminated UTF-8 JSON C string when non-null.
+    // SAFETY: `res_ptr` is non-null, NUL-terminated, and valid while `LOCK` is held.
     let res_str = unsafe { CStr::from_ptr(res_ptr) }.to_str().expect("valid utf-8 response");
 
     if let Ok(ret) = serde_json::from_str::<F::Return>(res_str) {
@@ -43,15 +43,16 @@ fn send_and_receive<F: Function>(client_id: i32, req: &F) -> F::Return {
 
 fn execute_sync<F: Function>(req: &F) -> F::Return {
   silence_logs();
+  let _guard = LOCK.lock().expect("lock poisoned");
 
   let req_json = serde_json::to_string(req).expect("serialize request");
   let c_req = CString::new(req_json).expect("valid CString");
 
-  // SAFETY: Passing a valid null-terminated C string to stateless td_execute.
+  // SAFETY: `c_req` is live and NUL-terminated; this request supports sync execution.
   let res_ptr = unsafe { td_sys::td_execute(c_req.as_ptr()) };
   assert!(!res_ptr.is_null(), "td_execute response should not be null");
 
-  // SAFETY: res_ptr points to a valid null-terminated JSON C string.
+  // SAFETY: `res_ptr` is non-null, NUL-terminated, and valid while `LOCK` is held.
   let res_str = unsafe { CStr::from_ptr(res_ptr) }.to_str().expect("valid utf-8 response");
   serde_json::from_str::<F::Return>(res_str).expect("deserialize return type")
 }
