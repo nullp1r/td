@@ -2,19 +2,20 @@
 name = "td-types"
 version.workspace = true
 edition.workspace = true
-
-[lib]
-doctest = false
+rust-version.workspace = true
 
 [lints]
 workspace = true
 
+[lib]
+doctest = false
+
 [dependencies]
 serde.workspace = true
-
-[dev-dependencies]
-serde_json.workspace = true
 
 [build-dependencies]
 td-codegen.workspace = true
 td-parser.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true

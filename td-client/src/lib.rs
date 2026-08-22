@@ -34,8 +34,8 @@ impl fmt::Display for Error {
 
 impl error::Error for Error {
   fn source(&self) -> Option<&(dyn error::Error + 'static)> {
-    let Self::Json(error) = self else { return None };
-    Some(error.as_ref())
+    let Self::Json(err) = self else { return None };
+    Some(&**err)
   }
 }
 
@@ -65,25 +65,32 @@ pub struct Client {
 
 impl fmt::Debug for Client {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    f.debug_struct("Client").finish_non_exhaustive()
+    let reqs = self.state.requests.lock().unwrap();
+    f.debug_struct("Client")
+      .field("id", &self.state.id)
+      .field("closed", &self.closed)
+      .field("buffered_updates", &self.buffered_updates.len())
+      .field("accepting_requests", &reqs.accepting)
+      .field("pending_requests", &reqs.replies.len())
+      .finish_non_exhaustive()
   }
 }
 
 impl Client {
-  pub async fn new(parameters: fns::setTdlibParameters) -> Result<Self> {
+  pub async fn new(params: fns::setTdlibParameters) -> Result<Self> {
     let client = Self::create_unconfigured();
-    if let Err(error) = client.send(&parameters).await {
+    if let Err(err) = client.send(&params).await {
       let _ = client.shutdown().await;
-      return Err(error);
+      return Err(err);
     }
     Ok(client)
   }
 
-  pub async fn bot(parameters: fns::setTdlibParameters, token: &str) -> Result<Self> {
-    let mut client = Self::new(parameters).await?;
-    if let Err(error) = client.authorize_bot(token).await {
+  pub async fn bot(params: fns::setTdlibParameters, token: &str) -> Result<Self> {
+    let mut client = Self::new(params).await?;
+    if let Err(err) = client.authorize_bot(token).await {
       let _ = client.shutdown().await;
-      return Err(error);
+      return Err(err);
     }
     Ok(client)
   }
@@ -117,28 +124,28 @@ impl Client {
 
     loop {
       match self.recv_event().await? {
-        Update::updateAuthorizationState(update) => return Ok(update.authorization_state),
+        Update::updateAuthorizationState(u) => return Ok(u.authorization_state),
         update => self.buffered_updates.push_back(update),
       }
     }
   }
 
   pub async fn shutdown(mut self) -> Result {
-    let result = self.close_and_wait().await;
+    let res = self.close_and_wait().await;
     self.state.cancel_requests();
     ROUTER.unregister_and_wait_for_receiver(self.state.id).await;
-    result
+    res
   }
 
   fn create_unconfigured() -> Self {
     // SAFETY: The call takes no arguments and returns an opaque ID by value.
     let id = unsafe { td_sys::td_create_client_id() };
-    let (tx, events) = mpsc::unbounded_channel();
-    let (extra, buffered_updates, closed) = Default::default();
-    let requests = Mutex::new(PendingRequests { accepting: true, replies: Default::default() });
-    let state = Arc::new(ClientState { id, next_extra: extra, requests, events: tx });
+    let (tx, rx) = mpsc::unbounded_channel();
+    let (replies, next_extra, buffered_updates, closed) = Default::default();
+    let requests = Mutex::new(PendingRequests { replies, accepting: true });
+    let state = Arc::new(ClientState { id, next_extra, requests, events: tx });
     ROUTER.register(id, Arc::downgrade(&state));
-    Self { state, events, buffered_updates, closed }
+    Self { state, buffered_updates, closed, events: rx }
   }
 
   async fn authorize_bot(&mut self, token: &str) -> Result {
@@ -160,20 +167,22 @@ impl Client {
     }
 
     self.state.execute_request(&fns::close {}, true).await?;
-    let mut result = Ok(());
+    let mut res = Ok(());
     while !self.closed {
       match self.recv_event().await {
         Ok(_) => {}
-        Err(Error::Disconnected) => return result.and(Err(Error::Disconnected)),
-        Err(error) => result = result.and(Err(error)),
+        Err(Error::Disconnected) => return res.and(Err(Error::Disconnected)),
+        Err(err) => res = res.and(Err(err)),
       }
     }
-    result
+    res
   }
 
   async fn recv_event(&mut self) -> Result<Update> {
     let update = self.events.recv().await.ok_or(Error::Disconnected)??;
-    if let Update::updateAuthorizationState(types::updateAuthorizationState { authorization_state: AuthorizationState::authorizationStateClosed }) = &update {
+    if let Update::updateAuthorizationState(u) = &update
+      && let AuthorizationState::authorizationStateClosed = u.authorization_state
+    {
       self.closed = true;
       self.state.cancel_requests();
     }
@@ -216,16 +225,16 @@ impl ClientState {
   }
 
   fn register_and_send_request(&self, extra: u64, request: &[u8], closing: bool) -> Result<oneshot::Receiver<Result<Vec<u8>>>> {
-    let mut requests = self.requests.lock().unwrap();
-    if !requests.accepting || (!closing && self.events.is_closed()) {
+    let mut reqs = self.requests.lock().unwrap();
+    if !reqs.accepting || (!closing && self.events.is_closed()) {
       return Err(Error::Disconnected);
     }
     if closing {
-      requests.accepting = false;
+      reqs.accepting = false;
     }
 
     let (tx, rx) = oneshot::channel();
-    requests.replies.insert(extra, tx);
+    reqs.replies.insert(extra, tx);
     // SAFETY: `self.id` came from TDLib. `request` is live and NUL-terminated.
     unsafe { td_sys::td_send(self.id, request.as_ptr().cast()) };
     Ok(rx)
@@ -233,11 +242,11 @@ impl ClientState {
 
   fn complete_request(&self, extra: u64, r#type: &str, raw: &[u8]) {
     let Some(tx) = self.requests.lock().unwrap().replies.remove(&extra) else { return };
-    let response = match r#type {
+    let res = match r#type {
       "error" => Err(parse_td_error(raw)),
       _ => Ok(raw.to_vec()),
     };
-    let _ = tx.send(response);
+    let _ = tx.send(res);
   }
 
   fn send_event(&self, r#type: &str, raw: &[u8]) {
@@ -249,9 +258,9 @@ impl ClientState {
   }
 
   fn cancel_requests(&self) {
-    let mut requests = self.requests.lock().unwrap();
-    requests.accepting = false;
-    requests.replies.clear();
+    let mut reqs = self.requests.lock().unwrap();
+    reqs.accepting = false;
+    reqs.replies.clear();
   }
 }
 
@@ -315,12 +324,13 @@ impl Router {
 
   fn route_message(&self, raw: &[u8]) {
     let incoming = match serde_json::from_slice::<IncomingMessage<'_>>(raw) {
-      Ok(incoming) => incoming,
-      Err(error) => {
-        self.broadcast_json_error(error);
+      Ok(msg) => msg,
+      Err(err) => {
+        self.broadcast_json_error(err);
         return;
       }
     };
+
     let Some(client) = self.find_client(incoming.client_id) else { return };
 
     match incoming.extra {
@@ -330,9 +340,9 @@ impl Router {
   }
 
   fn broadcast_json_error(&self, error: serde_json::Error) {
-    let error = Arc::new(error);
+    let err = Arc::new(error);
     for state in self.live_clients().values().filter_map(Weak::upgrade) {
-      let _ = state.events.send(Err(Error::Json(Arc::clone(&error))));
+      let _ = state.events.send(Err(Error::Json(Arc::clone(&err))));
     }
   }
 
@@ -342,6 +352,7 @@ impl Router {
 
   fn receive_one(&self) {
     let timeout = f64::from_bits(self.timeout.load(Ordering::Relaxed));
+
     // SAFETY: Only the process-wide receiver thread calls `td_receive`;
     // this crate never calls `td_execute`.
     let raw = unsafe { td_sys::td_receive(timeout) };
@@ -386,7 +397,7 @@ pub fn set_log_level(level: i32) {
   unsafe { td_sys::td_set_log_verbosity_level(level) };
 }
 
-pub fn parameters() -> fns::setTdlibParameters {
+pub fn defaults() -> fns::setTdlibParameters {
   fns::setTdlibParameters {
     database_directory: ".td/db".into(),
     files_directory: ".td/files".into(),

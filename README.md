@@ -31,7 +31,7 @@ TDLib is Telegram's official library providing full access to the Telegram MTPro
 ## Quick Look
 
 ```rust
-use td_client::{Client, parameters};
+use td_client::{Client, defaults};
 use td_types::enums::{MessageContent, Update, User};
 use td_types::fns::setTdlibParameters as Params;
 use td_types::{fns, types};
@@ -42,19 +42,19 @@ async fn main() -> td_client::Result {
   let api_hash = "abcdefghijklmnopqrstuvwxyz".into();
   let bot_token = "123456789:abcdefghijklmnopqrstuvwxyz";
 
-  let params = Params { api_id, api_hash, ..parameters() };
+  let params = Params { api_id, api_hash, ..defaults() };
   let mut client = Client::bot(params, bot_token).await?;
 
   let User::user(me) = client.send(&fns::getMe {}).await?;
   let types::user { usernames, first_name, id, .. } = me;
-  let me = usernames.iter().find_map(|u| u.active_usernames.first()).map_or("…", String::as_str);
+  let me = usernames.iter().find_map(|u| u.active_usernames.first()).map_or("…", |u| u);
   println!("signed in as {first_name} (@{me}, id {id})");
 
-  while let Some(u) = tokio::select! {
-    update = client.recv() => update?,
+  while let Some(update) = tokio::select! {
+    res = client.recv() => res?,
     _ = tokio::signal::ctrl_c() => None,
   } {
-    let Update::updateNewMessage(u) = u else { continue };
+    let Update::updateNewMessage(u) = update else { continue };
     let MessageContent::messageText(m) = u.message.content else { continue };
     println!("text message: {}", m.text.text);
   }

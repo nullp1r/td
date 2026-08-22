@@ -2,7 +2,7 @@
 name = "td-client"
 version.workspace = true
 edition.workspace = true
-rust-version = "1.97"
+rust-version.workspace = true
 
 [lints]
 workspace = true

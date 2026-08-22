@@ -7,7 +7,7 @@ use serde::Serialize;
 use serde::ser::Error as _;
 use tokio::time::timeout;
 
-use td_client::{Client, Error, parameters};
+use td_client::{Client, Error, defaults};
 use td_types::enums::{AuthorizationState, TestInt, Update};
 use td_types::traits::Function;
 use td_types::{enums, fns, types};
@@ -37,13 +37,13 @@ impl Function for WrongReturn {
 }
 
 fn params(name: &str) -> fns::setTdlibParameters {
-  let directory = format!("/tmp/td-client-{}-{name}", process::id());
+  let dir = format!("/tmp/td-client-{}-{name}", process::id());
   fns::setTdlibParameters {
     api_id: 2040,
     api_hash: "b18441a1ff607e10a989891a5462e627".into(),
-    database_directory: format!("{directory}/db"),
-    files_directory: format!("{directory}/files"),
-    ..parameters()
+    database_directory: format!("{dir}/db"),
+    files_directory: format!("{dir}/files"),
+    ..defaults()
   }
 }
 
@@ -55,17 +55,17 @@ async fn lifecycle() {
 
     let mut invalid = params("invalid");
     invalid.system_language_code.clear();
-    let result = Client::new(invalid).await;
-    assert_matches!(result, Err(Error::Td(error)) if error.code == 400);
+    let res = Client::new(invalid).await;
+    assert_matches!(res, Err(Error::Td(error)) if error.code == 400);
 
     let (first, second) = tokio::join!(Client::new(params("first")), Client::new(params("second")));
     let mut first = first.expect("first client failed to start");
     let second = second.expect("second client failed to start");
 
-    let result = first.send(&BadRequest).await;
-    assert_matches!(result, Err(Error::Json(_)));
-    let result = first.send(&WrongReturn).await;
-    assert_matches!(result, Err(Error::Json(_)));
+    let res = first.send(&BadRequest).await;
+    assert_matches!(res, Err(Error::Json(_)));
+    let res = first.send(&WrongReturn).await;
+    assert_matches!(res, Err(Error::Json(_)));
 
     let detached = Arc::new(first.sender());
     let a_detached = Arc::clone(&detached);
@@ -82,9 +82,9 @@ async fn lifecycle() {
     assert_matches!(c, Ok(TestInt::testInt(types::testInt { value: 25 })));
     assert_matches!(d, Ok(TestInt::testInt(types::testInt { value: 36 })));
 
-    let error = types::error { code: 418, message: "teapot".into() };
-    let result = first.send(&fns::testReturnError { error: error.clone() }).await;
-    assert_matches!(result, Err(Error::Td(actual)) if actual == error);
+    let err = types::error { code: 418, message: "teapot".into() };
+    let res = first.send(&fns::testReturnError { error: err.clone() }).await;
+    assert_matches!(res, Err(Error::Td(actual)) if actual == err);
 
     while first.recv_auth().await.expect("authorization failed") != AuthorizationState::authorizationStateWaitPhoneNumber {}
     let update = first.recv().await;
@@ -100,15 +100,15 @@ async fn lifecycle() {
     second.expect("second client failed to shut down");
     third.expect("third client failed to shut down");
     racing.expect("racing client failed to start").shutdown().await.expect("racing client failed to shut down");
-    let result = stale.send(&fns::testSquareInt { x: 6 }).await;
-    assert_matches!(result, Err(Error::Disconnected));
+    let res = stale.send(&fns::testSquareInt { x: 6 }).await;
+    assert_matches!(res, Err(Error::Disconnected));
 
     let closing = Client::new(params("closing")).await.expect("closing client failed to start");
-    let request = closing.sender();
-    let request = tokio::spawn(async move { request.send(&fns::testSquareInt { x: 6 }).await });
+    let req = closing.sender();
+    let req = tokio::spawn(async move { req.send(&fns::testSquareInt { x: 6 }).await });
     closing.shutdown().await.expect("closing client failed to shut down");
-    let request = request.await.expect("racing request task panicked");
-    assert_matches!(request, Ok(TestInt::testInt(types::testInt { value: 36 })) | Err(Error::Disconnected));
+    let req = req.await.expect("racing request task panicked");
+    assert_matches!(req, Ok(TestInt::testInt(types::testInt { value: 36 })) | Err(Error::Disconnected));
 
     Client::new(params("restart")).await.expect("restarted client failed to start").shutdown().await.expect("restarted client failed to shut down");
   };

@@ -2,12 +2,13 @@
 name = "td-codegen"
 version.workspace = true
 edition.workspace = true
-
-[dependencies]
-td-parser.workspace = true
+rust-version.workspace = true
 
 [lints]
 workspace = true
+
+[dependencies]
+td-parser.workspace = true
 
 [dev-dependencies]
 syn.workspace = true

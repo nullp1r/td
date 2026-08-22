@@ -36,7 +36,7 @@ async fn main() -> anyhow::Result<()> {
   let params = fns::setTdlibParameters {
     api_id: cfg.api_id,
     api_hash: cfg.api_hash,
-    ..td_client::parameters() //.
+    ..td_client::defaults() //.
   };
 
   td_client::set_log_level(1);

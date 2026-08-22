@@ -10,13 +10,13 @@ use td_types::enums::OptionValue;
 use super::*;
 
 fn params(name: &str) -> fns::setTdlibParameters {
-  let directory = format!("/tmp/td-client-unit-{}-{name}", process::id());
+  let dir = format!("/tmp/td-client-unit-{}-{name}", process::id());
   fns::setTdlibParameters {
     api_id: 2040,
     api_hash: "b18441a1ff607e10a989891a5462e627".into(),
-    database_directory: format!("{directory}/db"),
-    files_directory: format!("{directory}/files"),
-    ..parameters()
+    database_directory: format!("{dir}/db"),
+    files_directory: format!("{dir}/files"),
+    ..defaults()
   }
 }
 
@@ -55,6 +55,12 @@ fn emit(client: &Client, update: Update) {
   client.state.events.send(Ok(update)).expect("client unexpectedly dropped its event receiver");
 }
 
+#[test]
+fn debug_describes_client_state() {
+  let client = fake_client(42);
+  assert_eq!(format!("{client:?}"), "Client { id: 42, closed: false, buffered_updates: 0, accepting_requests: true, pending_requests: 0, .. }");
+}
+
 #[tokio::test]
 async fn auth_and_recv_preserve_order() {
   let mut client = fake_client(-1);
@@ -64,23 +70,17 @@ async fn auth_and_recv_preserve_order() {
   emit(&client, option("second"));
   emit(&client, auth(AuthorizationState::authorizationStateClosed));
 
-  let state = client.recv_auth().await;
-  assert_matches!(state, Ok(AuthorizationState::authorizationStateWaitPhoneNumber));
-  let update = client.recv().await;
-  assert_matches!(update, Ok(Some(Update::updateOption(o))) if o.name == "first");
-  let update = client.recv().await;
-  assert_matches!(update, Ok(Some(Update::updateOption(o))) if o.name == "second");
-  let update = client.recv().await;
-  assert_matches!(update, Ok(None));
-  let update = client.recv().await;
-  assert_matches!(update, Ok(None));
-  let state = client.recv_auth().await;
-  assert_matches!(state, Ok(AuthorizationState::authorizationStateClosed));
+  assert_matches!(client.recv_auth().await, Ok(AuthorizationState::authorizationStateWaitPhoneNumber));
+  assert_matches!(client.recv().await, Ok(Some(Update::updateOption(o))) if o.name == "first");
+  assert_matches!(client.recv().await, Ok(Some(Update::updateOption(o))) if o.name == "second");
+  assert_matches!(client.recv().await, Ok(None));
+  assert_matches!(client.recv().await, Ok(None));
+  assert_matches!(client.recv_auth().await, Ok(AuthorizationState::authorizationStateClosed));
 
   let mut bot = fake_client(-3);
   emit(&bot, auth(AuthorizationState::authorizationStateClosing));
-  let result = bot.authorize_bot("unused").await;
-  assert_matches!(result, Err(Error::Auth(AuthorizationState::authorizationStateClosing)));
+  let res = bot.authorize_bot("unused").await;
+  assert_matches!(res, Err(Error::Auth(AuthorizationState::authorizationStateClosing)));
 }
 
 #[tokio::test]
@@ -91,8 +91,8 @@ async fn detached_requests_are_rejected_after_owner_disconnects() {
   drop(client);
 
   assert_eq!(sender.0.strong_count(), 1);
-  let result = sender.send(&fns::testSquareInt { x: 2 }).await;
-  assert_matches!(result, Err(Error::Disconnected));
+  let res = sender.send(&fns::testSquareInt { x: 2 }).await;
+  assert_matches!(res, Err(Error::Disconnected));
   drop(retained);
   assert_eq!(sender.0.strong_count(), 0);
 }
@@ -104,25 +104,25 @@ async fn shutdown_cleanup_covers_event_error_and_disconnect() {
     set_receive_timeout(Duration::from_millis(10));
     let client = Client::new(params("shutdown-error")).await.expect("client failed to start");
     let sender = client.sender();
-    let id = client.state.id;
-    let error = serde_json::from_slice::<Update>(b"{").expect_err("invalid JSON unexpectedly parsed");
-    client.state.events.send(Err(error.into())).expect("client unexpectedly dropped its event receiver");
+    let err = serde_json::from_slice::<Update>(b"{").expect_err("invalid JSON unexpectedly parsed");
+    client.state.events.send(Err(err.into())).expect("client unexpectedly dropped its event receiver");
 
-    let result = client.shutdown().await;
-    assert_matches!(result, Err(Error::Json(_)));
+    let id = client.state.id;
+    let res = client.shutdown().await;
+    assert_matches!(res, Err(Error::Json(_)));
     let registered = ROUTER.clients.lock().unwrap().contains_key(&id);
     assert!(!registered);
     assert_eq!(sender.0.strong_count(), 0);
-    let result = sender.send(&fns::testSquareInt { x: 2 }).await;
-    assert_matches!(result, Err(Error::Disconnected));
+    let res = sender.send(&fns::testSquareInt { x: 2 }).await;
+    assert_matches!(res, Err(Error::Disconnected));
 
     let mut client = Client::new(params("shutdown-disconnect")).await.expect("client failed to start");
     let sender = client.sender();
     let id = client.state.id;
     client.events.close();
 
-    let result = client.shutdown().await;
-    assert_matches!(result, Err(Error::Disconnected));
+    let res = client.shutdown().await;
+    assert_matches!(res, Err(Error::Disconnected));
     let registered = ROUTER.clients.lock().unwrap().contains_key(&id);
     assert!(!registered);
     assert_eq!(sender.0.strong_count(), 0);
@@ -161,8 +161,8 @@ fn protocol_routes_responses_events_and_failures() {
   router.route_message(br#"{"@client_id":1,"@type":"updateOption","name":"version","value":{"@type":"optionValueString","value":"1.8.66"}}"#);
   let event = first_events.try_recv();
   assert_matches!(event,
-    Ok(Ok(Update::updateOption(types::updateOption { name, value: OptionValue::optionValueString(types::optionValueString { value }) })))
-    if name == "version" && value == "1.8.66");
+    Ok(Ok(Update::updateOption(types::updateOption { name, value: OptionValue::optionValueString(o) })))
+    if name == "version" && o.value == "1.8.66");
   let event = second_events.try_recv();
   assert_matches!(event, Err(mpsc::error::TryRecvError::Empty));
 
