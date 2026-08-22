@@ -1,0 +1,9 @@
+(function() {
+    const implementors = Object.fromEntries([["td_parser",[["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.97.1/core/cmp/trait.Eq.html\" title=\"trait core::cmp::Eq\">Eq</a> for <a class=\"enum\" href=\"td_parser/enum.DefinitionKind.html\" title=\"enum td_parser::DefinitionKind\">DefinitionKind</a>",0],["impl&lt;'a&gt; <a class=\"trait\" href=\"https://doc.rust-lang.org/1.97.1/core/cmp/trait.Eq.html\" title=\"trait core::cmp::Eq\">Eq</a> for <a class=\"enum\" href=\"td_parser/enum.Error.html\" title=\"enum td_parser::Error\">Error</a>&lt;'a&gt;",0],["impl&lt;'a&gt; <a class=\"trait\" href=\"https://doc.rust-lang.org/1.97.1/core/cmp/trait.Eq.html\" title=\"trait core::cmp::Eq\">Eq</a> for <a class=\"enum\" href=\"td_parser/enum.TypeExpr.html\" title=\"enum td_parser::TypeExpr\">TypeExpr</a>&lt;'a&gt;",0],["impl&lt;'a&gt; <a class=\"trait\" href=\"https://doc.rust-lang.org/1.97.1/core/cmp/trait.Eq.html\" title=\"trait core::cmp::Eq\">Eq</a> for <a class=\"struct\" href=\"td_parser/struct.Combinator.html\" title=\"struct td_parser::Combinator\">Combinator</a>&lt;'a&gt;",0],["impl&lt;'a&gt; <a class=\"trait\" href=\"https://doc.rust-lang.org/1.97.1/core/cmp/trait.Eq.html\" title=\"trait core::cmp::Eq\">Eq</a> for <a class=\"struct\" href=\"td_parser/struct.Definition.html\" title=\"struct td_parser::Definition\">Definition</a>&lt;'a&gt;",0],["impl&lt;'a&gt; <a class=\"trait\" href=\"https://doc.rust-lang.org/1.97.1/core/cmp/trait.Eq.html\" title=\"trait core::cmp::Eq\">Eq</a> for <a class=\"struct\" href=\"td_parser/struct.Field.html\" title=\"struct td_parser::Field\">Field</a>&lt;'a&gt;",0]]]]);
+    if (window.register_implementors) {
+        window.register_implementors(implementors);
+    } else {
+        window.pending_implementors = implementors;
+    }
+})()
+//{"start":59,"fragment_lengths":[1585]}

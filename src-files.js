@@ -1,0 +1,2 @@
+createSrcSidebar('[["td_app",["",[["app",[],["commands.rs","inline.rs"]]],["app.rs","client_ext.rs","db.rs","main.rs","util.rs"]]],["td_client",["",[],["lib.rs"]]],["td_codegen",["",[],["ctx.rs","gen.rs","graph.rs","lib.rs","scc.rs","util.rs"]]],["td_parser",["",[],["ast.rs","cursor.rs","error.rs","lib.rs","parser.rs"]]],["td_sys",["",[],["build.rs","lib.rs"]]]]');
+//{"start":19,"fragment_lengths":[111,33,82,77,41]}

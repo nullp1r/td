@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["Error"],"fn":["parameters","set_log_level","set_receive_timeout"],"struct":["Client","Sender"],"type":["Result"]};

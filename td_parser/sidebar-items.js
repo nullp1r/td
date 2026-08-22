@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["DefinitionKind","Error","TypeExpr"],"fn":["parse"],"struct":["Combinator","Definition","Field"]};

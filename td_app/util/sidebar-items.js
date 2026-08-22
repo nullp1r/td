@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["extract_media_file","extract_user_id","message_caption","message_text","primary_username","reply_message_id"]};
