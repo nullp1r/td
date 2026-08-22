@@ -37,7 +37,8 @@ fn fake_client(id: i32) -> Client {
 fn router(states: &[&Arc<State>]) -> Router {
   let clients = states.iter().map(|state| (state.id, Arc::downgrade(state))).collect();
   let (changed, _) = watch::channel(());
-  Router { clients: Mutex::new(clients), worker: OnceLock::new(), changed }
+  let (worker, dirty) = Default::default();
+  Router { clients: Mutex::new(clients), worker, changed, dirty }
 }
 
 fn option(name: &str) -> Update {
@@ -85,11 +86,14 @@ async fn auth_and_recv_preserve_order() {
 async fn detached_requests_are_rejected_after_owner_disconnects() {
   let client = fake_client(-2);
   let requests = client.requests();
+  let retained = Arc::clone(&client.state);
   drop(client);
 
-  assert_eq!(requests.state.strong_count(), 0);
+  assert_eq!(requests.0.strong_count(), 1);
   let result = requests.execute(&fns::testSquareInt { x: 2 }).await;
   assert_matches!(result, Err(Error::Disconnected));
+  drop(retained);
+  assert_eq!(requests.0.strong_count(), 0);
 }
 
 #[tokio::test]
@@ -106,7 +110,7 @@ async fn shutdown_cleanup_covers_event_error_and_disconnect() {
     assert_matches!(result, Err(Error::Json(_)));
     let registered = ROUTER.clients.lock().unwrap().contains_key(&id);
     assert!(!registered);
-    assert_eq!(requests.state.strong_count(), 0);
+    assert_eq!(requests.0.strong_count(), 0);
     let result = requests.execute(&fns::testSquareInt { x: 2 }).await;
     assert_matches!(result, Err(Error::Disconnected));
 
@@ -119,7 +123,7 @@ async fn shutdown_cleanup_covers_event_error_and_disconnect() {
     assert_matches!(result, Err(Error::Disconnected));
     let registered = ROUTER.clients.lock().unwrap().contains_key(&id);
     assert!(!registered);
-    assert_eq!(requests.state.strong_count(), 0);
+    assert_eq!(requests.0.strong_count(), 0);
   };
 
   timeout(Duration::from_secs(30), fut).await.expect("shutdown error test timed out");

@@ -34,13 +34,15 @@ impl Requests {
 
 `Requests` is the one addition justified by a real caller. It cannot receive updates or initiate shutdown. `Client` remains the sole owner, and shutdown still consumes it.
 
-The prototype is 396 lines of production Rust including `build.rs`, compared with the current implementation's 332. The 64-line increase buys three required properties together:
+The prototype is 382 lines of production Rust including `build.rs`, compared with the current implementation's 332. The 50-line increase buys three required properties together:
 
 - detached request tasks;
 - a request/close gate with a defined race outcome;
 - local revocation when the owner is dropped, even while request capabilities survive.
 
-It adds no dependency, runtime task, channel, public state enum, builder, session wrapper, or actor.
+The second rules/line-count pass removed 14 production lines from the first checked v5 prototype while also eliminating blocking destructor locks and per-response weak-registry pruning.
+
+It adds no dependency, runtime task, public state enum, builder, session wrapper, or actor.
 
 ## Regression audit against the current client
 
@@ -59,7 +61,7 @@ The prototype was rechecked against every `td-client` change after the RFC 0007-
 | Rust 1.97 and the workspace lint policy | Retained |
 | Public receive-timeout tuning | Deliberately removed: it exposes worker synchronization and no demonstrated consumer owns that policy; the native receive wait remains a private implementation bound |
 
-The audit also removes a current hot-path cost that v5 no longer needs. Current routing prunes the complete weak registry before every lookup. Because v5 unregisters explicitly at the owning `Client` boundary, lookup is one expected-O(1) `HashMap::get` plus `Weak::upgrade`.
+The audit also removes a current hot-path cost that v5 no longer needs. Current routing prunes the complete weak registry before every lookup. V5 lookup is one expected-O(1) `HashMap::get` plus `Weak::upgrade`; graceful shutdown removes its entry explicitly, while abandoned entries are pruned once after their weak state dies rather than scanned on every response.
 
 ## Evidence from tokfu
 
@@ -122,9 +124,9 @@ Only `Client` stores a strong `Arc<State>`. `Requests` stores `Weak<State>` and 
 
 - only `Client` owns the event receiver;
 - only `Client::shutdown(self)` can claim graceful native shutdown;
-- `Client::drop` closes the request gate and unregisters routing even if `Requests` values remain;
+- dropping `Client` closes its existing event receiver, which revokes new detached requests without running destructor code;
 - `Requests` never closes TDLib, keeps idle state alive, or keeps a router entry alive;
-- the router stores `Weak<State>`, so it cannot manufacture ownership.
+- the router stores `Weak<State>`, so it cannot manufacture ownership; an already-running request may keep state alive only until that request finishes.
 
 This distinction is why the new type is named `Requests`, not `ClientHandle`. It describes the granted operation instead of suggesting that a clone represents the client session.
 
@@ -136,7 +138,7 @@ Detached request execution creates one new race that RFC 0007 did not have:
 task A: execute(request)       owner: shutdown(close)
 ```
 
-An atomic `closing` check would be insufficient. A task could pass the check, be suspended, and call `td_send` after `close`. The prototype instead folds one `open` bit into the existing pending-request mutex:
+An atomic `closing` check would be insufficient. A task could pass the check, be suspended, and call `td_send` after `close`. The prototype instead folds one `open` bit into the existing pending-request mutex and reuses event-receiver closure to detect an abandoned owner:
 
 ```rust
 struct RequestState {
@@ -149,21 +151,21 @@ Ordinary execution performs:
 
 1. allocate `@extra` and serialize the typed request;
 2. lock `RequestState`;
-3. reject the request if `open` is false;
+3. reject the request if `open` is false or the sole `Client` event receiver has gone away;
 4. install its pending response sender;
 5. call `td_send` while still holding the short synchronous lock;
 6. unlock and await the request-local oneshot.
 
-Shutdown performs the same sequence, except it changes `open` to false before installing and sending the typed `fns::close {}` request.
+Shutdown performs the same sequence, except its owner-only close operation changes `open` to false before installing and sending typed `fns::close {}`. The close path remains available if the event receiver itself failed, allowing TDLib to receive the native close even though its terminal update can no longer be observed.
 
 The mutex therefore defines a total send order:
 
 - a request that acquires the lock first is sent before `close`;
 - a request that acquires it afterwards returns `Error::Disconnected` without touching TDLib.
 
-No synchronous lock is held across `.await`. No actor, command channel, task-local registry, shutdown state machine, or second atomic is needed.
+No synchronous lock is held across `.await`. No actor, command channel, task-local registry, shutdown state machine, or request-state atomic is needed.
 
-When the client closes or is abandoned, `disconnect` closes the gate and fails every remaining pending request. A canceled request future is harmless: its pending entry is removed when the native response arrives, and sending to the dropped oneshot is ignored.
+When the client reaches its terminal state, `disconnect` closes the gate and drops every remaining pending sender, so their receivers report `Disconnected`. When the owner is merely abandoned, new requests are rejected but requests already sent may still receive their routed responses; the last such request releases the state. A canceled request future is harmless: its pending entry is removed when the native response arrives, and sending to the dropped oneshot is ignored.
 
 ## Update ownership
 
@@ -214,7 +216,7 @@ The public receive-timeout setter is removed. It exposed a worker polling detail
 
 TDLib guarantees `@client_id` and `@type`, so the borrowed envelope models them as required fields. A malformed envelope cannot be attributed to one client. Silently discarding it would violate the library's error-preservation contract, so the router publishes the JSON error to every live event queue.
 
-To make that rare broadcast possible without converting errors to strings, `Error` is cloneable and stores `serde_json::Error` behind `Arc`. The success path gains no allocation or copy. Errors that have a valid client ID, including malformed update bodies and TDLib `error` objects, remain local to that client.
+To make that rare broadcast possible without converting errors to strings, the JSON payload is stored behind `Arc`; `Error` itself remains non-`Clone`. The success path gains no allocation or copy. Errors that have a valid client ID, including malformed update bodies and TDLib `error` objects, remain local to that client.
 
 Responses for canceled request futures are the one intentional non-event: the router removes the pending entry and finds its oneshot receiver gone. There is no caller left to receive that response.
 
@@ -245,9 +247,9 @@ If the terminal state was already observed, shutdown does not send a second clos
 
 ### Drop
 
-`Drop` remains local-only. It closes the request gate, fails pending Rust futures, and removes the router entry. It never calls TDLib, blocks, sleeps, joins, or reports successful shutdown.
+`Client` needs no `Drop` implementation. Ordinary field destruction closes the event receiver and drops the owner's `Arc<State>` without calling TDLib, locking, sleeping, joining, or reporting successful shutdown. Detached requests then fail their existing sender-closure check.
 
-Explicit removal is essential because lifecycle ends at the owner boundary, not at a reference-count heuristic. It retires routing immediately even if an already-running request temporarily holds an upgraded `Arc<State>`.
+An already-sent request may temporarily retain `State` and finish normally. When the last strong reference disappears, `State::drop` performs one atomic dirty notification; the receiver thread prunes the now-dead weak router entry on its next loop. No destructor takes a mutex.
 
 Dropping `Client` without `shutdown` is still misuse. The library makes stale Rust capabilities safe; it cannot complete an asynchronous native close protocol from a destructor.
 
@@ -315,19 +317,19 @@ Absent:
 - Ownership: one non-`Clone` `Client` stores the sole durable `Arc<State>`; borrowed `&Client` remains the ordinary concurrent-request path; `&mut Client` consumes ordered updates; shutdown consumes `Client`.
 - Protocol: all operations are generated typed TDLib functions; `close` uses the correlated request path; required `@client_id` and `@type` fields are non-optional.
 - Error and ordering preservation: the update queue is unbounded and ordered, auth buffering uses `VecDeque`, request and TDLib errors are propagated, malformed unrouteable envelopes are broadcast as JSON errors, and shutdown retains the first event failure while still seeking the terminal state.
-- Synchronization: the sole receiver is one parked OS thread; short state uses `std::sync::Mutex`; replies use `oneshot`; events use `mpsc`; worker transitions use `watch`; no synchronous guard crosses `.await`.
+- Synchronization: the sole receiver is one parked OS thread; the request/close gate and pending map share one short `std::sync::Mutex`; replies use `oneshot`; ordered events use `mpsc`; worker transitions use `watch`; no synchronous guard crosses `.await`.
 - Policy: there is no tracing, retry, flood-wait, overflow, message-delivery, or public timeout policy in the library.
-- Efficiency: routing and response correlation use expected-O(1) `HashMap`s, authentication buffering is contiguous, request serialization stays in bytes, and the pending-map mutex doubles as the shutdown gate instead of adding another lock or actor.
-- FFI: dynamic requests are explicitly NUL-terminated, every `unsafe` block has its local invariant, and `Drop` performs no native work.
+- Efficiency: routing and response correlation use expected-O(1) `HashMap`s, authentication buffering is contiguous, request serialization stays in bytes, and owner revocation reuses the existing event channel instead of allocating another signal.
+- FFI: dynamic requests are explicitly NUL-terminated, every `unsafe` block has its local invariant, and destructors perform no native or blocking work.
 - Dependencies and language: v5 adds no dependency, inherits workspace versions with only Tokio `sync`, targets Edition 2024/Rust 1.97, and keeps the strict workspace lints clean.
 
 ## Efficiency
 
 The successful request path performs the operations inherent to the JSON API: one serialization buffer, one pending-map entry, one oneshot, one native send, one response copy, and one typed deserialization.
 
-The request gate reuses the pending-map mutex. Holding it through the nonblocking `td_send` call removes a race without another atomic or lock. Tokfu stores one `Requests` value in `Arc<Inner>`; cloning `App` only increments that existing application `Arc`.
+The request gate reuses the pending-map mutex. Holding it through the nonblocking `td_send` call removes a race without another request-state atomic or lock. Owner-drop detection reuses `UnboundedSender::is_closed`, so it adds no channel or allocation. Tokfu stores one `Requests` value in `Arc<Inner>`; cloning `App` only increments that existing application `Arc`.
 
-Because owner drop explicitly unregisters the entry, router lookup is expected O(1): one `HashMap::get` and one `Weak::upgrade`, without a full-registry dead-entry scan for every response.
+Router lookup is expected O(1): one `HashMap::get` and one `Weak::upgrade`. A single dirty bit triggers weak-entry pruning only after state destruction, avoiding the current implementation's full-registry scan for every response.
 
 Updates are deserialized once into generated owned types and moved through a contiguous channel queue. Authentication buffering allocates only for updates that actually arrive during authentication.
 

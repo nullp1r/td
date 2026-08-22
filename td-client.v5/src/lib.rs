@@ -1,6 +1,6 @@
 use std::collections::{HashMap, VecDeque};
 use std::ffi::CStr;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, LazyLock, Mutex, OnceLock, Weak};
 use std::{error, fmt, result, thread};
 
@@ -13,7 +13,7 @@ use td_types::{fns, types};
 
 pub type Result<T = ()> = result::Result<T, Error>;
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub enum Error {
   Td(types::error),
   Json(Arc<serde_json::Error>),
@@ -45,16 +45,12 @@ impl From<serde_json::Error> for Error {
   }
 }
 
-/// A non-owning request capability for detached tasks.
-///
-/// It neither keeps its [`Client`] alive nor grants update or shutdown access.
-pub struct Requests {
-  state: Weak<State>,
-}
+/// A non-owning request capability with no update or shutdown access.
+pub struct Requests(Weak<State>);
 
 impl Requests {
   pub async fn execute<F: Function>(&self, request: &F) -> Result<F::Return> {
-    let state = self.state.upgrade().ok_or(Error::Disconnected)?;
+    let state = self.0.upgrade().ok_or(Error::Disconnected)?;
     state.execute(request, false).await
   }
 }
@@ -92,9 +88,8 @@ impl Client {
     Ok(client)
   }
 
-  /// Creates a non-owning request capability for application tasks.
   pub fn requests(&self) -> Requests {
-    Requests { state: Arc::downgrade(&self.state) }
+    Requests(Arc::downgrade(&self.state))
   }
 
   pub async fn execute<F: Function>(&self, request: &F) -> Result<F::Return> {
@@ -132,17 +127,15 @@ impl Client {
     let result = async {
       if !self.closed {
         self.state.execute(&fns::close {}, true).await?;
-        let mut failure = None;
+        let mut result = Ok(());
         while !self.closed {
           match self.event().await {
             Ok(_) => {}
-            Err(Error::Disconnected) => return Err(failure.unwrap_or(Error::Disconnected)),
-            Err(error) => {
-              failure.get_or_insert(error);
-            }
+            Err(Error::Disconnected) => return result.and(Err(Error::Disconnected)),
+            Err(error) => result = result.and(Err(error)),
           }
         }
-        return failure.map_or(Ok(()), Err);
+        return result;
       }
       Ok(())
     }
@@ -179,20 +172,11 @@ impl Client {
 
   async fn event(&mut self) -> Result<Update> {
     let update = self.events.recv().await.ok_or(Error::Disconnected)??;
-    if let Update::updateAuthorizationState(update) = &update
-      && let AuthorizationState::authorizationStateClosed = update.authorization_state
-    {
+    if let Update::updateAuthorizationState(types::updateAuthorizationState { authorization_state: AuthorizationState::authorizationStateClosed }) = &update {
       self.closed = true;
       self.state.disconnect();
     }
     Ok(update)
-  }
-}
-
-impl Drop for Client {
-  fn drop(&mut self) {
-    self.state.disconnect();
-    ROUTER.remove(self.state.id);
   }
 }
 
@@ -227,7 +211,7 @@ impl State {
 
   fn send(&self, extra: u64, request: &[u8], close: bool) -> Result<oneshot::Receiver<Result<Vec<u8>>>> {
     let mut requests = self.requests.lock().unwrap();
-    if !requests.open {
+    if !requests.open || (!close && self.events.is_closed()) {
       return Err(Error::Disconnected);
     }
     if close {
@@ -261,9 +245,13 @@ impl State {
   fn disconnect(&self) {
     let mut requests = self.requests.lock().unwrap();
     requests.open = false;
-    for (_, pending) in requests.pending.drain() {
-      let _ = pending.send(Err(Error::Disconnected));
-    }
+    requests.pending.clear();
+  }
+}
+
+impl Drop for State {
+  fn drop(&mut self) {
+    ROUTER.dirty.store(true, Ordering::Release);
   }
 }
 
@@ -281,21 +269,14 @@ struct Router {
   clients: Mutex<HashMap<i32, Weak<State>>>,
   worker: OnceLock<thread::Thread>,
   changed: watch::Sender<()>,
+  dirty: AtomicBool,
 }
 
 impl Router {
-  fn state(&self, id: i32) -> Option<Arc<State>> {
-    Weak::upgrade(self.clients.lock().unwrap().get(&id)?)
-  }
-
   fn insert(&self, id: i32, state: Weak<State>) {
     self.clients.lock().unwrap().insert(id, state);
     self.worker.get_or_init(|| thread::spawn(worker).thread().clone()).unpark();
     self.changed.send_replace(());
-  }
-
-  fn remove(&self, id: i32) {
-    self.clients.lock().unwrap().remove(&id);
   }
 
   async fn remove_and_wait(&self, id: i32) {
@@ -310,18 +291,22 @@ impl Router {
   }
 
   fn idle(&self) -> bool {
-    self.clients.lock().unwrap().is_empty()
+    let mut clients = self.clients.lock().unwrap();
+    if self.dirty.swap(false, Ordering::Acquire) {
+      clients.retain(|_, state| state.strong_count() > 0);
+    }
+    clients.is_empty()
   }
 
   fn dispatch(&self, raw: &[u8]) {
     let envelope = match serde_json::from_slice::<Envelope<'_>>(raw) {
       Ok(envelope) => envelope,
       Err(error) => {
-        self.fail(&Error::from(error));
+        self.fail(error);
         return;
       }
     };
-    let Some(state) = self.state(envelope.client) else { return };
+    let Some(state) = self.clients.lock().unwrap().get(&envelope.client).and_then(Weak::upgrade) else { return };
 
     match envelope.extra {
       Some(extra) => state.respond(extra, envelope.r#type, raw),
@@ -329,9 +314,10 @@ impl Router {
     }
   }
 
-  fn fail(&self, error: &Error) {
+  fn fail(&self, error: serde_json::Error) {
+    let error = Arc::new(error);
     for state in self.clients.lock().unwrap().values().filter_map(Weak::upgrade) {
-      let _ = state.events.send(Err(error.clone()));
+      let _ = state.events.send(Err(Error::Json(Arc::clone(&error))));
     }
   }
 
@@ -349,8 +335,8 @@ impl Router {
 
 static ROUTER: LazyLock<Router> = LazyLock::new(|| {
   let (changed, _) = watch::channel(());
-  let (clients, worker) = Default::default();
-  Router { clients, worker, changed }
+  let (clients, worker, dirty) = Default::default();
+  Router { clients, worker, changed, dirty }
 });
 
 fn worker() {
