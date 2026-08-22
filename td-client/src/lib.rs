@@ -110,14 +110,18 @@ impl Client {
   }
 
   pub async fn shutdown(mut self) -> Result {
-    if !self.closed {
-      self.execute(&fns::close {}).await?;
-      while !self.closed {
-        self.event().await?;
+    let result = async {
+      if !self.closed {
+        self.execute(&fns::close {}).await?;
+        while !self.closed {
+          self.event().await?;
+        }
       }
+      Ok(())
     }
+    .await;
     ROUTER.remove_and_wait(self.state.id).await;
-    Ok(())
+    result
   }
 
   fn create() -> Self {
@@ -318,3 +322,6 @@ pub fn defaults() -> fns::setTdlibParameters {
     ..Default::default()
   }
 }
+
+#[cfg(test)]
+mod tests;

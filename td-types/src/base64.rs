@@ -192,8 +192,7 @@ mod tests {
     let payload = (0..mib).map(|i| i as u8).collect::<Vec<_>>();
     let encoded = encode(&payload, 0);
 
-    let mut buf_enc = String::new();
-    let mut buf_dec = Vec::new();
+    let (mut buf_enc, mut buf_dec): (String, Vec<u8>) = Default::default();
 
     let t0 = Instant::now();
     for _ in 0..iters {

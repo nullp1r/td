@@ -13,11 +13,11 @@ mod client_ext;
 mod db;
 mod util;
 
-#[derive(Debug, Deserialize)]
-pub struct AppConfig {
-  pub api_id: i32,
-  pub api_hash: String,
-  pub bot_token: String,
+#[derive(Deserialize)]
+struct AppConfig {
+  api_id: i32,
+  api_hash: String,
+  bot_token: String,
 }
 
 #[tokio::main]
@@ -30,14 +30,10 @@ async fn main() -> anyhow::Result<()> {
     .without_time()
     .init();
 
-  let cfg = fs::read_to_string("config.json")?;
-  let cfg = serde_json::from_str::<AppConfig>(&cfg)?;
+  let cfg = fs::read("config.json")?;
+  let cfg = serde_json::from_slice::<AppConfig>(&cfg)?;
 
-  let params = fns::setTdlibParameters {
-    api_id: cfg.api_id,
-    api_hash: cfg.api_hash,
-    ..defaults() //.
-  };
+  let params = fns::setTdlibParameters { api_id: cfg.api_id, api_hash: cfg.api_hash, ..defaults() };
 
   td_client::set_log_verbosity_level(1);
 

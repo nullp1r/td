@@ -11,7 +11,6 @@ impl App {
 
     let results = vec![
       article("1", "👋 Help", "Rate users with + or -", "💡 Reply to any user message with `+` or `-` to adjust their karma!"),
-      article("2", "🎲 Roll Dice", "Rolls a random number", "🎲 Rolled: **42** (1-100)"),
       article("3", "🏆 Leaderboard", "View top members", "Use `/ratings` to view chat karma leaderboard!"),
     ];
 

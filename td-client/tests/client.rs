@@ -23,6 +23,18 @@ impl Function for BadRequest {
   type Return = enums::Ok;
 }
 
+struct WrongReturn;
+
+impl Serialize for WrongReturn {
+  fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+    fns::testSquareInt { x: 2 }.serialize(serializer)
+  }
+}
+
+impl Function for WrongReturn {
+  type Return = enums::Ok;
+}
+
 fn params(name: &str) -> fns::setTdlibParameters {
   let directory = format!("/tmp/td-client-{}-{name}", process::id());
   fns::setTdlibParameters {
@@ -54,6 +66,9 @@ async fn lifecycle() {
     let res = first.execute(&BadRequest).await;
     assert_matches!(res, Err(Error::Json(_)));
 
+    let res = first.execute(&WrongReturn).await;
+    assert_matches!(res, Err(Error::Json(_)));
+
     let first_request = fns::testSquareInt { x: 3 };
     let first_request_too = fns::testSquareInt { x: 4 };
     let second_request = fns::testSquareInt { x: 5 };
@@ -70,23 +85,29 @@ async fn lifecycle() {
     let res = first.execute(&fns::testReturnError { error: err.clone() }).await;
     assert_matches!(res, Err(Error::Td(error)) if error == err);
 
-    loop {
-      match first.auth().await.expect("authorization failed") {
-        AuthorizationState::authorizationStateWaitPhoneNumber => break,
-        _ => {}
-      }
-    }
-    assert_matches!(first.recv().await, Ok(Some(Update::updateOption(_))));
+    while {
+      let auth = first.auth().await.expect("authorization failed");
+      auth != AuthorizationState::authorizationStateWaitPhoneNumber
+    } {}
+    let update = first.recv().await;
+    assert_matches!(update, Ok(Some(Update::updateOption(_))));
 
     first.execute(&fns::close {}).await.expect("close request failed");
     while let Some(_) = first.recv().await.expect("receiving updates failed") {}
-    assert_matches!(first.recv().await, Ok(None));
+    let update = first.recv().await;
+    assert_matches!(update, Ok(None));
 
-    let (first, second, third) = tokio::join!(first.shutdown(), second.shutdown(), client("third"));
+    let third = client("third").await.expect("third client failed to start");
+    let (first, second, third, racing) = tokio::join! {
+      first.shutdown(),
+      second.shutdown(),
+      third.shutdown(),
+      client("racing")
+    };
     first.expect("first client failed to shut down");
     second.expect("second client failed to shut down");
-    let third = third.expect("third client failed to start");
-    third.shutdown().await.expect("third client failed to shut down");
+    third.expect("third client failed to shut down");
+    racing.expect("racing client failed to start").shutdown().await.expect("racing client failed to shut down");
 
     let restart = client("restart").await.expect("restarted client failed to start");
     restart.shutdown().await.expect("restarted client failed to shut down");

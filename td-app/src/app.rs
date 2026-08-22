@@ -1,5 +1,4 @@
 use std::borrow::Cow;
-use std::sync::RwLock;
 
 use tokio::signal;
 
@@ -14,17 +13,17 @@ use crate::util;
 mod commands;
 mod inline;
 
-pub struct App {
+pub(super) struct App {
   client: Client,
-  db: RwLock<Database>,
+  db: Database,
 }
 
 impl App {
-  pub fn new(client: Client) -> Self {
-    Self { client, db: RwLock::new(Database::new()) }
+  pub(super) fn new(client: Client) -> Self {
+    Self { client, db: Database::default() }
   }
 
-  pub async fn run(mut self) -> td_client::Result {
+  pub(super) async fn run(mut self) -> td_client::Result {
     tracing::info!("listening for updates...");
 
     loop {
@@ -38,7 +37,8 @@ impl App {
         Ok(None) => break,
         Err(error) => {
           tracing::error!(%error, "update stream failed");
-          break;
+          let _ = self.client.shutdown().await;
+          return Err(error);
         }
       };
 
@@ -47,11 +47,11 @@ impl App {
       }
     }
 
-    tracing::info!("update stream closed, shutting down");
+    tracing::info!("shutting down");
     self.client.shutdown().await
   }
 
-  pub async fn dispatch(&self, update: Update) -> td_client::Result {
+  async fn dispatch(&mut self, update: Update) -> td_client::Result {
     match update {
       Update::updateNewMessage(u) if !u.message.is_outgoing => self.handle_message(u.message).await?,
       Update::updateNewMessage(_) => tracing::trace!("ignoring outgoing message update"),
@@ -65,7 +65,7 @@ impl App {
     Ok(())
   }
 
-  async fn handle_message(&self, msg: types::message) -> td_client::Result {
+  async fn handle_message(&mut self, msg: types::message) -> td_client::Result {
     let types::message { chat_id, id, sender_id, reply_to, content, .. } = msg;
 
     // Trigger: for any DM message with media, download and upload back as a document
@@ -80,10 +80,9 @@ impl App {
 
     let trimmed = raw_text.trim();
 
-    // 1. Handle commands: `/cmd@bot args` (routed to commands submodule)
+    // 1. Handle unaddressed commands
     if let Some(cmd_line) = trimmed.strip_prefix('/') {
-      let (raw_cmd, args) = cmd_line.split_once(char::is_whitespace).unwrap_or((cmd_line, ""));
-      let (cmd, _) = raw_cmd.split_once('@').unwrap_or((raw_cmd, ""));
+      let (cmd, args) = cmd_line.split_once(char::is_whitespace).unwrap_or((cmd_line, ""));
       if !cmd.is_empty() {
         return self.handle_command(chat_id, id, &sender_id, cmd, args.trim_start()).await;
       }
@@ -125,17 +124,14 @@ impl App {
     Ok(())
   }
 
-  async fn handle_rating_reply(&self, chat_id: i64, id: i64, sender: &MessageSender, target_msg_id: i64, delta: i64) -> td_client::Result {
+  async fn handle_rating_reply(&mut self, chat_id: i64, id: i64, sender: &MessageSender, target_msg_id: i64, delta: i64) -> td_client::Result {
     let Some(from_id) = util::extract_user_id(sender) else {
       tracing::debug!(chat_id, "ignoring rating: sender is not an individual user");
       return Ok(());
     };
 
     // Fetch replied message only after validating sender is a user
-    let Ok(Message::message(target_msg)) = self.client.get_message(chat_id, target_msg_id).await else {
-      tracing::debug!(chat_id, target_msg_id, "replied message not found or inaccessible");
-      return Ok(());
-    };
+    let Message::message(target_msg) = self.client.get_message(chat_id, target_msg_id).await?;
 
     let Some(to_id) = util::extract_user_id(&target_msg.sender_id) else {
       tracing::debug!(chat_id, target_msg_id, "ignoring rating: target author is not an individual user");
@@ -147,7 +143,7 @@ impl App {
       return Ok(());
     }
 
-    let new_score = self.db.write().map_or(0, |mut db| db.adjust_rating(chat_id, to_id, delta));
+    let new_score = self.db.adjust_rating(chat_id, to_id, delta);
 
     let [icon, verb] = if let 0.. = delta { ["⭐️", "increased"] } else { ["🔻", "decreased"] };
     let reply = format!("{icon} Rating {verb} for User {to_id}! (Total: {new_score:+})");
@@ -158,12 +154,6 @@ impl App {
 
   async fn handle_pattern(&self, chat_id: i64, id: i64, text: &str) -> td_client::Result {
     let (first_word, rest) = text.split_once(char::is_whitespace).unwrap_or((text, ""));
-
-    if first_word.eq_ignore_ascii_case("!roll") {
-      let limit = rest.trim().parse::<u32>().unwrap_or(100).max(1);
-      self.client.reply_text(chat_id, id, format!("🎲 42 (1-{limit})")).await?;
-      return Ok(());
-    }
 
     let word = first_word.trim_matches(|c: char| !c.is_alphanumeric());
     let is_standalone = rest.is_empty() || rest.trim_matches(|c: char| !c.is_alphanumeric()).is_empty();

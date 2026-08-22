@@ -1,19 +1,14 @@
-#![expect(dead_code, reason = "it's ok")]
-
 use std::future::Future as Fut;
 
 use td_client::Client;
-use td_types::enums::{Chat, File, FileType, Message, User};
+use td_types::enums::{File, FileType, Message, User};
 use td_types::enums::{InputFile, InputInlineQueryResult, InputMessageContent, InputMessageReplyTo};
 use td_types::{fns, types};
 
-pub trait ClientExt {
-  fn send_text(&self, cid: i64, text: impl Into<String>) -> impl Fut<Output = td_client::Result<Message>>;
+pub(crate) trait ClientExt {
   fn reply_text(&self, cid: i64, mid: i64, text: impl Into<String>) -> impl Fut<Output = td_client::Result<Message>>;
-  fn send_document(&self, cid: i64, path: impl Into<String>, caption: Option<String>) -> impl Fut<Output = td_client::Result<Message>>;
   fn reply_document(&self, cid: i64, mid: i64, document: InputFile, caption: Option<String>) -> impl Fut<Output = td_client::Result<Message>>;
   fn get_message(&self, cid: i64, mid: i64) -> impl Fut<Output = td_client::Result<Message>>;
-  fn get_chat(&self, cid: i64) -> impl Fut<Output = td_client::Result<types::chat>>;
   fn get_me(&self) -> impl Fut<Output = td_client::Result<types::user>>;
   fn download(&self, fid: i32, priority: i32) -> impl Fut<Output = td_client::Result<types::file>>;
   fn upload(&self, path: impl Into<String>, priority: i32) -> impl Fut<Output = td_client::Result<types::file>>;
@@ -21,32 +16,17 @@ pub trait ClientExt {
 }
 
 impl ClientExt for Client {
-  async fn send_text(&self, cid: i64, text: impl Into<String>) -> td_client::Result<Message> {
-    send_message(self, cid, None, text_content(text)).await
-  }
-
   async fn reply_text(&self, cid: i64, mid: i64, text: impl Into<String>) -> td_client::Result<Message> {
-    send_message(self, cid, Some(mid), text_content(text)).await
-  }
-
-  async fn send_document(&self, cid: i64, path: impl Into<String>, caption: Option<String>) -> td_client::Result<Message> {
-    let document = InputFile::inputFileLocal(types::inputFileLocal { path: path.into() });
-    send_message(self, cid, None, document_content(document, caption)).await
+    reply_message(self, cid, mid, text_content(text)).await
   }
 
   async fn reply_document(&self, cid: i64, mid: i64, document: InputFile, caption: Option<String>) -> td_client::Result<Message> {
-    send_message(self, cid, Some(mid), document_content(document, caption)).await
+    reply_message(self, cid, mid, document_content(document, caption)).await
   }
 
   async fn get_message(&self, cid: i64, mid: i64) -> td_client::Result<Message> {
     let req = fns::getMessage { chat_id: cid, message_id: mid };
     self.execute(&req).await
-  }
-
-  async fn get_chat(&self, cid: i64) -> td_client::Result<types::chat> {
-    let res = self.execute(&fns::getChat { chat_id: cid }).await?;
-    let Chat::chat(chat) = res;
-    Ok(chat)
   }
 
   async fn get_me(&self) -> td_client::Result<types::user> {
@@ -76,8 +56,8 @@ impl ClientExt for Client {
   }
 }
 
-async fn send_message(client: &Client, cid: i64, mid: Option<i64>, msg: InputMessageContent) -> td_client::Result<Message> {
-  let req = fns::sendMessage { chat_id: cid, reply_to: mid.map(reply_do), input_message_content: msg, ..Default::default() };
+async fn reply_message(client: &Client, cid: i64, mid: i64, msg: InputMessageContent) -> td_client::Result<Message> {
+  let req = fns::sendMessage { chat_id: cid, reply_to: Some(reply_do(mid)), input_message_content: msg, ..Default::default() };
   client.execute(&req).await
 }
 

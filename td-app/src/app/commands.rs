@@ -13,14 +13,13 @@ impl App {
     tracing::info!(%cmd, %args, "executing command");
 
     match cmd {
-      "ping" => self.cmd_ping(chat_id, id).await?,
-      "ratings" | "top" | "leaderboard" => self.cmd_ratings(chat_id, id).await?,
-      "rating" | "my_rating" => self.cmd_my_rating(chat_id, id, sender).await?,
-      "me" => self.cmd_me(chat_id, id).await?,
-      _ => self.cmd_help(chat_id, id).await?,
+      "ping" => self.cmd_ping(chat_id, id).await,
+      "ratings" | "top" | "leaderboard" => self.cmd_ratings(chat_id, id).await,
+      "rating" | "my_rating" => self.cmd_my_rating(chat_id, id, sender).await,
+      "me" => self.cmd_me(chat_id, id).await,
+      "help" => self.cmd_help(chat_id, id).await,
+      _ => Ok(()),
     }
-
-    Ok(())
   }
 
   async fn cmd_ping(&self, chat_id: i64, id: i64) -> td_client::Result {
@@ -29,12 +28,12 @@ impl App {
   }
 
   async fn cmd_help(&self, chat_id: i64, id: i64) -> td_client::Result {
-    self.client.reply_text(chat_id, id, "💡 Commands: `/ratings`, `/rating`, `/ping` | Reply with `+` or `-` to rate users").await?;
+    self.client.reply_text(chat_id, id, "💡 Commands: `/ratings`, `/rating`, `/ping`, `/help` | Reply with `+` or `-` to rate users").await?;
     Ok(())
   }
 
   async fn cmd_ratings(&self, chat_id: i64, id: i64) -> td_client::Result {
-    let top = self.db.read().map(|db| db.top_ratings(chat_id)).unwrap_or_default();
+    let top = self.db.top_ratings(chat_id);
 
     if top.is_empty() {
       self.client.reply_text(chat_id, id, "📊 No ratings recorded yet! Reply with `+` or `-` to rate chat members.").await?;
@@ -59,7 +58,7 @@ impl App {
       return Ok(());
     };
 
-    let score = self.db.read().map_or(0, |db| db.get_rating(chat_id, user_id));
+    let score = self.db.get_rating(chat_id, user_id);
     self.client.reply_text(chat_id, id, format!("👤 Your rating in this chat: **{score:+}**")).await?;
     Ok(())
   }

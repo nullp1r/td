@@ -144,7 +144,8 @@ mod tests {
   fn empty_graph() {
     let graph = Graph::from_edges(vec![], 0);
     assert_eq!(graph.len(), 0);
-    assert_matches!(&*graph.scc(), []);
+    let scc = graph.scc();
+    assert_matches!(&*scc, []);
   }
 
   #[test]
@@ -152,7 +153,8 @@ mod tests {
     let graph = Graph::from_edges(vec![], 3);
     assert_eq!(graph.len(), 3);
     // Each isolated vertex is its own separate component.
-    assert_matches!(&*graph.scc(), [0, 1, 2]);
+    let scc = graph.scc();
+    assert_matches!(&*scc, [0, 1, 2]);
   }
 
   #[test]
@@ -161,7 +163,8 @@ mod tests {
     let edges = vec![[0, 1], [1, 2], [2, 0]];
     let graph = Graph::from_edges(edges, 3);
     // All 3 vertices form a single SCC.
-    assert_matches!(&*graph.scc(), [a, b, c] if a == b && b == c);
+    let scc = graph.scc();
+    assert_matches!(&*scc, [a, b, c] if a == b && b == c);
   }
 
   #[test]
@@ -172,7 +175,8 @@ mod tests {
     let edges = vec![[0, 1], [1, 0], [2, 3], [3, 2], [0, 2]];
     let graph = Graph::from_edges(edges, 4);
     // 0 and 1 are in component A, 2 and 3 are in component B, with B < A.
-    assert_matches!(&*graph.scc(), [a0, a1, b0, b1] if a0 == a1 && b0 == b1 && a0 != b0 && b0 < a0);
+    let scc = graph.scc();
+    assert_matches!(&*scc, [a0, a1, b0, b1] if a0 == a1 && b0 == b1 && a0 != b0 && b0 < a0);
   }
 
   #[test]
@@ -180,6 +184,7 @@ mod tests {
     // 0 -> 0 (self-loop), 1 -> 2
     let edges = vec![[0, 0], [1, 2]];
     let graph = Graph::from_edges(edges, 3);
-    assert_matches!(&*graph.scc(), [a, b, c] if a != b && b != c && a != c);
+    let scc = graph.scc();
+    assert_matches!(&*scc, [a, b, c] if a != b && b != c && a != c);
   }
 }

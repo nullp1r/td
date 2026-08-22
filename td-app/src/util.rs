@@ -1,7 +1,6 @@
 use td_types::enums::{MessageContent, MessageReplyTo, MessageSender};
 use td_types::types;
 
-/// Extracts the primary active username from an optional `Usernames` structure.
 pub fn primary_username(usernames: Option<&types::usernames>) -> Option<&str> {
   match usernames {
     Some(u) if let [name, ..] = &*u.active_usernames => Some(name),
@@ -9,7 +8,6 @@ pub fn primary_username(usernames: Option<&types::usernames>) -> Option<&str> {
   }
 }
 
-/// Extracts a user ID from a `MessageSender` if it was sent by an individual user.
 pub const fn extract_user_id(sender: &MessageSender) -> Option<i64> {
   match sender {
     MessageSender::messageSenderUser(u) => Some(u.user_id),
@@ -17,7 +15,6 @@ pub const fn extract_user_id(sender: &MessageSender) -> Option<i64> {
   }
 }
 
-/// Extracts the target replied message ID from a `MessageReplyTo` structure.
 pub const fn reply_message_id(reply_to: Option<&MessageReplyTo>) -> Option<i64> {
   match reply_to {
     Some(MessageReplyTo::messageReplyToMessage(r)) => Some(r.message_id),
@@ -25,7 +22,6 @@ pub const fn reply_message_id(reply_to: Option<&MessageReplyTo>) -> Option<i64> 
   }
 }
 
-/// Extracts the plain text slice from a `MessageContent` if it is a text message.
 pub fn message_text(content: &MessageContent) -> Option<&str> {
   match content {
     MessageContent::messageText(m) => Some(&m.text.text),
@@ -33,7 +29,6 @@ pub fn message_text(content: &MessageContent) -> Option<&str> {
   }
 }
 
-/// Extracts the underlying downloadable `file` from any media message content.
 pub fn extract_media_file(content: &MessageContent) -> Option<&types::file> {
   match content {
     MessageContent::messageAnimation(m) => Some(&m.animation.animation),
@@ -48,7 +43,6 @@ pub fn extract_media_file(content: &MessageContent) -> Option<&types::file> {
   }
 }
 
-/// Extracts the caption text from a media message if present.
 pub fn message_caption(content: &MessageContent) -> Option<&str> {
   let text = match content {
     MessageContent::messageAnimation(m) => &m.caption.text,
