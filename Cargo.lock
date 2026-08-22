@@ -256,17 +256,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "td-client-v5"
-version = "0.1.0"
-dependencies = [
- "serde",
- "serde_json",
- "td-sys",
- "td-types",
- "tokio",
-]
-
-[[package]]
 name = "td-codegen"
 version = "0.1.0"
 dependencies = [

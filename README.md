@@ -31,7 +31,7 @@ TDLib is Telegram's official library providing full access to the Telegram MTPro
 ## Quick Look
 
 ```rust
-use td_client::{Client, defaults};
+use td_client::{Client, parameters};
 use td_types::enums::{MessageContent, Update, User};
 use td_types::fns::setTdlibParameters as Params;
 use td_types::{fns, types};
@@ -42,10 +42,10 @@ async fn main() -> td_client::Result {
   let api_hash = "abcdefghijklmnopqrstuvwxyz".into();
   let bot_token = "123456789:abcdefghijklmnopqrstuvwxyz";
 
-  let params = Params { api_id, api_hash, ..defaults() };
+  let params = Params { api_id, api_hash, ..parameters() };
   let mut client = Client::bot(params, bot_token).await?;
 
-  let User::user(me) = client.execute(&fns::getMe {}).await?;
+  let User::user(me) = client.send(&fns::getMe {}).await?;
   let types::user { usernames, first_name, id, .. } = me;
   let me = usernames.iter().find_map(|u| u.active_usernames.first()).map_or("…", String::as_str);
   println!("signed in as {first_name} (@{me}, id {id})");

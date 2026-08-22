@@ -26,18 +26,18 @@ impl ClientExt for Client {
 
   async fn get_message(&self, cid: i64, mid: i64) -> td_client::Result<Message> {
     let req = fns::getMessage { chat_id: cid, message_id: mid };
-    self.execute(&req).await
+    self.send(&req).await
   }
 
   async fn get_me(&self) -> td_client::Result<types::user> {
-    let res = self.execute(&fns::getMe {}).await?;
+    let res = self.send(&fns::getMe {}).await?;
     let User::user(user) = res;
     Ok(user)
   }
 
   async fn download(&self, fid: i32, priority: i32) -> td_client::Result<types::file> {
     let req = fns::downloadFile { synchronous: true, priority, file_id: fid, ..Default::default() };
-    let res = self.execute(&req).await?;
+    let res = self.send(&req).await?;
     let File::file(file) = res;
     Ok(file)
   }
@@ -45,20 +45,20 @@ impl ClientExt for Client {
   async fn upload(&self, path: impl Into<String>, priority: i32) -> td_client::Result<types::file> {
     let input = InputFile::inputFileLocal(types::inputFileLocal { path: path.into() });
     let req = fns::preliminaryUploadFile { priority, file: input, file_type: Some(FileType::fileTypeDocument) };
-    let res = self.execute(&req).await?;
+    let res = self.send(&req).await?;
     let File::file(file) = res;
     Ok(file)
   }
 
   async fn answer_inline_query(&self, qid: i64, results: Vec<InputInlineQueryResult>, cache_time: i32) -> td_client::Result<()> {
     let req = fns::answerInlineQuery { inline_query_id: qid, results, cache_time, ..Default::default() };
-    self.execute(&req).await.map(|_| ())
+    self.send(&req).await.map(|_| ())
   }
 }
 
 async fn reply_message(client: &Client, cid: i64, mid: i64, msg: InputMessageContent) -> td_client::Result<Message> {
   let req = fns::sendMessage { chat_id: cid, reply_to: Some(reply_do(mid)), input_message_content: msg, ..Default::default() };
-  client.execute(&req).await
+  client.send(&req).await
 }
 
 fn reply_do(mid: i64) -> InputMessageReplyTo {
