@@ -1,3 +1,6 @@
+#![doc(html_no_source)]
+
+#[doc(hidden)]
 pub use generated::*;
 
 pub mod traits {
