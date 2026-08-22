@@ -15,32 +15,37 @@ The replacement API therefore has two capabilities, but still only one owner:
 ```rust
 pub struct Client; // owns updates and native lifecycle; not Clone
 
-pub struct Requests; // can only execute requests
+pub struct Sender; // can only send requests
 
 impl Client {
   pub async fn new(parameters: setTdlibParameters) -> Result<Self>;
   pub async fn bot(parameters: setTdlibParameters, token: &str) -> Result<Self>;
-  pub fn requests(&self) -> Requests;
-  pub async fn execute<F: Function>(&self, request: &F) -> Result<F::Return>;
+  pub fn sender(&self) -> Sender;
+  pub async fn send<F: Function>(&self, request: &F) -> Result<F::Return>;
   pub async fn recv(&mut self) -> Result<Option<Update>>;
-  pub async fn auth(&mut self) -> Result<AuthorizationState>;
+  pub async fn recv_auth(&mut self) -> Result<AuthorizationState>;
   pub async fn shutdown(self) -> Result<()>;
 }
 
-impl Requests {
-  pub async fn execute<F: Function>(&self, request: &F) -> Result<F::Return>;
+impl Sender {
+  pub async fn send<F: Function>(&self, request: &F) -> Result<F::Return>;
 }
+
+pub fn parameters() -> setTdlibParameters;
+pub fn set_log_level(level: i32);
+pub fn set_receive_timeout(timeout: Duration);
 ```
 
-`Requests` is the one addition justified by a real caller. It cannot receive updates or initiate shutdown. `Client` remains the sole owner, and shutdown still consumes it.
+`Sender` is the one addition justified by a real caller. It cannot receive updates or initiate shutdown. `Client` remains the sole owner, and shutdown still consumes it.
 
-The prototype is 382 lines of production Rust including `build.rs`, compared with the current implementation's 332. The 50-line increase buys three required properties together:
+The prototype is 407 lines of production Rust including `build.rs`, compared with the current implementation's 332. The 75-line increase buys these properties together:
 
 - detached request tasks;
 - a request/close gate with a defined race outcome;
-- local revocation when the owner is dropped, even while request capabilities survive.
+- local revocation when the owner is dropped, even while request capabilities survive;
+- typed process-wide receive-timeout tuning.
 
-The second rules/line-count pass removed 14 production lines from the first checked v5 prototype while also eliminating blocking destructor locks and per-response weak-registry pruning.
+The second rules/line-count pass removed 14 production lines from the first checked v5 prototype while also eliminating blocking destructor locks and per-response weak-registry pruning. This pass adds 25 lines for the restored timeout, stale-entry cleanup shared by every client-registry access, and explicit close/serialization boundaries. Those lines prevent the methods from accumulating unrelated responsibilities; the design still avoids modules and types that would only rearrange code.
 
 It adds no dependency, runtime task, public state enum, builder, session wrapper, or actor.
 
@@ -59,7 +64,7 @@ The prototype was rechecked against every `td-client` change after the RFC 0007-
 | Runtime responsibilities are separated into client, state, and router operations | Retained without restoring the older module/type hierarchy |
 | `Client: Debug` avoids dumping internal state | Retained without exposing the native transport ID |
 | Rust 1.97 and the workspace lint policy | Retained |
-| Public receive-timeout tuning | Deliberately removed: it exposes worker synchronization and no demonstrated consumer owns that policy; the native receive wait remains a private implementation bound |
+| Public receive-timeout tuning | Restored with `Duration` rather than unchecked floating-point seconds |
 
 The audit also removes a current hot-path cost that v5 no longer needs. Current routing prunes the complete weak registry before every lookup. V5 lookup is one expected-O(1) `HashMap::get` plus `Weak::upgrade`; graceful shutdown removes its entry explicitly, while abandoned entries are pruned once after their weak state dies rather than scanned on every response.
 
@@ -84,12 +89,12 @@ The rewrite can keep tokfu's existing concurrency without making the native clie
 
 ```rust
 struct Inner {
-  tg: td_client::Requests,
+  tg: td_client::Sender,
   // configuration, HTTP client, rate limiter, caches, ...
 }
 
 let mut client = td_client::Client::bot(parameters, &token).await?;
-let app = App::new(client.requests()).await?;
+let app = App::new(client.sender()).await?;
 
 let result = app.run(&mut client).await;
 app.cancel_and_join_children().await;
@@ -110,53 +115,53 @@ Tokfu currently detaches message tasks and does not retain their join handles. I
 Client (one owner, not Clone)
   ├─ ordered event receiver
   ├─ auth buffer
-  └─ Arc<State>
+  └─ Arc<ClientState>
        ├─ request gate + pending responses
        ├─ event sender
-       └╌ Weak<State> ─ Requests in Arc<Inner> ─┬─ event handlers
+       └╌ Weak<ClientState> ─ Sender in Arc<Inner> ─┬─ event handlers
                                                 ├─ archiver
                                                 └─ autoposter
 
-Router ── Weak<State> only
+Router ── Weak<ClientState> only
 ```
 
-Only `Client` stores a strong `Arc<State>`. `Requests` stores `Weak<State>` and upgrades it for the duration of one request:
+Only `Client` stores a strong `Arc<ClientState>`. `Sender` stores `Weak<ClientState>` and upgrades it for the duration of one request:
 
 - only `Client` owns the event receiver;
 - only `Client::shutdown(self)` can claim graceful native shutdown;
 - dropping `Client` closes its existing event receiver, which revokes new detached requests without running destructor code;
-- `Requests` never closes TDLib, keeps idle state alive, or keeps a router entry alive;
-- the router stores `Weak<State>`, so it cannot manufacture ownership; an already-running request may keep state alive only until that request finishes.
+- `Sender` never closes TDLib, keeps idle state alive, or keeps a router entry alive;
+- the router stores `Weak<ClientState>`, so it cannot manufacture ownership; an already-running request may keep state alive only until that request finishes.
 
-This distinction is why the new type is named `Requests`, not `ClientHandle`. It describes the granted operation instead of suggesting that a clone represents the client session.
+This distinction is why the new type is named `Sender`, not `ClientHandle`. It describes the granted operation instead of suggesting that a clone represents the client session.
 
 ## Request and shutdown ordering
 
 Detached request execution creates one new race that RFC 0007 did not have:
 
 ```text
-task A: execute(request)       owner: shutdown(close)
+task A: send(request)          owner: shutdown(close)
 ```
 
-An atomic `closing` check would be insufficient. A task could pass the check, be suspended, and call `td_send` after `close`. The prototype instead folds one `open` bit into the existing pending-request mutex and reuses event-receiver closure to detect an abandoned owner:
+An atomic `closing` check would be insufficient. A task could pass the check, be suspended, and call `td_send` after `close`. The prototype instead folds one `accepting` bit into the existing pending-request mutex and reuses event-receiver closure to detect an abandoned owner:
 
 ```rust
-struct RequestState {
-  open: bool,
-  pending: HashMap<u64, oneshot::Sender<Result<Vec<u8>>>>,
+struct PendingRequests {
+  accepting: bool,
+  replies: HashMap<u64, oneshot::Sender<Result<Vec<u8>>>>,
 }
 ```
 
 Ordinary execution performs:
 
 1. allocate `@extra` and serialize the typed request;
-2. lock `RequestState`;
-3. reject the request if `open` is false or the sole `Client` event receiver has gone away;
+2. lock `PendingRequests`;
+3. reject the request if `accepting` is false or the sole `Client` event receiver has gone away;
 4. install its pending response sender;
 5. call `td_send` while still holding the short synchronous lock;
 6. unlock and await the request-local oneshot.
 
-Shutdown performs the same sequence, except its owner-only close operation changes `open` to false before installing and sending typed `fns::close {}`. The close path remains available if the event receiver itself failed, allowing TDLib to receive the native close even though its terminal update can no longer be observed.
+Shutdown performs the same sequence, except its owner-only close operation changes `accepting` to false before installing and sending typed `fns::close {}`. The close path remains available if the event receiver itself failed, allowing TDLib to receive the native close even though its terminal update can no longer be observed.
 
 The mutex therefore defines a total send order:
 
@@ -165,13 +170,13 @@ The mutex therefore defines a total send order:
 
 No synchronous lock is held across `.await`. No actor, command channel, task-local registry, shutdown state machine, or request-state atomic is needed.
 
-When the client reaches its terminal state, `disconnect` closes the gate and drops every remaining pending sender, so their receivers report `Disconnected`. When the owner is merely abandoned, new requests are rejected but requests already sent may still receive their routed responses; the last such request releases the state. A canceled request future is harmless: its pending entry is removed when the native response arrives, and sending to the dropped oneshot is ignored.
+When the client reaches its terminal state, `cancel_requests` closes the gate and drops every remaining pending sender, so their receivers report `Disconnected`. When the owner is merely abandoned, new requests are rejected but requests already sent may still receive their routed responses; the last such request releases the state. A canceled request future is harmless: its pending entry is removed when the native response arrives, and sending to the dropped oneshot is ignored.
 
 ## Update ownership
 
 The update side does not become cloneable. One `Client` still owns one unbounded, ordered queue.
 
-`recv(&mut self)` filters authorization transitions and returns application updates in TDLib order. `auth(&mut self)` returns the next authorization state and buffers every intervening application update in a `VecDeque`. The bot constructor uses `auth`, so startup cannot lose updates that precede `authorizationStateReady`.
+`recv(&mut self)` filters authorization transitions and returns application updates in TDLib order. `recv_auth(&mut self)` returns the next authorization state and buffers every intervening application update in a `VecDeque`. The bot constructor uses `recv_auth`, so startup cannot lose updates that precede `authorizationStateReady`.
 
 The queue remains unbounded. The native receiver thread cannot await Tokio capacity, and neither dropping nor reordering updates is a generic library policy. Tokfu's event loop drains this queue promptly and moves slow work into tasks, which is exactly the access pattern an unbounded handoff requires.
 
@@ -182,7 +187,7 @@ TDLib functions do not all have the same completion semantics. In particular, `s
 The wrapper must not turn those domain updates into speculative generic futures. Tokfu can implement the behavior it actually needs in its Telegram adapter:
 
 ```text
-spawned handler ── execute(sendMessage) ──> local message id
+spawned handler ── send(sendMessage) ──> local message id
        │
        └── await application oneshot <── event dispatcher
                                            ├─ updateMessageSendSucceeded
@@ -196,7 +201,7 @@ That correlation table is application state because its timeout, retry, persiste
 The modern TDLib JSON interface multiplexes every live client through process-wide `td_receive`. The replacement retains:
 
 - exactly one receiver thread;
-- a `HashMap<i32, Weak<State>>` selected by required `@client_id`;
+- a `HashMap<i32, Weak<ClientState>>` selected by required `@client_id`;
 - one pending `HashMap<u64, ...>` per client selected by `@extra`;
 - one event queue per client;
 - a parked process-lifetime worker when the registry is empty.
@@ -210,7 +215,7 @@ The worker lifecycle keeps RFC 0007's single `watch::Sender<()>` transition sign
 
 In both cases the closing client is no longer reachable and the process-wide receiver has crossed a safe ownership boundary.
 
-The public receive-timeout setter is removed. It exposed a worker polling detail for which neither tokfu nor the example application has a policy requirement. The private one-second native wait only bounds how soon the worker acknowledges an empty registry; it does not delay available updates.
+Receive-timeout tuning is process-wide because `td_receive` is process-wide. `set_receive_timeout(Duration)` updates the sole receiver's next native wait without adding a configuration wrapper or accepting negative and non-finite floating-point values. The one-second default remains a private lifecycle bound; available updates still return immediately.
 
 ## Protocol errors
 
@@ -230,7 +235,7 @@ Responses for canceled request futures are the one intentional non-event: the ro
 
 `Client::bot` reacts only to the states required for bot login. Any unexpected state is returned as `Error::Auth`. Failure again attempts graceful shutdown before preserving the original authentication error.
 
-Interactive authorization needs no public session or callback abstraction. A caller reads `auth()` and sends the corresponding generated TDLib functions.
+Interactive authorization needs no public session or callback abstraction. A caller reads `recv_auth()` and sends the corresponding generated TDLib functions.
 
 ### Explicit shutdown
 
@@ -247,9 +252,9 @@ If the terminal state was already observed, shutdown does not send a second clos
 
 ### Drop
 
-`Client` needs no `Drop` implementation. Ordinary field destruction closes the event receiver and drops the owner's `Arc<State>` without calling TDLib, locking, sleeping, joining, or reporting successful shutdown. Detached requests then fail their existing sender-closure check.
+`Client` needs no `Drop` implementation. Ordinary field destruction closes the event receiver and drops the owner's `Arc<ClientState>` without calling TDLib, locking, sleeping, joining, or reporting successful shutdown. Detached requests then fail their existing sender-closure check.
 
-An already-sent request may temporarily retain `State` and finish normally. When the last strong reference disappears, `State::drop` performs one atomic dirty notification; the receiver thread prunes the now-dead weak router entry on its next loop. No destructor takes a mutex.
+An already-sent request may temporarily retain `ClientState` and finish normally. When the last strong reference disappears, `ClientState::drop` marks the registry stale; the receiver thread prunes the dead weak entry on its next lookup or loop. No destructor takes a mutex.
 
 Dropping `Client` without `shutdown` is still misuse. The library makes stale Rust capabilities safe; it cannot complete an asynchronous native close protocol from a destructor.
 
@@ -269,7 +274,7 @@ Rejected because neither value would clearly own native shutdown. The design wou
 
 ### Put `Client` behind `Arc<tokio::sync::Mutex<_>>`
 
-Rejected because `recv().await` would hold the mutex indefinitely and exclude every request. Splitting locks inside the public type recreates `Requests` less explicitly and less ergonomically.
+Rejected because `recv().await` would hold the mutex indefinitely and exclude every request. Splitting locks inside the public type recreates `Sender` less explicitly and less ergonomically.
 
 ### Add a request actor
 
@@ -295,10 +300,10 @@ Rejected. There is still no caller, and TDLib's global stateless response buffer
 
 Kept:
 
-- `Client`, `Requests`, `Error`, and `Result`;
-- typed `execute`, ordered `recv`, arbitrary `auth`, bot convenience, and consuming `shutdown`;
-- generated `setTdlibParameters` plus a small `defaults()` value;
-- TDLib's global log-verbosity setter.
+- `Client`, `Sender`, `Error`, and `Result`;
+- typed `send`, ordered `recv`, arbitrary `recv_auth`, bot convenience, and consuming `shutdown`;
+- generated `setTdlibParameters` plus a small `parameters()` value;
+- TDLib's global receive-timeout and log-level setters.
 
 Absent:
 
@@ -307,18 +312,17 @@ Absent:
 - a public receiver, stream adapter, auth session, shutdown guard, or lifecycle enum;
 - tracing and retry policy;
 - bounded update overflow behavior;
-- a receive-timeout knob;
 - synchronous execution;
 - compatibility shims for RFC 0007.
 
 ## Repository-guideline audit
 
-- Consumer need: `Requests` exists only for tokfu's demonstrated detached handlers and background jobs. It is not `Clone`, stores only `Weak<State>`, and cannot own lifecycle, updates, or shutdown.
-- Ownership: one non-`Clone` `Client` stores the sole durable `Arc<State>`; borrowed `&Client` remains the ordinary concurrent-request path; `&mut Client` consumes ordered updates; shutdown consumes `Client`.
+- Consumer need: `Sender` exists only for tokfu's demonstrated detached handlers and background jobs. It is not `Clone`, stores only `Weak<ClientState>`, and cannot own lifecycle, updates, or shutdown.
+- Ownership: one non-`Clone` `Client` stores the sole durable `Arc<ClientState>`; borrowed `&Client` remains the ordinary concurrent-request path; `&mut Client` consumes ordered updates; shutdown consumes `Client`.
 - Protocol: all operations are generated typed TDLib functions; `close` uses the correlated request path; required `@client_id` and `@type` fields are non-optional.
 - Error and ordering preservation: the update queue is unbounded and ordered, auth buffering uses `VecDeque`, request and TDLib errors are propagated, malformed unrouteable envelopes are broadcast as JSON errors, and shutdown retains the first event failure while still seeking the terminal state.
 - Synchronization: the sole receiver is one parked OS thread; the request/close gate and pending map share one short `std::sync::Mutex`; replies use `oneshot`; ordered events use `mpsc`; worker transitions use `watch`; no synchronous guard crosses `.await`.
-- Policy: there is no tracing, retry, flood-wait, overflow, message-delivery, or public timeout policy in the library.
+- Policy: there is no tracing, retry, flood-wait, overflow, or message-delivery policy; receive timeout is only a caller-selected native wait bound.
 - Efficiency: routing and response correlation use expected-O(1) `HashMap`s, authentication buffering is contiguous, request serialization stays in bytes, and owner revocation reuses the existing event channel instead of allocating another signal.
 - FFI: dynamic requests are explicitly NUL-terminated, every `unsafe` block has its local invariant, and destructors perform no native or blocking work.
 - Dependencies and language: v5 adds no dependency, inherits workspace versions with only Tokio `sync`, targets Edition 2024/Rust 1.97, and keeps the strict workspace lints clean.
@@ -327,9 +331,9 @@ Absent:
 
 The successful request path performs the operations inherent to the JSON API: one serialization buffer, one pending-map entry, one oneshot, one native send, one response copy, and one typed deserialization.
 
-The request gate reuses the pending-map mutex. Holding it through the nonblocking `td_send` call removes a race without another request-state atomic or lock. Owner-drop detection reuses `UnboundedSender::is_closed`, so it adds no channel or allocation. Tokfu stores one `Requests` value in `Arc<Inner>`; cloning `App` only increments that existing application `Arc`.
+The request gate reuses the pending-map mutex. Holding it through the nonblocking `td_send` call removes a race without another request-state atomic or lock. Owner-drop detection reuses `UnboundedSender::is_closed`, so it adds no channel or allocation. Tokfu stores one `Sender` value in `Arc<Inner>`; cloning `App` only increments that existing application `Arc`.
 
-Router lookup is expected O(1): one `HashMap::get` and one `Weak::upgrade`. A single dirty bit triggers weak-entry pruning only after state destruction, avoiding the current implementation's full-registry scan for every response.
+Router lookup is expected O(1): one `HashMap::get` and one `Weak::upgrade`. A single stale bit triggers weak-entry pruning only after state destruction, avoiding the current implementation's full-registry scan for every response.
 
 Updates are deserialized once into generated owned types and moved through a contiguous channel queue. Authentication buffering allocates only for updates that actually arrive during authentication.
 
@@ -353,7 +357,7 @@ They cover:
 - detached `tokio::spawn` request execution;
 - concurrent same-client and cross-client requests;
 - an already-closed client;
-- shutdown while the non-owning `Requests` capability remains alive;
+- shutdown while the non-owning `Sender` capability remains alive;
 - simultaneous shutdown of multiple clients;
 - a request racing shutdown;
 - registration racing final shutdown;

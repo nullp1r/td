@@ -7,7 +7,7 @@ use serde::Serialize;
 use serde::ser::Error as _;
 use tokio::time::timeout;
 
-use td_client::{Client, Error, defaults};
+use td_client::{Client, Error, parameters};
 use td_types::enums::{AuthorizationState, TestInt, Update};
 use td_types::traits::Function;
 use td_types::{enums, fns, types};
@@ -43,14 +43,15 @@ fn params(name: &str) -> fns::setTdlibParameters {
     api_hash: "b18441a1ff607e10a989891a5462e627".into(),
     database_directory: format!("{directory}/db"),
     files_directory: format!("{directory}/files"),
-    ..defaults()
+    ..parameters()
   }
 }
 
 #[tokio::test]
 async fn lifecycle() {
   let fut = async {
-    td_client::set_log_verbosity_level(0);
+    td_client::set_log_level(0);
+    td_client::set_receive_timeout(Duration::from_millis(10));
 
     let mut invalid = params("invalid");
     invalid.system_language_code.clear();
@@ -61,19 +62,19 @@ async fn lifecycle() {
     let mut first = first.expect("first client failed to start");
     let second = second.expect("second client failed to start");
 
-    let result = first.execute(&BadRequest).await;
+    let result = first.send(&BadRequest).await;
     assert_matches!(result, Err(Error::Json(_)));
-    let result = first.execute(&WrongReturn).await;
+    let result = first.send(&WrongReturn).await;
     assert_matches!(result, Err(Error::Json(_)));
 
-    let detached = Arc::new(first.requests());
+    let detached = Arc::new(first.sender());
     let a_detached = Arc::clone(&detached);
-    let a_detached = tokio::spawn(async move { a_detached.execute(&fns::testSquareInt { x: 4 }).await });
+    let a_detached = tokio::spawn(async move { a_detached.send(&fns::testSquareInt { x: 4 }).await });
     let b_detached = Arc::clone(&detached);
-    let b_detached = tokio::spawn(async move { b_detached.execute(&fns::testSquareInt { x: 6 }).await });
+    let b_detached = tokio::spawn(async move { b_detached.send(&fns::testSquareInt { x: 6 }).await });
     let first_request = fns::testSquareInt { x: 3 };
     let second_request = fns::testSquareInt { x: 5 };
-    let (a, c) = tokio::join!(first.execute(&first_request), second.execute(&second_request));
+    let (a, c) = tokio::join!(first.send(&first_request), second.send(&second_request));
     let b = a_detached.await.expect("first detached request task panicked");
     let d = b_detached.await.expect("second detached request task panicked");
     assert_matches!(a, Ok(TestInt::testInt(types::testInt { value: 9 })));
@@ -82,29 +83,29 @@ async fn lifecycle() {
     assert_matches!(d, Ok(TestInt::testInt(types::testInt { value: 36 })));
 
     let error = types::error { code: 418, message: "teapot".into() };
-    let result = first.execute(&fns::testReturnError { error: error.clone() }).await;
+    let result = first.send(&fns::testReturnError { error: error.clone() }).await;
     assert_matches!(result, Err(Error::Td(actual)) if actual == error);
 
-    while first.auth().await.expect("authorization failed") != AuthorizationState::authorizationStateWaitPhoneNumber {}
+    while first.recv_auth().await.expect("authorization failed") != AuthorizationState::authorizationStateWaitPhoneNumber {}
     let update = first.recv().await;
     assert_matches!(update, Ok(Some(Update::updateOption(_))));
 
-    first.execute(&fns::close {}).await.expect("close request failed");
+    first.send(&fns::close {}).await.expect("close request failed");
     while first.recv().await.expect("receiving updates failed").is_some() {}
     first.shutdown().await.expect("already-closed client failed to shut down");
 
-    let stale = second.requests();
+    let stale = second.sender();
     let third = Client::new(params("third")).await.expect("third client failed to start");
     let (second, third, racing) = tokio::join!(second.shutdown(), third.shutdown(), Client::new(params("racing")));
     second.expect("second client failed to shut down");
     third.expect("third client failed to shut down");
     racing.expect("racing client failed to start").shutdown().await.expect("racing client failed to shut down");
-    let result = stale.execute(&fns::testSquareInt { x: 6 }).await;
+    let result = stale.send(&fns::testSquareInt { x: 6 }).await;
     assert_matches!(result, Err(Error::Disconnected));
 
     let closing = Client::new(params("closing")).await.expect("closing client failed to start");
-    let request = closing.requests();
-    let request = tokio::spawn(async move { request.execute(&fns::testSquareInt { x: 6 }).await });
+    let request = closing.sender();
+    let request = tokio::spawn(async move { request.send(&fns::testSquareInt { x: 6 }).await });
     closing.shutdown().await.expect("closing client failed to shut down");
     let request = request.await.expect("racing request task panicked");
     assert_matches!(request, Ok(TestInt::testInt(types::testInt { value: 36 })) | Err(Error::Disconnected));
