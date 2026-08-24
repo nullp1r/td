@@ -10,7 +10,7 @@ use std::fmt::{self, Display};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
 pub enum Error<'a> {
   /// A generic or parameter group reached the end of input before its closing delimiter.
-  #[error("unterminated '{}{}' group", .0[0], .0[1])]
+  #[error("unterminated '{}' group", group(*.0))]
   UnterminatedGroup([char; 2]),
   /// A fixed punctuation token was absent.
   #[error("expected '{0}'")]
@@ -29,10 +29,14 @@ pub enum Error<'a> {
   UnexpectedInput(&'a str),
 }
 
-/// Formats a bounded preview without allocating an intermediate string.
-fn preview(input: &str) -> impl Display + '_ {
-  fmt::from_fn(move |f| {
-    let [slice, ellipsis] = if let Some(slice) = input.get(..20) { [slice, "…"] } else { [input, ""] };
-    write!(f, "{slice}{ellipsis}")
-  })
+fn group([open, close]: [char; 2]) -> impl Display {
+  fmt::from_fn(move |f| write!(f, "{open}…{close}"))
+}
+
+fn preview(input: &str) -> impl Display {
+  let [slice, ellipsis] = match input.get(..20) {
+    Some(slice) => [slice, "…"],
+    None => [input, ""],
+  };
+  fmt::from_fn(move |f| write!(f, "{slice}{ellipsis}"))
 }

@@ -1,14 +1,14 @@
 //! Formatting of the generated `types`, `enums`, and `fns` modules.
 //!
 //! Every helper returns a borrowed [`fmt::Display`] adapter. This keeps the
-//! generator a single streaming pass after [`Context`] builds its sorted indexes
+//! generator a single streaming pass after [`SchemaIndex`] builds its sorted indexes
 //! and recursive-layout map.
 
 use std::fmt;
 
 use td_parser::{Combinator, Definition, Field, TypeExpr};
 
-use crate::ctx::Context;
+use crate::ctx::SchemaIndex as Context;
 use crate::util;
 
 const DERIVES: &str = "Debug, Clone, PartialEq";
@@ -57,7 +57,7 @@ fn types_mod(ctx: &Context) -> impl fmt::Display {
     writeln!(f, "{:2}use crate::serde_with;", "")?;
     writeln!(f, "{:2}use super::enums;", "")?;
 
-    for (_, group) in ctx.groups() {
+    for (_, group) in ctx.ctor_groups() {
       for c in group {
         let 1.. = c.fields.len() else { continue };
         writeln!(f)?;
@@ -74,7 +74,7 @@ fn enums_mod(ctx: &Context) -> impl fmt::Display {
     writeln!(f, "{:2}use serde::{{Deserialize, Serialize}};", "")?;
     writeln!(f, "{:2}use super::types;", "")?;
 
-    for (name, items) in ctx.groups() {
+    for (name, items) in ctx.ctor_groups() {
       writeln!(f)?;
       writeln!(f, "{}", r#enum(name, items))?;
     }
@@ -215,10 +215,9 @@ fn type_expr(ctx: &Context, expr: &TypeExpr, is_fn: bool, struct_name: &str) -> 
   fmt::from_fn(move |f| match expr {
     TypeExpr::Bare(name) if let Some(name) = util::to_native(name) => f.write_str(name),
     TypeExpr::Bare(name) if ctx.is_enum(name) => {
-      // A direct enum payload can close an infinite-size layout cycle. SCC
-      // membership proves exactly where one Box is required; vector recursion
-      // calls this helper with no enclosing struct and is already indirect.
-      let [open, close] = if ctx.in_same_scc([struct_name, name]) { ["Box<", ">"] } else { ["", ""] };
+      // Vector recursion calls this helper with no enclosing struct and is
+      // already indirect. Direct recursive SCC edges are boxed conservatively.
+      let [open, close] = if ctx.needs_box([struct_name, name]) { ["Box<", ">"] } else { ["", ""] };
       write!(f, "{open}enums::{name}{close}")
     }
     TypeExpr::Bare(name) => write!(f, "{}{name}", if is_fn { "types::" } else { "self::" }),

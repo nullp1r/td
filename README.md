@@ -1,6 +1,6 @@
 # td
 
-**Build full Telegram clients in Rust without reducing TDLib to stringly typed JSON.**
+**Build full-featured Telegram clients in Rust with a fully typed interface to the entire TDLib API.**
 
 `td` generates a typed Rust API from [TDLib]'s [API schema][td-api], written in Telegram's [Type Language (TL)][tl], and connects it to a small asynchronous client runtime. TDLib handles the protocol, synchronization, local storage, and media; `td` handles the Rust-facing boundary: request types, response correlation, ordered updates, message-send completion, and explicit shutdown.
 

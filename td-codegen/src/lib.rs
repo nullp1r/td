@@ -8,9 +8,9 @@
 //! Generation is deterministic and writes through [`std::fmt::Display`] without
 //! first building a second source tree or intermediate `String`. Primitive wire
 //! representations receive the required Serde adapters, and direct recursive
-//! layout cycles are found with a compact dependency graph so only the necessary
-//! enum references are boxed. Vectors already provide indirection and remain
-//! unboxed.
+//! layout cycles are found with a compact dependency graph. Direct enum references
+//! inside a recursive component are boxed conservatively; vectors already provide
+//! indirection and remain unboxed.
 //!
 //! ```
 //! use td_codegen::generate;
