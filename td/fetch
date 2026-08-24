@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+log() { printf -- '\x1b[9%dm%s\x1b[39m %s\n' "$1" "$2" "$3"; }
+
+arch="$(uname -m)"
+arch="${arch/x86_64/x64}"
+arch="${arch/aarch64/arm64}"
+
+case "$(uname -s)" in
+Linux)
+  pkg="linux-$arch-glibc"
+  lib="libtdjson.so"
+  ;;
+Darwin)
+  pkg="darwin-$arch"
+  lib="libtdjson.dylib"
+  ;;
+*)
+  log 1 "unsupported OS:" "$(uname -s)" >&2
+  exit 1
+  ;;
+esac
+
+cd "${0%/*}"
+
+metadata=$(curl -fsSL "https://registry.npmjs.org/@prebuilt-tdlib/$pkg/latest")
+commit=$(jq -er .tdlib.commit <<< "$metadata")
+tarball=$(jq -er .dist.tarball <<< "$metadata")
+
+log 3 "fetching…" "td_api.tl ($commit)"
+curl -fsSL "https://raw.githubusercontent.com/tdlib/td/$commit/td/generate/scheme/td_api.tl" -o td_api.tl
+
+log 3 "fetching…" "$lib ($pkg)"
+curl -fsSL "$tarball" | tar -xz --strip-components=1 "package/$lib"
+
+if [[ $lib == *.so && $(readelf -d "$lib") =~ libtdjson\.so\.[0-9.]+ ]]; then
+  log 6 "symlink" "${BASH_REMATCH[0]} -> $lib"
+  ln -sf "$lib" "${BASH_REMATCH[0]}"
+fi

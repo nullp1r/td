@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+log() { printf -- '\x1b[9%dm%s\x1b[39m %s\n' "$1" "$2" "$3"; }
+
+root=$(git -C "${0%/*}" rev-parse --show-toplevel)
+branch=gh-pages
+output="$root/target/doc"
+worktree=$(mktemp -d -p "${TMPDIR:-/tmp}" td-gh-pages.XXXXXX)
+
+cleanup() {
+  git -C "$root" worktree remove --force "$worktree" >/dev/null 2>&1 || rmdir "$worktree" 2>/dev/null || true
+}
+trap cleanup EXIT
+
+cd "$root"
+log 3 "generating…" "workspace rustdoc"
+cargo clean --doc
+RUSTDOCFLAGS='-A rustdoc::broken_intra_doc_links -A rustdoc::bare_urls -A rustdoc::invalid_html_tags' cargo doc --workspace --no-deps
+
+printf '%s\n' \
+  '<!doctype html>' \
+  '<meta charset="utf-8">' \
+  '<meta http-equiv="refresh" content="0; url=td_client/">' \
+  '<title>td documentation</title>' \
+  '<a href="td_client/">Open td-client documentation</a>' > "$output/index.html"
+: > "$output/.nojekyll"
+
+log 3 "publishing…" "$branch"
+git worktree add "$worktree" "$branch"
+git -C "$worktree" rm -r -q --ignore-unmatch .
+cp -a "$output/." "$worktree/"
+rm -f "$worktree/.lock"
+git -C "$worktree" add -A
+
+if git -C "$worktree" diff --cached --quiet; then
+  log 2 "unchanged" "$branch"
+else
+  git -C "$worktree" commit -m 'docs: publish workspace rustdoc'
+fi
+
+log 3 "pushing…" "$branch"
+git -C "$root" push origin "$branch"
