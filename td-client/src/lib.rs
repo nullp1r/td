@@ -15,15 +15,11 @@
 //! it neither keeps the client alive nor grants access to updates or shutdown.
 //!
 //! ```no_run
-//! use td_client::{Client, defaults};
+//! use td_client::Client;
 //! use td_types::fns;
 //!
 //! # async fn run() -> td_client::Result {
-//! let params = fns::setTdlibParameters {
-//!   api_id: 123456,
-//!   api_hash: "api hash".into(),
-//!   ..defaults()
-//! };
+//! let params = td_client::params(123456, "api hash", ".td");
 //! let mut client = Client::bot(params, "bot token").await?;
 //! let sender = client.sender();
 //!
@@ -80,6 +76,7 @@
 
 use std::collections::{HashMap, VecDeque};
 use std::ffi::CStr;
+use std::path::Path;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, LazyLock, Mutex, MutexGuard, OnceLock, Weak};
 use std::time::{Duration, Instant};
@@ -795,20 +792,33 @@ pub fn set_log_level(level: i32) {
   unsafe { td_sys::td_set_log_verbosity_level(level) };
 }
 
-/// Returns a small server-oriented starting point for `TDLib` parameters.
+/// Returns a small server-oriented starting point for `TDLib` parameters with the
+/// given credentials and rooted at `dir`.
 ///
-/// The value stores databases and files below `.td`, enables the file, chat-info,
-/// and message databases, uses English and the `Server` device model, and reports
-/// this crate's version as the application version. Required credentials such as
-/// `api_id` and `api_hash` retain their generated defaults and must be supplied by
-/// the caller, usually with struct-update syntax.
-pub fn defaults() -> fns::setTdlibParameters {
+/// The value enables the file, chat-info, and message databases and stores databases
+/// and files below `{dir}/db` and `{dir}/files` on top of the settings provided by
+/// [`defaults`].
+pub fn params(api_id: i32, api_hash: impl Into<String>, dir: impl AsRef<Path>) -> fns::setTdlibParameters {
+  let dir = dir.as_ref();
   fns::setTdlibParameters {
-    database_directory: ".td/db".into(),
-    files_directory: ".td/files".into(),
+    api_id,
+    api_hash: api_hash.into(),
+    database_directory: dir.join("db").display().to_string(),
+    files_directory: dir.join("files").display().to_string(),
     use_file_database: true,
     use_chat_info_database: true,
     use_message_database: true,
+    ..defaults()
+  }
+}
+
+/// Returns a small server-oriented starting point for `TDLib` parameters.
+///
+/// The value uses English and the `Server` device model, and reports this crate's
+/// version as the application version. All databases remain disabled, and required
+/// credentials and storage directories retain their generated defaults.
+pub fn defaults() -> fns::setTdlibParameters {
+  fns::setTdlibParameters {
     system_language_code: "en".into(),
     device_model: "Server".into(),
     application_version: env!("CARGO_PKG_VERSION").into(),

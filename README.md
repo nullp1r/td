@@ -48,20 +48,16 @@ The example authenticates a bot, logs incoming updates, and replies to text mess
 Generated request structs carry their return type, so no response cast or hand-written JSON is needed:
 
 ```rust
-use td_client::{Client, Result, defaults};
+use td_client::{Client, Result};
 use td_types::enums::User;
 use td_types::{fns, types};
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result {
-  let params = fns::setTdlibParameters {
-    api_id: 123456,
-    api_hash: "your API hash".into(),
-    ..defaults()
-  };
-  let client = Client::bot(params, "your bot token").await?;
+  let params = td_client::params(123456789, "api hash", ".td");
+  let client = Client::bot(params, "bot token").await?;
 
-  // Keep application errors separate from lifecycle cleanup.
+  // keep application errors separate from lifecycle cleanup
   let result = identify(&client).await;
   let shutdown = client.shutdown().await;
   result?;

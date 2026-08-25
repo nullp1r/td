@@ -9,7 +9,7 @@ use serde::Deserialize;
 use tokio::process::Command;
 use tokio::time::timeout;
 
-use td_client::{Client, Error, Sender, defaults};
+use td_client::{Client, Error, Sender};
 use td_types::enums::{AuthorizationState, Chat, InputFile, InputMessageContent, Message, MessageContent, Update};
 use td_types::{fns, types};
 
@@ -27,9 +27,8 @@ struct Config {
 
 fn read_config() -> Result<Config> {
   let path = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/live/config.json");
-  let bytes = fs::read(path) //.
-    .context("copy tests/live/config.example.json to tests/live/config.json and fill in the live-test credentials")?;
-  serde_json::from_slice(&bytes).context("failed to parse tests/live/config.json")
+  let bytes = fs::read(path).context("missing `config.json` (copy from `config.example.json`)")?;
+  serde_json::from_slice(&bytes).context("failed to parse `config.json`")
 }
 
 #[tokio::test]
@@ -60,11 +59,8 @@ async fn run(config: Config, root: &Path, marker: &str) -> Result<()> {
     api_id,
     api_hash,
     database_directory: SESSION_DIRECTORY.into(),
-    files_directory: root.join("files").to_string_lossy().into_owned(),
-    use_file_database: false,
-    use_chat_info_database: false,
-    use_message_database: false,
-    ..defaults()
+    files_directory: format!("{}/files", root.display()),
+    ..td_client::defaults()
   };
   tracing::info!("creating an isolated TDLib client");
   let mut client = Client::new(params).await.context("failed to create the live-test client")?;

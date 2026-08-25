@@ -4,7 +4,6 @@ use anyhow::Context as _;
 use serde::Deserialize;
 
 use td_client::Client;
-use td_types::fns;
 
 pub type Result<T = ()> = anyhow::Result<T>;
 
@@ -24,7 +23,7 @@ pub async fn run(task: impl AsyncFnOnce(&mut Client) -> Result) -> Result {
   let parsed = serde_json::from_slice(&bytes).context("failed to parse `config.json`")?;
 
   let Config { api_id, api_hash, bot_token } = parsed;
-  let params = fns::setTdlibParameters { api_id, api_hash, ..td_client::defaults() };
+  let params = td_client::params(api_id, api_hash, ".td");
   let mut client = Client::bot(params, &bot_token).await?;
 
   if let Err(error) = task(&mut client).await {

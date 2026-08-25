@@ -11,15 +11,11 @@ use td_types::types::message;
 use super::message_send::{MessageKey, MessageSendOutcome};
 use super::*;
 
-fn params(name: &str) -> fns::setTdlibParameters {
+fn test_params(name: &str) -> fns::setTdlibParameters {
+  let api_id = 2040;
+  let api_hash = "b18441a1ff607e10a989891a5462e627";
   let dir = format!("/tmp/td-client-unit-{}-{name}", process::id());
-  fns::setTdlibParameters {
-    api_id: 2040,
-    api_hash: "b18441a1ff607e10a989891a5462e627".into(),
-    database_directory: format!("{dir}/db"),
-    files_directory: format!("{dir}/files"),
-    ..defaults()
-  }
+  params(api_id, api_hash, dir)
 }
 
 fn state(id: i32) -> (Arc<ClientState>, mpsc::UnboundedReceiver<Result<Update>>) {
@@ -114,7 +110,7 @@ async fn shutdown_cleanup_preserves_event_error() {
   let fut = async {
     set_log_level(0);
     set_receive_timeout(Duration::from_millis(10));
-    let client = Client::new(params("shutdown-error")).await.expect("client failed to start");
+    let client = Client::new(test_params("shutdown-error")).await.expect("client failed to start");
     let sender = client.sender();
     let err = serde_json::from_slice::<Update>(b"{").expect_err("invalid JSON unexpectedly parsed");
     client.state.events.send(Err(err.into())).expect("client unexpectedly dropped its event receiver");

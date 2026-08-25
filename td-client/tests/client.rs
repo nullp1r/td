@@ -6,7 +6,7 @@ use serde::Serialize;
 use serde::ser::Error as _;
 use tokio::time::timeout;
 
-use td_client::{Client, Error, defaults};
+use td_client::{Client, Error};
 use td_types::enums::{AuthorizationState, TestInt, Update};
 use td_types::traits::Function;
 use td_types::{enums, fns, types};
@@ -36,14 +36,10 @@ impl Function for WrongReturn {
 }
 
 fn params(name: &str) -> fns::setTdlibParameters {
+  let api_id = 2040;
+  let api_hash = "b18441a1ff607e10a989891a5462e627";
   let dir = format!("/tmp/td-client-{}-{name}", process::id());
-  fns::setTdlibParameters {
-    api_id: 2040,
-    api_hash: "b18441a1ff607e10a989891a5462e627".into(),
-    database_directory: format!("{dir}/db"),
-    files_directory: format!("{dir}/files"),
-    ..defaults()
-  }
+  td_client::params(api_id, api_hash, dir)
 }
 
 #[tokio::test]
