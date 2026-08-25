@@ -9,24 +9,26 @@ output="$root/target/doc"
 worktree=$(mktemp -d -p "${TMPDIR:-/tmp}" td-gh-pages.XXXXXX)
 
 cleanup() {
-  git -C "$root" worktree remove --force "$worktree" >/dev/null 2>&1 || rmdir "$worktree" 2>/dev/null || true
+  git -C "$root" worktree remove --force "$worktree" >/dev/null 2>&1 || rm -rf "$worktree"
 }
 trap cleanup EXIT
 
 cd "$root"
-log 3 "generating…" "workspace rustdoc"
+
+log 3 "generate" "workspace rustdoc"
 cargo clean --doc
-RUSTDOCFLAGS='-A rustdoc::broken_intra_doc_links -A rustdoc::bare_urls -A rustdoc::invalid_html_tags' cargo doc --workspace --no-deps
+cargo doc --workspace --no-deps
 
-printf '%s\n' \
-  '<!doctype html>' \
-  '<meta charset="utf-8">' \
-  '<meta http-equiv="refresh" content="0; url=td_client/">' \
-  '<title>td documentation</title>' \
-  '<a href="td_client/">Open td-client documentation</a>' > "$output/index.html"
 : > "$output/.nojekyll"
+cat <<'EOF' > "$output/index.html"
+<!doctype html>
+<meta charset="utf-8">
+<meta http-equiv="refresh" content="0; url=td_client/">
+<title>td documentation</title>
+<a href="td_client/">Open td-client documentation</a>
+EOF
 
-log 3 "publishing…" "$branch"
+log 3 "publish" "$branch"
 git worktree add "$worktree" "$branch"
 git -C "$worktree" rm -r -q --ignore-unmatch .
 cp -a "$output/." "$worktree/"
@@ -37,7 +39,6 @@ if git -C "$worktree" diff --cached --quiet; then
   log 2 "unchanged" "$branch"
 else
   git -C "$worktree" commit -m 'docs: publish workspace rustdoc'
+  log 3 "push" "$branch"
+  git push origin "$branch"
 fi
-
-log 3 "pushing…" "$branch"
-git -C "$root" push origin "$branch"

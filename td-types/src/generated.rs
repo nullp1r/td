@@ -4,6 +4,9 @@
   clippy::doc_markdown,
   clippy::large_enum_variant,
   clippy::struct_excessive_bools,
+  rustdoc::bare_urls,
+  rustdoc::broken_intra_doc_links,
+  rustdoc::invalid_html_tags,
   reason = "generated code follows TD API schema conventions"
 )]
 

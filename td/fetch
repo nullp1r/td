@@ -3,43 +3,34 @@ set -euo pipefail
 
 log() { printf -- '\x1b[9%dm%s\x1b[39m %s\n' "$1" "$2" "$3"; }
 
-arch="$(uname -m)"
-arch="${arch/x86_64/x64}"
-arch="${arch/aarch64/arm64}"
+arch=$(uname -m)
+arch=${arch/x86_64/x64}
+arch=${arch/aarch64/arm64}
 
 case "$(uname -s)" in
-Linux)
-  pkg="linux-$arch-glibc"
-  lib="libtdjson.so"
-  ;;
-Darwin)
-  pkg="darwin-$arch"
-  lib="libtdjson.dylib"
-  ;;
-*)
-  log 1 "error" "unsupported OS: $(uname -s)" >&2
-  exit 1
-  ;;
+  Linux) pkg="linux-$arch-glibc"; lib="libtdjson.so" ;;
+  Darwin) pkg="darwin-$arch"; lib="libtdjson.dylib" ;;
+  *) log 1 "error" "unsupported OS: $(uname -s)" >&2; exit 1 ;;
 esac
 
 cd "${0%/*}"
 
 log 6 "resolve" "@prebuilt-tdlib/$pkg"
-metadata=$(curl -fsSL "https://registry.npmjs.org/@prebuilt-tdlib/$pkg/latest")
-commit=$(jq -er .tdlib.commit <<< "$metadata")
-version=$(jq -er .tdlib.version <<< "$metadata")
-pkg_version=$(jq -er .version <<< "$metadata")
-tarball=$(jq -er .dist.tarball <<< "$metadata")
+pkg_json=$(curl -fsSL "https://registry.npmjs.org/@prebuilt-tdlib/$pkg/latest")
+IFS=$'\t' read -r commit version pkg_version tarball < <(
+  jq -er '[.tdlib.commit, .tdlib.version, .version, .dist.tarball] | @tsv' <<< "$pkg_json"
+)
 
 log 6 "query" "commit date ($commit)"
-commit_url="https://api.github.com/repos/tdlib/td/commits/$commit"
-commit_date=$(curl -fsSL "$commit_url" | jq -er '.commit.author.date[:10]')
-fetched_at=$(date -u +'%Y-%m-%d %H:%M:%S UTC')
+commit_json=$(curl -fsSL "https://api.github.com/repos/tdlib/td/commits/$commit")
+commit_date=$(jq -er '.commit.author.date[:10]' <<< "$commit_json")
 
 log 2 "fetch" "td_api.tl (TDLib $version)"
-printf '// TDLib %s (%s, %s) · @prebuilt-tdlib %s\n' "$version" "$commit" "$commit_date" "$pkg_version" > td_api.tl
-printf '// fetched %s\n\n' "$fetched_at" >> td_api.tl
-curl -fsSL "https://raw.githubusercontent.com/tdlib/td/$commit/td/generate/scheme/td_api.tl" >> td_api.tl
+{
+  printf '// TDLib %s (%s, %s) · @prebuilt-tdlib %s\n' "$version" "$commit" "$commit_date" "$pkg_version"
+  printf '// fetched %(%Y-%m-%d %H:%M:%S UTC)T\n\n' -1
+  curl -fsSL "https://raw.githubusercontent.com/tdlib/td/$commit/td/generate/scheme/td_api.tl"
+} > td_api.tl
 
 log 2 "fetch" "$lib ($pkg)"
 curl -fsSL "$tarball" | tar -xz --strip-components=1 "package/$lib"
