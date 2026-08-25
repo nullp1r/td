@@ -119,18 +119,27 @@ fn is_optional(desc: &str) -> bool {
 
 /// Separates constructor documentation from category-level `@class` metadata.
 fn desc_and_meta_desc(doc: &str) -> [Option<&str>; 2] {
-  doc_tags(doc).fold([None; 2], |[desc, meta], [k, v]| match k {
-    "class" if let Some((_, v)) = v.split_once(" @description ") => [desc, Some(v)],
-    "description" => [Some(v), meta],
-    _ => [desc, meta],
-  })
+  let (mut is_meta, mut meta, mut desc) = Default::default();
+  for [key, value] in doc_tags(doc) {
+    match key {
+      "class" => is_meta = true,
+      "description" if is_meta => (is_meta, meta) = (false, Some(value)),
+      "description" => desc = Some(value),
+      _ => {}
+    }
+  }
+  [desc, meta]
 }
 
-/// Iterates line-leading `//@name value` documentation tags.
+/// Iterates both line-leading and compact inline `@name value` documentation tags.
+///
+/// Upstream uses both `//@description ...\n//@field ...` and the compact
+/// `//@description ... @field ...` form. A space before `@` is the delimiter for
+/// an inline tag; continuation lines beginning `//-` remain part of its value.
 fn doc_tags(doc: &str) -> impl Iterator<Item = [&str; 2]> {
-  doc.split("//@").skip(1).filter_map(|part| {
-    let (k, v) = part.trim().split_once(char::is_whitespace)?;
-    Some([k, v])
+  doc.split("//@").skip(1).flat_map(|part| part.split(" @")).filter_map(|part| {
+    let (key, value) = part.trim().split_once(char::is_whitespace)?;
+    Some([key, value])
   })
 }
 

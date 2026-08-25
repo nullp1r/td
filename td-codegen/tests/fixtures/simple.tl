@@ -11,9 +11,7 @@ vector {t:Type} # [ t ] = Vector t;
 //@class Item @description Represents a polymorphic item hierarchy
 //@description Unit variant item with no fields
 itemEmpty = Item;
-//@description Data variant item with fields
-//@id Item identifier
-//@details Additional item details;
+//@description Data variant item with fields @id Item identifier @details Additional item details;
 //-may be null if omitted
 itemData#1234abcd id:int32 details:string = Item;
 
@@ -30,8 +28,7 @@ node value:int32 left:Tree right:Tree = Tree;
 menu id:int32 items:vector<Menu> = Menu;
 
 // Reference to enum, unresolved custom type, optional field with "pass null"
-//@description An entity referencing other types
-//@filter Filter expression; pass null for all
+//@description An entity referencing other types @filter Filter expression; pass null for all
 entity#5678ef01 target:User extra:CustomType<int32> parent:Tree filter:string = Entity;
 
 // Rust keyword escaping on struct and fields
