@@ -1,5 +1,6 @@
 use std::fs;
 
+use anyhow::Context as _;
 use serde::Deserialize;
 
 use td_client::Client;
@@ -19,8 +20,8 @@ pub async fn run(task: impl AsyncFnOnce(&mut Client) -> Result) -> Result {
   td_client::set_log_level(1);
 
   let path = concat!(env!("CARGO_MANIFEST_DIR"), "/examples/bot/config.json");
-  let bytes = fs::read(path)?;
-  let parsed = serde_json::from_slice(&bytes)?;
+  let bytes = fs::read(path).context("missing `config.json` (copy from `config.example.json`)")?;
+  let parsed = serde_json::from_slice(&bytes).context("failed to parse `config.json`")?;
 
   let Config { api_id, api_hash, bot_token } = parsed;
   let params = fns::setTdlibParameters { api_id, api_hash, ..td_client::defaults() };

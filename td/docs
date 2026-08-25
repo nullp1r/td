@@ -1,4 +1,10 @@
 #!/usr/bin/env bash
+# Generates workspace Rustdoc documentation and publishes it to the gh-pages branch.
+#
+# Creates an isolated temporary git worktree to avoid disrupting local working state,
+# cleans and builds rustdoc for all workspace crates, injects a root redirect to td_client,
+# and pushes changes if documentation diffs are detected.
+
 set -euo pipefail
 
 log() { printf -- '\x1b[9%dm%s\x1b[39m %s\n' "$1" "$2" "$3"; }

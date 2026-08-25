@@ -40,9 +40,9 @@
 //! the pointer, callback, threading, and buffer-lifetime contracts documented
 //! on each item.
 
-pub mod build;
-
 use core::ffi::{c_char, c_double, c_int, c_void};
+
+pub mod build;
 
 /// Called when `TDLib` adds a message to its internal log.
 ///

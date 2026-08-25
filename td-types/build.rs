@@ -1,3 +1,5 @@
+//! Generates Rust types, functions, and updates from the upstream `td_api.tl` schema.
+
 use std::path::Path;
 use std::{env, fs, io};
 

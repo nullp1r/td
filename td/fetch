@@ -1,4 +1,12 @@
 #!/usr/bin/env bash
+# Fetches prebuilt TDLib dynamic libraries for Linux/macOS, creates SONAME symlinks,
+# and downloads the matching td_api.tl schema definition.
+#
+# Requirements:
+# - bash 4+
+# - curl, jq, tar
+# - readelf (Linux only)
+
 set -euo pipefail
 
 log() { printf -- '\x1b[9%dm%s\x1b[39m %s\n' "$1" "$2" "$3"; }

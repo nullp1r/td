@@ -1,7 +1,20 @@
 use std::env;
 use std::path::Path;
 
-/// Configures link search path, dynamic library linking, and rpaths for `TDLib`.
+/// Configures native link search paths, dynamic library linking, and rpaths
+/// for `TDLib`.
+///
+/// This entry point is invoked by both `td-sys/build.rs` and dependent crate
+/// build scripts. It performs the following configuration:
+///
+/// - **Search Path**: Emits `cargo:rustc-link-search=native` pointing to the
+///   workspace `td/` directory.
+/// - **Dynamic Linking**: Instructs `cargo` to link against `tdjson` when
+///   building `td-sys`.
+/// - **Linux**: Bakes `$ORIGIN` (deployment directory) and `{dir}` (local
+///   build-time directory) into the ELF binary's `DT_RUNPATH`.
+/// - **macOS**: Bakes `@executable_path`, `@loader_path`, and `{dir}` into
+///   Mach-O `LC_RPATH` load commands.
 pub fn link() {
   println!("cargo:rerun-if-changed=build.rs");
 
