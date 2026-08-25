@@ -57,6 +57,15 @@ pub mod traits {
   }
 }
 
+/// Common symbols used by generated types.
+mod prelude {
+  pub(crate) use serde::{Deserialize, Serialize};
+
+  pub(crate) use crate::serde_with;
+  pub(crate) use crate::traits::Function;
+  pub(crate) use crate::{enums, types};
+}
+
 mod base64;
 mod generated;
 mod serde_with;

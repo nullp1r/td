@@ -8,9 +8,9 @@ fn fixtures() -> io::Result<()> {
   let rs_input = include_str!("fixtures/simple.rs");
 
   let tl_ast = td_parser::parse(tl_input).map_err(io::Error::other)?;
-  let rs_output = td_codegen::generate(&tl_ast).to_string();
+  let rs_output = td_codegen::format(&tl_ast).to_string();
 
-  assert_eq!(rs_input, rs_output);
+  pretty_assertions::assert_eq!(rs_input, rs_output);
 
   Ok(())
 }
@@ -22,8 +22,7 @@ fn upstream() -> io::Result<()> {
   let rs_path = dir.join("../td/td_api.rs");
 
   let tl_input = fs::read_to_string(tl_path)?;
-  let tl_ast = td_parser::parse(&tl_input).map_err(|e| io::Error::other(e.to_string()))?;
-  let rs_output = td_codegen::generate(&tl_ast).to_string();
+  let rs_output = td_codegen::compile(&tl_input).map_err(|e| io::Error::other(e.to_string()))?;
 
   fs::write(&rs_path, &rs_output)?;
 
@@ -80,7 +79,7 @@ fn throughput() -> io::Result<()> {
   let t1 = Instant::now();
   for _ in 0..iters {
     buf.clear();
-    let _ = write!(&mut buf, "{}", td_codegen::generate(black_box(&tl_ast)));
+    let _ = write!(&mut buf, "{}", td_codegen::format(black_box(&tl_ast)));
     black_box(&buf);
   }
   let t2 = Instant::now();

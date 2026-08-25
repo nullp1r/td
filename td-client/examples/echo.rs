@@ -13,16 +13,16 @@ async fn main() -> bot::Result {
 
 async fn run(client: &mut Client) -> bot::Result {
   let sender = client.sender();
-  let User::user(types::user { id, first_name, .. }) = sender.send(&fns::getMe {}).await?;
-  tracing::info!(user_id = id, %first_name, "signed in; send the bot a text message or press Ctrl-C");
+  let User::user(me) = sender.send(&fns::getMe {}).await?;
+  let types::user { id, first_name, .. } = me;
+  tracing::info!(name = %first_name, id, "signed in; send the bot a text message or press Ctrl-C");
 
-  while let Some(update) = tokio::select! {
-    update = client.recv() => update?,
-    interrupt = signal::ctrl_c() => {
-      interrupt?;
-      None
-    }
-  } {
+  loop {
+    let update = tokio::select! {
+      r = client.recv() => r?,
+      r = signal::ctrl_c() => break r?,
+    };
+    let Some(update) = update else { break };
     on_update(&sender, update).await?;
   }
 
@@ -31,18 +31,19 @@ async fn run(client: &mut Client) -> bot::Result {
 
 async fn on_update(sender: &Sender, update: Update) -> Result {
   match update {
-    Update::updateConnectionState(update) => tracing::info!(state = ?update.state, "connection state changed"),
-    Update::updateNewMessage(update) if !update.message.is_outgoing => {
-      let types::message { id, chat_id, sender_id, content, .. } = update.message;
+    Update::updateConnectionState(upd) => {
+      tracing::info!(state = ?upd.state, "connection state changed");
+    }
+    Update::updateNewMessage(upd) if !upd.message.is_outgoing => {
+      let types::message { id, chat_id, sender_id, content, .. } = upd.message;
       let sender_id = match sender_id {
-        MessageSender::messageSenderChat(sender) => sender.chat_id,
-        MessageSender::messageSenderUser(sender) => sender.user_id,
+        MessageSender::messageSenderChat(s) => s.chat_id,
+        MessageSender::messageSenderUser(s) => s.user_id,
       };
       match content {
-        MessageContent::messageText(message) => {
-          let text = message.text;
-          tracing::info!(message_id = id, chat_id, sender_id, text = %text.text, "new message");
-          reply_text(sender, chat_id, id, text).await?;
+        MessageContent::messageText(msg) => {
+          tracing::info!(message_id = id, chat_id, sender_id, text = %msg.text.text, "new message");
+          reply_text(sender, chat_id, id, msg.text).await?;
         }
         _ => tracing::info!(message_id = id, chat_id, sender_id, "new non-text message"),
       }

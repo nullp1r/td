@@ -31,11 +31,11 @@ use td_types::{fns, types};
 use super::{ClientState, Error, MessageReply, PendingReply, Result, parse_td_error};
 
 /// Receives the terminal outcome for one registered message send.
-pub(super) type MessageSendCompletion = oneshot::Receiver<Result<MessageSendOutcome>>;
+pub type MessageSendCompletion = oneshot::Receiver<Result<MessageSendOutcome>>;
 
 impl ClientState {
   /// Runs a tracked `sendMessage`, optionally with compensating deadline deletion.
-  pub(super) async fn send_message(&self, request: &fns::sendMessage, deadline: Option<Instant>) -> Result<types::message> {
+  pub async fn send_message(&self, request: &fns::sendMessage, deadline: Option<Instant>) -> Result<types::message> {
     if let Some(types::messageSendOptions { only_preview: true, .. }) = &request.options {
       return Err(Error::MessagePreview);
     }
@@ -55,7 +55,6 @@ impl ClientState {
         // under the registry lock before issuing compensating deletion.
         Err(_) if guard.is_pending() => {
           self.cancel_message_send(pending, &mut result).await?;
-          let MessageKey { chat_id, message_id } = pending;
           return Err(Error::MessageDeadline { chat_id, message_id });
         }
         Err(_) => {}
@@ -85,7 +84,7 @@ impl ClientState {
   }
 
   /// Parses and binds a `sendMessage` direct response before waking its requester.
-  pub(super) fn complete_message_request(&self, registration_id: u64, r#type: &str, raw: &[u8], reply: MessageReply) {
+  pub fn complete_message_request(&self, registration_id: u64, r#type: &str, raw: &[u8], reply: MessageReply) {
     let response = match r#type {
       "error" => Err(parse_td_error(raw)),
       _ => self.parse_and_bind_message_response(registration_id, raw),
@@ -109,11 +108,11 @@ impl ClientState {
 
 /// The `TDLib` identity of a temporary or final message within one chat.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(super) struct MessageKey {
+pub struct MessageKey {
   /// Chat containing the message; message IDs are unique only within this scope.
-  pub(super) chat_id: i64,
+  pub chat_id: i64,
   /// Temporary or final `TDLib` message ID.
-  pub(super) message_id: i64,
+  pub message_id: i64,
 }
 
 /// Two-stage correlation table for all tracked sends belonging to one client.
@@ -123,7 +122,7 @@ pub(super) struct MessageKey {
 /// key back to the same registration. Both entries are inserted and removed
 /// together under the containing `ClientState` mutex.
 #[derive(Default)]
-pub(super) struct Registry {
+pub struct Registry {
   /// Pending sends keyed by their original `@extra` registration ID.
   registrations: HashMap<u64, PendingMessageSend>,
   /// Bound temporary-message keys mapped back to registration IDs.
@@ -140,7 +139,7 @@ struct PendingMessageSend {
 
 /// Authoritative terminal states recognized for a tracked message send.
 #[derive(Debug)]
-pub(super) enum MessageSendOutcome {
+pub enum MessageSendOutcome {
   /// `TDLib` replaced the temporary message with this final sent message.
   Succeeded(types::message),
   /// `TDLib` reported a terminal send failure and its associated message.
@@ -162,7 +161,7 @@ impl MessageSendOutcome {
 
 impl Registry {
   /// Registers `registration_id` and returns its terminal-outcome receiver.
-  pub(super) fn register(&mut self, registration_id: u64) -> MessageSendCompletion {
+  pub fn register(&mut self, registration_id: u64) -> MessageSendCompletion {
     let (completion, receiver) = oneshot::channel();
     self.registrations.insert(registration_id, PendingMessageSend { temporary_message: None, completion });
     receiver
@@ -173,7 +172,7 @@ impl Registry {
   /// A missing registration means its public future was dropped before the direct
   /// response arrived, so there is no observer left to bind. Reusing a live key is
   /// an explicit correlation failure rather than silently replacing its waiter.
-  pub(super) fn bind(&mut self, registration_id: u64, temporary_message: MessageKey) -> Result {
+  pub fn bind(&mut self, registration_id: u64, temporary_message: MessageKey) -> Result {
     let Some(registration) = self.registrations.get_mut(&registration_id) else { return Ok(()) };
     let Entry::Vacant(message_entry) = self.registrations_by_message.entry(temporary_message) else {
       let MessageKey { chat_id, message_id } = temporary_message;
@@ -185,19 +184,20 @@ impl Registry {
   }
 
   /// Observes terminal message updates without consuming or changing them.
-  pub(super) fn observe(&mut self, update: &Update) {
+  pub fn observe(&mut self, update: &Update) {
     match *update {
-      Update::updateMessageSendSucceeded(ref update) => {
-        let &types::updateMessageSendSucceeded { ref message, old_message_id: message_id } = update;
+      Update::updateMessageSendSucceeded(ref upd) => {
+        let &types::updateMessageSendSucceeded { ref message, old_message_id: message_id } = upd;
         let temporary_message = MessageKey { chat_id: message.chat_id, message_id };
         self.complete(temporary_message, MessageSendOutcome::Succeeded(message.clone()));
       }
-      Update::updateMessageSendFailed(ref failed) => {
-        let &types::updateMessageSendFailed { ref message, old_message_id: message_id, .. } = failed;
+      Update::updateMessageSendFailed(ref upd) => {
+        let &types::updateMessageSendFailed { ref message, old_message_id: message_id, .. } = upd;
         let temporary_message = MessageKey { chat_id: message.chat_id, message_id };
-        self.complete(temporary_message, MessageSendOutcome::Failed(failed.clone()));
+        self.complete(temporary_message, MessageSendOutcome::Failed(upd.clone()));
       }
-      Update::updateDeleteMessages(types::updateDeleteMessages { chat_id, ref message_ids, from_cache: false, .. }) => {
+      Update::updateDeleteMessages(ref upd) if !upd.from_cache => {
+        let &types::updateDeleteMessages { chat_id, ref message_ids, .. } = upd;
         for &message_id in message_ids {
           self.complete(MessageKey { chat_id, message_id }, MessageSendOutcome::Deleted);
         }
@@ -227,13 +227,13 @@ impl Registry {
   }
 
   /// Drops all send waiters and indexes when their client disconnects.
-  pub(super) fn disconnect(&mut self) {
+  pub fn disconnect(&mut self) {
     self.registrations.clear();
     self.registrations_by_message.clear();
   }
 
   /// Fails all sends after update JSON can no longer be correlated reliably.
-  pub(super) fn fail_json(&mut self, error: &Arc<serde_json::Error>) {
+  pub fn fail_json(&mut self, error: &Arc<serde_json::Error>) {
     for (_, PendingMessageSend { completion, .. }) in self.registrations.drain() {
       let _ = completion.send(Err(Error::Json(Arc::clone(error))));
     }

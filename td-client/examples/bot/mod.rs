@@ -19,7 +19,10 @@ pub async fn run(task: impl AsyncFnOnce(&mut Client) -> Result) -> Result {
   td_client::set_log_level(1);
 
   let path = concat!(env!("CARGO_MANIFEST_DIR"), "/examples/bot/config.json");
-  let Config { api_id, api_hash, bot_token } = serde_json::from_slice(&fs::read(path)?)?;
+  let bytes = fs::read(path)?;
+  let parsed = serde_json::from_slice(&bytes)?;
+
+  let Config { api_id, api_hash, bot_token } = parsed;
   let params = fns::setTdlibParameters { api_id, api_hash, ..td_client::defaults() };
   let mut client = Client::bot(params, &bot_token).await?;
 

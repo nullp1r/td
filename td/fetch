@@ -17,21 +17,31 @@ Darwin)
   lib="libtdjson.dylib"
   ;;
 *)
-  log 1 "unsupported OS:" "$(uname -s)" >&2
+  log 1 "error" "unsupported OS: $(uname -s)" >&2
   exit 1
   ;;
 esac
 
 cd "${0%/*}"
 
+log 6 "resolve" "@prebuilt-tdlib/$pkg"
 metadata=$(curl -fsSL "https://registry.npmjs.org/@prebuilt-tdlib/$pkg/latest")
 commit=$(jq -er .tdlib.commit <<< "$metadata")
+version=$(jq -er .tdlib.version <<< "$metadata")
+pkg_version=$(jq -er .version <<< "$metadata")
 tarball=$(jq -er .dist.tarball <<< "$metadata")
 
-log 3 "fetching…" "td_api.tl ($commit)"
-curl -fsSL "https://raw.githubusercontent.com/tdlib/td/$commit/td/generate/scheme/td_api.tl" -o td_api.tl
+log 6 "query" "commit date ($commit)"
+commit_url="https://api.github.com/repos/tdlib/td/commits/$commit"
+commit_date=$(curl -fsSL "$commit_url" | jq -er '.commit.author.date[:10]')
+fetched_at=$(date -u +'%Y-%m-%d %H:%M:%S UTC')
 
-log 3 "fetching…" "$lib ($pkg)"
+log 2 "fetch" "td_api.tl (TDLib $version)"
+printf '// TDLib %s (%s, %s) · @prebuilt-tdlib %s\n' "$version" "$commit" "$commit_date" "$pkg_version" > td_api.tl
+printf '// fetched %s\n\n' "$fetched_at" >> td_api.tl
+curl -fsSL "https://raw.githubusercontent.com/tdlib/td/$commit/td/generate/scheme/td_api.tl" >> td_api.tl
+
+log 2 "fetch" "$lib ($pkg)"
 curl -fsSL "$tarball" | tar -xz --strip-components=1 "package/$lib"
 
 if [[ $lib == *.so && $(readelf -d "$lib") =~ libtdjson\.so\.[0-9.]+ ]]; then

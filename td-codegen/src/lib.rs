@@ -13,19 +13,19 @@
 //! indirection and remain unboxed.
 //!
 //! ```
-//! use td_codegen::generate;
-//! use td_parser::parse;
+//! use td_codegen::compile;
 //!
-//! let ast = parse("user id:int64 = User;").expect("valid schema");
-//! let source = generate(&ast).to_string();
+//! let source = compile("user id:int64 = User;").expect("valid schema");
 //! assert!(source.contains("pub struct user"));
 //! assert!(source.contains("pub enum User"));
 //! ```
 
-pub use self::r#gen::generate;
+pub use self::r#gen::{compile, format};
+pub use self::header::header;
 
 mod ctx;
 mod r#gen;
 mod graph;
+mod header;
 mod scc;
 mod util;

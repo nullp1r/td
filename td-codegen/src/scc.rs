@@ -61,8 +61,8 @@ impl<'a> LayoutComponents<'a> {
 
 /// Returns a directly stored non-native type name.
 fn direct_type<'a>(expr: &TypeExpr<'a>) -> Option<&'a str> {
-  match expr {
-    &TypeExpr::Bare(name) if let None = util::to_native(name) => Some(name),
+  match *expr {
+    TypeExpr::Bare(name) if let None = util::to_native(name) => Some(name),
     TypeExpr::Bare(_) | TypeExpr::Vector(_) => None,
   }
 }

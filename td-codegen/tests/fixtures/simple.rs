@@ -2,9 +2,7 @@
 ///
 /// Unit constructors appear only as variants in [`enums`].
 pub mod types {
-  use serde::{Deserialize, Serialize};
-  use crate::serde_with;
-  use super::enums;
+  use crate::prelude::*;
 
   /// An entity referencing other types
   #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
@@ -77,8 +75,7 @@ pub mod types {
 ///
 /// Enums use the JSON `@type` field to select a constructor payload from [`types`].
 pub mod enums {
-  use serde::{Deserialize, Serialize};
-  use super::types;
+  use crate::prelude::*;
 
   #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
   #[serde(tag = "@type")]
@@ -200,9 +197,7 @@ pub mod enums {
 ///
 /// Each request implements [`crate::traits::Function`].
 pub mod fns {
-  use serde::Serialize;
-  use crate::{serde_with, traits::Function};
-  use super::{enums, types};
+  use crate::prelude::*;
 
   /// Fetches an entity by ID
   #[derive(Debug, Clone, PartialEq, Default, Serialize)]

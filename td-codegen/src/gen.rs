@@ -4,7 +4,8 @@
 //! generator a single streaming pass after [`SchemaIndex`] builds its sorted indexes
 //! and recursive-layout map.
 
-use std::fmt;
+use std::fmt::{self, Write};
+use std::time::Instant;
 
 use td_parser::{Combinator, Definition, Field, TypeExpr};
 
@@ -13,7 +14,33 @@ use crate::util;
 
 const DERIVES: &str = "Debug, Clone, PartialEq";
 
-/// Formats Rust modules for the supplied parsed schema.
+/// Compiles a `TDLib` API schema into a complete Rust source string with metadata header.
+///
+/// Parses `schema`, formats all `types`, `enums`, and `fns` modules, measures the
+/// elapsed generation duration, and prepends the source header if present.
+///
+/// # Errors
+///
+/// Returns a parse error if `schema` contains invalid syntax.
+pub fn compile(schema: &str) -> Result<String, td_parser::Error<'_>> {
+  let t0 = Instant::now();
+  let ast = td_parser::parse(schema)?;
+  let t1 = Instant::now();
+  let body = format(&ast);
+  let mut out = String::default();
+  let _ = write!(out, "{body}");
+  let t2 = Instant::now();
+
+  let [parse, codegen] = [[t0, t1], [t1, t2]].map(|[a, b]| b.duration_since(a));
+  let header = crate::header(schema, [parse, codegen]).to_string();
+  if !header.is_empty() {
+    out.insert_str(0, &header);
+  }
+
+  Ok(out)
+}
+
+/// Formats Rust modules for the supplied parsed schema AST.
 ///
 /// The result borrows `ast` and writes generated source when formatted. Object
 /// constructors with fields become structs under `types`; result categories
@@ -24,7 +51,7 @@ const DERIVES: &str = "Debug, Clone, PartialEq";
 /// Types are grouped and sorted for deterministic output. Functions retain schema
 /// order. Documentation from the parsed schema is emitted on the corresponding
 /// structs, variants, fields, and requests.
-pub fn generate(ast: &[Definition]) -> impl fmt::Display {
+pub fn format(ast: &[Definition<'_>]) -> impl fmt::Display {
   let ctx = Context::new(ast);
 
   fmt::from_fn(move |f| {
@@ -53,9 +80,7 @@ pub fn generate(ast: &[Definition]) -> impl fmt::Display {
 
 fn types_mod(ctx: &Context) -> impl fmt::Display {
   fmt::from_fn(move |f| {
-    writeln!(f, "{:2}use serde::{{Deserialize, Serialize}};", "")?;
-    writeln!(f, "{:2}use crate::serde_with;", "")?;
-    writeln!(f, "{:2}use super::enums;", "")?;
+    writeln!(f, "{:2}use crate::prelude::*;", "")?;
 
     for (_, group) in ctx.ctor_groups() {
       for c in group {
@@ -71,8 +96,7 @@ fn types_mod(ctx: &Context) -> impl fmt::Display {
 
 fn enums_mod(ctx: &Context) -> impl fmt::Display {
   fmt::from_fn(move |f| {
-    writeln!(f, "{:2}use serde::{{Deserialize, Serialize}};", "")?;
-    writeln!(f, "{:2}use super::types;", "")?;
+    writeln!(f, "{:2}use crate::prelude::*;", "")?;
 
     for (name, items) in ctx.ctor_groups() {
       writeln!(f)?;
@@ -85,9 +109,7 @@ fn enums_mod(ctx: &Context) -> impl fmt::Display {
 
 fn fns_mod(ctx: &Context) -> impl fmt::Display {
   fmt::from_fn(move |f| {
-    writeln!(f, "{:2}use serde::Serialize;", "")?;
-    writeln!(f, "{:2}use crate::{{serde_with, traits::Function}};", "")?;
-    writeln!(f, "{:2}use super::{{enums, types}};", "")?;
+    writeln!(f, "{:2}use crate::prelude::*;", "")?;
 
     for comb in ctx.fns() {
       writeln!(f)?;

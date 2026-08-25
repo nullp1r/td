@@ -12,3 +12,4 @@ td-parser.workspace = true
 
 [dev-dependencies]
 syn.workspace = true
+pretty_assertions.workspace = true

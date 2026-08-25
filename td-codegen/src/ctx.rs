@@ -46,8 +46,7 @@ impl<'a> SchemaIndex<'a> {
 
   /// Iterates non-native result types and their contiguous constructor groups.
   pub fn ctor_groups(&self) -> impl Iterator<Item = (&'a str, &[&'a Combinator<'a>])> {
-    let groups = self.ctors.chunk_by(|a, b| a.r#type == b.r#type);
-    groups.filter_map(|group| {
+    self.ctors.chunk_by(|a, b| a.r#type == b.r#type).filter_map(|group| {
       let &[comb, ..] = group else { return None };
       let None = util::to_native(comb.r#type) else { return None };
       Some((comb.r#type, group))
