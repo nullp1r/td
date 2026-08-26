@@ -1,9 +1,10 @@
 use std::assert_matches;
-use std::future::pending as future_pending;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use tokio::sync::oneshot::error::TryRecvError;
 use tokio::time::timeout;
+
+use td_types::enums::{TestInt, Text};
 
 use super::*;
 
@@ -26,7 +27,7 @@ fn router(states: &[&Arc<ClientState>]) -> Router {
 #[test]
 fn synchronous_requests_preserve_typed_results_and_errors() {
   let result = execute(&fns::getFileMimeType { file_name: "photo.jpg".into() });
-  assert_matches!(result, Ok(enums::Text::text(types::text { text })) if text == "image/jpeg");
+  assert_matches!(result, Ok(Text::text(types::text { text })) if text == "image/jpeg");
   let error = types::error { code: 418, message: "teapot".into() };
   assert_matches!(execute(&fns::testReturnError { error: error.clone() }), Err(Error::Td(actual)) if actual == error);
 }
@@ -83,12 +84,8 @@ async fn message_responses_bind_before_terminal_updates() {
 
   router.route(&routed(pending(10), 1001, Some(7)));
   let sends = response.await.unwrap().unwrap();
-  let [send]: [MessageSend; 1] = sends.try_into().ok().unwrap();
-  assert_matches!(&*send.state(), MessageState::Pending(message) if message.id == 10);
+  let [send]: [MessageOperation; 1] = sends.try_into().ok().unwrap();
   assert!(client.registry.lock().unwrap().message_sends.contains_key(&MessageKey { chat_id: 9, message_id: 10 }));
-  let key = send.key();
-  drop(send);
-  let mut send = client.track_message(key).unwrap();
 
   router.route(
     br#"{
@@ -98,7 +95,7 @@ async fn message_responses_bind_before_terminal_updates() {
       "old_message_id": 10
     }"#,
   );
-  let message = send.wait().await.unwrap();
+  let message = send.finish(&client, None).await.unwrap();
   assert_eq!((message.chat_id, message.id), (9, 20));
   assert!(client.registry.lock().unwrap().message_sends.is_empty());
   assert_matches!(updates.try_recv(), Ok(Ok(Update::updateMessageSendSucceeded(update))) if update.old_message_id == 10);
@@ -112,7 +109,7 @@ async fn message_batches_settle_independently_and_in_original_order() {
   client.registry.lock().unwrap().requests.insert(8, PendingReply::Messages { many: true, reply });
   router.route(&routed(serde_json::json!({ "@type": "messages", "total_count": 2, "messages": [pending(11), pending(12)] }), 1002, Some(8)));
   let sends = response.await.unwrap().unwrap();
-  let [mut first, mut second]: [MessageSend; 2] = sends.try_into().ok().unwrap();
+  let [first, second]: [MessageOperation; 2] = sends.try_into().ok().unwrap();
 
   router.route(
     br#"{
@@ -132,8 +129,8 @@ async fn message_batches_settle_independently_and_in_original_order() {
     }"#,
   );
 
-  assert_eq!(first.wait().await.unwrap().id, 21);
-  assert_matches!(second.wait().await.err(), Some(Error::MessageFailed(update)) if update.error.code == 400);
+  assert_eq!(first.finish(&client, None).await.unwrap().id, 21);
+  assert_matches!(second.finish(&client, None).await.err(), Some(Error::MessageFailed(update)) if update.error.code == 400);
 }
 
 #[test]
@@ -149,24 +146,13 @@ fn duplicate_message_keys_fail_without_partial_registration() {
 }
 
 #[tokio::test]
-async fn waiting_can_be_raced_with_consuming_cancellation() {
-  let (client, _) = client_state(1010);
-  let messages = vec![types::message { chat_id: 9, id: 15, ..Default::default() }];
-  let [mut send]: [MessageSend; 1] = client.bind_messages(messages).unwrap().try_into().ok().unwrap();
-  tokio::select! {
-    result = send.wait() => assert_eq!(result.unwrap().id, 15),
-    () = future_pending() => assert_matches!(send.cancel().await, Ok(Some(types::message { id: 15, .. }))),
-  }
-}
-
-#[tokio::test]
 async fn observed_message_success_beats_cancellation() {
   let (client, _) = client_state(1011);
   let router = router(&[&client]);
   let messages = vec![
     types::message { chat_id: 9, id: 16, sending_state: Some(types::messageSendingStatePending::default().into()), ..Default::default() }, //.
   ];
-  let [send]: [MessageSend; 1] = client.bind_messages(messages).unwrap().try_into().ok().unwrap();
+  let [send]: [MessageOperation; 1] = client.bind_messages(messages).unwrap().try_into().ok().unwrap();
   router.route(
     br#"{
       "@client_id": 1011,
@@ -176,25 +162,28 @@ async fn observed_message_success_beats_cancellation() {
     }"#,
   );
 
-  let result = timeout(Duration::from_millis(100), send.cancel()).await.unwrap();
-  assert_matches!(result, Ok(Some(types::message { id: 26, .. })));
+  let cancel = Cancel::new();
+  cancel.cancel();
+  let result = timeout(Duration::from_millis(100), send.finish(&client, Some(&cancel))).await.unwrap();
+  assert_matches!(result, Ok(types::message { id: 26, .. }));
   assert!(client.registry.lock().unwrap().requests.is_empty());
 }
 
 #[tokio::test]
-async fn file_tracking_coalesces_updates_without_cloning_files() {
+async fn uploads_expose_successive_coalesced_progress() {
   let (client, mut updates) = client_state(1004);
   let router = router(&[&client]);
-  let mut progress = client.track_file(42);
+  let (reply, response) = oneshot::channel();
+  client.registry.lock().unwrap().requests.insert(9, PendingReply::Upload(reply));
+  router.route(&routed(file(42, true, 1), 1004, Some(9)));
+  let mut upload = response.await.unwrap().unwrap();
+  assert_matches!(upload.next().await, Ok(FileProgress { file_id: 42, uploaded_size: 1, .. }));
 
   router.route(&routed(serde_json::json!({ "@type": "updateFile", "file": file(42, true, 60) }), 1004, None));
-  assert_matches!(&*progress.state(), FileState::Known(progress) if progress.uploaded_size == 60);
+  assert_matches!(upload.next().await, Ok(FileProgress { uploaded_size: 60, .. }));
 
   router.route(&routed(serde_json::json!({ "@type": "updateFile", "file": file(42, false, 100) }), 1004, None));
-  let complete = progress //.
-    .wait(|progress| progress.upload == TransferState::Inactive && progress.uploaded_size == progress.size)
-    .await
-    .unwrap();
+  let complete = upload.next().await.unwrap();
   assert_eq!(complete.uploaded_size, 100);
   assert_matches!(updates.try_recv(), Ok(Ok(Update::updateFile(update))) if update.file.remote.uploaded_size == 60);
   assert_matches!(updates.try_recv(), Ok(Ok(Update::updateFile(update))) if update.file.remote.uploaded_size == 100);
@@ -208,28 +197,11 @@ async fn upload_response_registers_progress_before_waking_requester() {
   client.registry.lock().unwrap().requests.insert(9, PendingReply::Upload(reply));
   router.route(&routed(file(43, true, 1), 1005, Some(9)));
   let mut upload = response.await.unwrap().unwrap();
-  assert_matches!(&*upload.progress().state(), FileState::Known(progress) if progress.uploaded_size == 1);
+  assert_matches!(upload.next().await, Ok(FileProgress { file_id: 43, uploaded_size: 1, .. }));
 
   router.route(&routed(serde_json::json!({ "@type": "updateFile", "file": file(43, false, 100) }), 1005, None));
-  let stopped = upload.wait().await.unwrap();
+  let stopped = upload.next().await.unwrap();
   assert_eq!((stopped.upload, stopped.uploaded_size), (TransferState::Inactive, 100));
-}
-
-#[tokio::test]
-async fn completed_downloads_survive_client_and_wait_is_one_shot() {
-  let (client, _) = client_state(1013);
-  let weak = Arc::downgrade(&client);
-  let (reply, response) = oneshot::channel();
-  reply.send(Ok(types::file { id: 46, ..Default::default() })).unwrap();
-  let mut download = Download { client: Arc::downgrade(&client), progress: client.track_file(46), response: Some(response) };
-  let (reply, response) = oneshot::channel();
-  reply.send(Ok(types::file { id: 47, ..Default::default() })).unwrap();
-  let cancel = Download { client: Arc::downgrade(&client), progress: client.track_file(47), response: Some(response) };
-  drop(client);
-  assert!(weak.upgrade().is_none());
-  assert_matches!(download.wait().await, Ok(types::file { id: 46, .. }));
-  assert_matches!(download.wait().await, Err(Error::UnexpectedResponse("download was already awaited")));
-  assert_matches!(cancel.cancel().await, Ok(Some(types::file { id: 47, .. })));
 }
 
 #[tokio::test]
@@ -248,9 +220,9 @@ async fn auth_waiting_buffers_application_updates() {
 async fn malformed_updates_wake_file_waiters_with_the_original_error() {
   let (client, mut updates) = client_state(1006);
   let router = router(&[&client]);
-  let mut progress = client.track_file(44);
+  let mut upload = client.file_updates(44);
   router.route(br#"{"@client_id":1006,"@type":"updateFile","file":"invalid"}"#);
-  assert_matches!(progress.wait(|_| false).await, Err(Error::Json(_)));
+  assert_matches!(upload.next().await, Err(Error::Json(_)));
   assert_matches!(updates.try_recv(), Ok(Err(Error::Json(_))));
 }
 
@@ -280,12 +252,12 @@ async fn native_multi_client_lifecycle() {
     let (first, second) = tokio::join!(first, second);
     let (first, second) = (first.unwrap(), second.unwrap());
     let mime_type = execute(&fns::getFileMimeType { file_name: "photo.jpg".into() });
-    assert_matches!(mime_type, Ok(enums::Text::text(types::text { text })) if text == "image/jpeg");
+    assert_matches!(mime_type, Ok(Text::text(types::text { text })) if text == "image/jpeg");
     let (first_sender, second_sender) = (first.sender(), second.sender());
     let (first_request, second_request) = (fns::testSquareInt { x: 3 }, fns::testSquareInt { x: 4 });
     let (a, b) = tokio::join!(first_sender.send(&first_request), second_sender.send(&second_request));
-    assert_matches!(a, Ok(enums::TestInt::testInt(types::testInt { value: 9 })));
-    assert_matches!(b, Ok(enums::TestInt::testInt(types::testInt { value: 16 })));
+    assert_matches!(a, Ok(TestInt::testInt(types::testInt { value: 9 })));
+    assert_matches!(b, Ok(TestInt::testInt(types::testInt { value: 16 })));
     let (a, b) = tokio::join!(first.shutdown(), second.shutdown());
     a.unwrap();
     b.unwrap();

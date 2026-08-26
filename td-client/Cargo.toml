@@ -13,7 +13,8 @@ serde_json.workspace = true
 td-sys.workspace = true
 td-types.workspace = true
 thiserror.workspace = true
-tokio = { workspace = true, features = ["sync"] }
+tokio = { workspace = true, features = ["macros", "sync"] }
+tokio-util.workspace = true
 
 [build-dependencies]
 td-sys.workspace = true

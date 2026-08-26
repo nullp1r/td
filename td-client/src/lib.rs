@@ -8,8 +8,8 @@
 //!
 //! The crate deliberately has no retry, deadline, logging, overflow, or task
 //! policy. Those choices belong to the application. Its public model consists of
-//! one owning [`Client`], cloneable non-owning [`Sender`] values, and retained
-//! non-cloneable operations for message sends and file transfers.
+//! one owning [`Client`] and cloneable non-owning [`Sender`] values. Long-running
+//! operations are ordinary futures with optional [`Cancel`]s.
 //!
 //! # Client ownership and shutdown
 //!
@@ -68,10 +68,9 @@
 //! `td_types::enums::Messages` can first return temporary messages whose
 //! `sending_state` is pending. [`Sender::send_message`] and
 //! [`Sender::send_messages`] bind those temporary `(chat_id, message_id)` keys on
-//! the receiver thread before waking the requester, then expose [`MessageSend`]
-//! operations. [`MessageSend::wait`] observes authoritative success, failure, or
-//! non-cache deletion without requiring the application to poll [`Client::recv`].
-//! The original terminal update is still enqueued unchanged.
+//! the receiver thread before awaiting authoritative success, failure, or non-cache
+//! deletion. This does not require the application to poll [`Client::recv`], and
+//! the original terminal update is still enqueued unchanged.
 //!
 //! The tracked methods rely on a caller invariant: use them only for actual
 //! non-preview normal-message sends. Preview requests construct pending-looking
@@ -88,48 +87,35 @@
 //!   input_message_content: content.into(),
 //!   ..Default::default()
 //! };
-//! let mut send = sender.send_message(&request).await?;
-//! let final_message = send.wait().await?;
+//! let message = sender.send_message(&request, None).await?;
 //! ```
 //!
-//! Cancellation consumes the retained operation because only one path may decide
-//! its cleanup. [`MessageSend::cancel`] deletes a still-pending temporary ID and
-//! awaits the terminal result. It returns `None` if deletion wins and
-//! `Some(final_message)` if authoritative success was already observed; it never
-//! explicitly deletes that successful final ID. This is not server-atomic: `TDLib`
-//! itself may delete a concurrently accepted message after removing its pending
-//! record.
-//!
-//! Dropping a message operation performs no cancellation. Its registry entry
-//! remains until the native terminal update, so a caller that retained its
-//! [`MessageKey`] may reattach with [`Sender::track_message`].
+//! Pass a borrowed cancellation token when the application needs cancellation.
+//! Cancellation deletes only a still-pending temporary ID and awaits its terminal
+//! result. [`Error::Cancelled`] means deletion won; an authoritative success is
+//! returned normally and its final ID is never explicitly deleted. This is not
+//! server-atomic: `TDLib` itself may delete a concurrently accepted message after
+//! removing its pending record.
 //!
 //! # Files
 //!
-//! [`Sender::track_file`] creates a sparse, future-only [`FileWatch`] for a known
-//! file ID. Watches retain only copyable [`FileProgress`] and coalesce intermediate
-//! observations; every full `updateFile` remains available through
-//! [`Client::recv`]. Use the generated `getFile` function separately when a full
-//! current snapshot is required.
-//!
 //! [`Sender::download`] forces `downloadFile.synchronous = true`. In `TDLib` this is
 //! an asynchronous request promise whose response becomes ready only when the
-//! requested full file or exact byte range is locally available. [`Download::wait`]
-//! therefore has authoritative completion and failure semantics, while
-//! [`Download::progress`] exposes coalesced updates. [`Download::cancel`] awaits
-//! both `cancelDownloadFile` and the original download response and reports
-//! `Some(file)` when completion won the race.
+//! requested full file or exact byte range is locally available. The method returns
+//! that authoritative file or failure and calls its `FnMut(FileProgress)` argument
+//! for coalesced observations. Cancellation awaits both `cancelDownloadFile` and
+//! the original response; completion wins the race.
 //!
-//! [`Sender::upload`] starts `preliminaryUploadFile` and waits only long enough to
-//! receive and bind its file ID. `TDLib` exposes no authoritative standalone result
-//! for that preliminary upload: [`Upload::wait`] returns the first observed
-//! non-active progress state without labelling it success or failure. Completion
-//! belongs to the operation that consumes the uploaded file, commonly a tracked
-//! message send. [`Upload::cancel`] awaits `cancelPreliminaryUploadFile`.
+//! [`Sender::upload`] binds the file ID from `preliminaryUploadFile`, reports
+//! coalesced progress through the same callback shape, and returns the first
+//! non-active observation without labelling it success or failure. `TDLib` exposes
+//! no authoritative standalone preliminary-upload result; completion belongs to
+//! the operation consuming the file, commonly a message send. Cancellation awaits
+//! `cancelPreliminaryUploadFile`.
 //!
-//! Dropping any file operation abandons local observation and performs no native
-//! cancellation. Explicit cancellation makes progress only while its future is
-//! polled.
+//! Progress callbacks run synchronously and should remain cheap. Dropping an
+//! operation future abandons local observation without native cancellation;
+//! cancellation cleanup progresses while that future is polled.
 //!
 //! # Updates and authorization
 //!
@@ -156,9 +142,9 @@
 //! [`set_receive_timeout`] changes only the next low-level receive wait. It is not
 //! an operation timeout or retry policy.
 
-use std::collections::hash_map::Entry;
 use std::collections::{HashMap, VecDeque};
 use std::ffi::CStr;
+use std::future;
 use std::path::Path;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, LazyLock, Mutex, OnceLock, Weak};
@@ -168,14 +154,16 @@ use std::{fmt, mem, result, thread};
 use serde::{Deserialize, Serialize};
 use tokio::sync::{mpsc, oneshot, watch};
 
-use td_types::enums::{AuthorizationState, Update};
+use td_types::enums::{AuthorizationState, File, Message, MessageSendingState, Messages, Update};
 use td_types::traits::Function;
-use td_types::{enums, fns, types};
+use td_types::{fns, types};
+
+pub use tokio_util::sync::CancellationToken as Cancel;
 
 /// A `td-client` operation result.
 pub type Result<T = ()> = result::Result<T, Error>;
 
-/// A failure at the typed `TDLib` boundary or in a retained operation.
+/// A failure at the typed `TDLib` boundary or in a long-running operation.
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
   /// `TDLib` returned an `error` object.
@@ -190,19 +178,19 @@ pub enum Error {
   /// The narrow [`Client::bot`] flow encountered an authorization state it cannot handle.
   #[error("unexpected auth state: {0:?}")]
   Auth(AuthorizationState),
+  /// Caller-requested cancellation completed its native cleanup.
+  #[error("operation cancelled")]
+  Cancelled,
   /// `TDLib` reported the terminal failure of a tracked message send.
   #[error("message {} in chat {} failed: {} {}", .0.old_message_id, .0.message.chat_id, .0.error.code, .0.error.message)]
-  MessageFailed(Arc<types::updateMessageSendFailed>),
+  MessageFailed(Box<types::updateMessageSendFailed>),
   /// A non-cache deletion removed a tracked temporary message before success.
   #[error("message {} in chat {} was deleted while being sent", .0.message_id, .0.chat_id)]
   MessageDeleted(MessageKey),
   /// A tracked response attempted to reuse an existing temporary-message key.
   #[error("message {} in chat {} is already being tracked", .0.message_id, .0.chat_id)]
   MessageCollision(MessageKey),
-  /// No pending message currently has the requested key.
-  #[error("message {} in chat {} isn't pending", .0.message_id, .0.chat_id)]
-  MessageNotPending(MessageKey),
-  /// `TDLib` returned a structurally impossible result or an operation was awaited twice.
+  /// `TDLib` returned a structurally impossible result.
   #[error("unexpected TDLib response: {0}")]
   UnexpectedResponse(&'static str),
   /// The owning client or a required response channel disappeared.
@@ -216,115 +204,52 @@ impl From<serde_json::Error> for Error {
   }
 }
 
-/// The stable local identity of a pending message send.
-///
-/// `TDLib` replaces `message_id` on success. Terminal success and failure updates
-/// refer back to this temporary ID through `old_message_id`.
+/// The chat and temporary message ID used to correlate a pending send.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct MessageKey {
-  /// The chat containing the pending message.
+  /// Chat containing the pending message.
   pub chat_id: i64,
-  /// The temporary message ID returned by the direct send response.
+  /// Temporary message identifier returned by the direct send response.
   pub message_id: i64,
 }
 
-/// The latest retained state of a message send.
-#[derive(Debug)]
-pub enum MessageState {
-  /// `TDLib` returned a temporary message and no terminal update has been observed.
-  Pending(types::message),
-  /// The direct response was already final or `TDLib` emitted send success.
-  Succeeded(types::message),
-  /// `TDLib` emitted a terminal send failure.
-  Failed(Arc<types::updateMessageSendFailed>),
-  /// A non-cache deletion removed the temporary message.
-  Deleted,
-  /// A malformed update made further tracking unreliable.
-  Json(Arc<serde_json::Error>),
-}
-
-/// A retained, non-owning normal-message send operation.
-///
-/// Observation borrows the operation and cancellation consumes it. Dropping the
-/// value is inert; retain [`MessageKey`] and use [`Sender::track_message`] to
-/// reattach before the native terminal update if needed.
-#[must_use = "call wait().await to observe the send outcome"]
-pub struct MessageSend {
+struct MessageOperation {
   key: MessageKey,
-  client: Weak<ClientState>,
-  states: watch::Receiver<MessageState>,
+  result: oneshot::Receiver<Result<types::message>>,
 }
 
-impl MessageSend {
-  /// Returns the chat and temporary message ID used for terminal correlation.
-  pub fn key(&self) -> MessageKey {
-    self.key
-  }
-
-  /// Borrows the latest state without waiting for a change.
-  pub fn state(&self) -> watch::Ref<'_, MessageState> {
-    self.states.borrow()
-  }
-
-  /// Waits for authoritative success, failure, or deletion.
-  ///
-  /// Successful messages are cloned from the retained watch state so the
-  /// operation remains observable and can participate in `tokio::select!`.
-  pub async fn wait(&mut self) -> Result<types::message> {
-    let not_pending = |s: &MessageState| !matches!(s, MessageState::Pending(_));
-    let state = self.states.wait_for(not_pending).await.map_err(|_| Error::Disconnected)?;
-    match &*state {
-      MessageState::Pending(_) => unreachable!(),
-      MessageState::Succeeded(message) => Ok(message.clone()),
-      MessageState::Failed(update) => Err(Error::MessageFailed(Arc::clone(update))),
-      MessageState::Deleted => Err(Error::MessageDeleted(self.key)),
-      MessageState::Json(error) => Err(Error::Json(Arc::clone(error))),
+impl MessageOperation {
+  async fn finish(mut self, client: &ClientState, cancel: Option<&Cancel>) -> Result<types::message> {
+    tokio::select! {
+      biased;
+      result = &mut self.result => result.map_err(|_| Error::Disconnected)?,
+      () = cancelled(cancel) => self.cancel(client).await,
     }
   }
 
-  /// Requests cancellation if the message is still pending and awaits its outcome.
-  ///
-  /// Returns `Ok(None)` when deletion wins and `Ok(Some(message))` when an
-  /// authoritative success wins the race. A successful final message is never
-  /// explicitly deleted by this method.
-  pub async fn cancel(mut self) -> Result<Option<types::message>> {
-    if self.pending()? {
-      let cancellation = match self.client.upgrade() {
-        Some(client) => client.delete_message(self.key).await,
-        None => Err(Error::Disconnected),
-      };
+  async fn cancel(self, client: &ClientState) -> Result<types::message> {
+    if client.message_pending(self.key) {
+      let cancellation = client.delete_message(self.key).await;
       // Deletion can fail after a terminal update won the race. Preserve that
       // authoritative result; surface the deletion error only while still pending.
       if let Err(error) = cancellation
-        && self.pending()?
+        && client.message_pending(self.key)
       {
         return Err(error);
       }
     }
-    match self.wait().await {
-      Err(Error::MessageDeleted(_)) => Ok(None),
-      Ok(message) => Ok(Some(message)),
+    match self.result.await.map_err(|_| Error::Disconnected)? {
+      Err(Error::MessageDeleted(_)) => Err(Error::Cancelled),
+      Ok(message) => Ok(message),
       Err(error) => Err(error),
-    }
-  }
-
-  fn pending(&mut self) -> Result<bool> {
-    match &*self.states.borrow_and_update() {
-      MessageState::Json(error) => Err(Error::Json(Arc::clone(error))),
-      MessageState::Pending(_) => Ok(true),
-      _ => Ok(false),
     }
   }
 }
 
-/// The latest retained state of a watched file ID.
 #[derive(Debug)]
-pub enum FileState {
-  /// No direct response or `updateFile` has seeded this future-only watch yet.
+enum FileState {
   Unknown,
-  /// The latest coalesced transfer progress.
   Known(FileProgress),
-  /// A malformed update made further observation unreliable.
   Json(Arc<serde_json::Error>),
 }
 
@@ -334,6 +259,8 @@ pub enum FileState {
 /// application update and are not duplicated here.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct FileProgress {
+  /// `TDLib` file identifier.
+  pub file_id: i32,
   /// Current file size, or zero when unknown.
   pub size: i64,
   /// Expected file size, which `TDLib` may report approximately.
@@ -363,125 +290,27 @@ pub enum TransferState {
   Completed,
 }
 
-/// A retained, coalescing observer for one `TDLib` file ID.
-///
-/// A watch created with [`Sender::track_file`] is future-only and starts in
-/// [`FileState::Unknown`]. Direct upload and download operations seed their watch
-/// from the correlated file response before returning it.
-pub struct FileWatch {
+struct FileUpdates {
   id: i32,
   states: watch::Receiver<FileState>,
+  unseen: bool,
 }
 
-impl FileWatch {
-  /// Returns the watched `TDLib` file ID.
-  pub fn id(&self) -> i32 {
-    self.id
-  }
-
-  /// Borrows the latest progress state without waiting for a change.
-  pub fn state(&self) -> watch::Ref<'_, FileState> {
-    self.states.borrow()
-  }
-
-  /// Waits until `terminal` accepts a known progress snapshot.
-  ///
-  /// Passive file IDs have no inherent transfer direction or terminal policy, so
-  /// the caller supplies the condition. The predicate borrows the retained value;
-  /// the accepted snapshot is then returned by value.
-  pub async fn wait(&mut self, mut terminal: impl FnMut(&FileProgress) -> bool) -> Result<FileProgress> {
+impl FileUpdates {
+  async fn next(&mut self) -> Result<FileProgress> {
     loop {
-      match &*self.states.borrow_and_update() {
-        FileState::Known(progress) if terminal(progress) => return Ok(*progress),
-        FileState::Json(error) => return Err(Error::Json(Arc::clone(error))),
-        _ => {}
-      }
-      if self.states.changed().await.is_err() {
+      if !mem::take(&mut self.unseen) && self.states.changed().await.is_err() {
         return match &*self.states.borrow() {
           FileState::Json(error) => Err(Error::Json(Arc::clone(error))),
           _ => Err(Error::Disconnected),
         };
       }
+      match &*self.states.borrow_and_update() {
+        FileState::Known(progress) => return Ok(*progress),
+        FileState::Json(error) => return Err(Error::Json(Arc::clone(error))),
+        FileState::Unknown => {}
+      }
     }
-  }
-}
-
-/// A retained exact-range `downloadFile` operation.
-///
-/// Construction forces `TDLib`'s `synchronous` request flag. The Rust API remains
-/// asynchronous; the correlated response is retained until the requested range is
-/// available, fails, or is cancelled.
-pub struct Download {
-  client: Weak<ClientState>,
-  progress: FileWatch,
-  response: Option<oneshot::Receiver<Result<types::file>>>,
-}
-
-impl Download {
-  /// Returns the operation's coalesced progress observer.
-  pub fn progress(&self) -> &FileWatch {
-    &self.progress
-  }
-
-  /// Waits for `TDLib`'s authoritative download response.
-  ///
-  /// The response can be taken once. Borrowing rather than consuming the operation
-  /// permits a caller to race this future with a cancellation source and then call
-  /// [`Self::cancel`].
-  pub async fn wait(&mut self) -> Result<types::file> {
-    let response = self.response.take().ok_or(Error::UnexpectedResponse("download was already awaited"))?;
-    response.await.map_err(|_| Error::Disconnected)?
-  }
-
-  /// Requests download cancellation and awaits both sides of the race.
-  ///
-  /// Returns `Some(file)` if the original exact-range download completed and
-  /// `None` if cancellation completed it with `TDLib`'s cancellation error.
-  pub async fn cancel(self) -> Result<Option<types::file>> {
-    let Self { client, progress, response } = self;
-    let response = response.ok_or(Error::UnexpectedResponse("download was already awaited"))?;
-    let Some(client) = client.upgrade() else {
-      return response.await.map_err(|_| Error::Disconnected)?.map(Some);
-    };
-    let cancel = fns::cancelDownloadFile { file_id: progress.id, only_if_pending: false };
-    let cancel = client.execute_request(&cancel, false).await;
-    match (cancel, response.await.map_err(|_| Error::Disconnected)?) {
-      (_, Ok(file)) => Ok(Some(file)),
-      (Ok(_), Err(Error::Td(_))) => Ok(None),
-      (Err(error), Err(_)) | (Ok(_), Err(error)) => Err(error),
-    }
-  }
-}
-
-/// A retained `preliminaryUploadFile` operation.
-///
-/// The direct response supplies the file ID but does not mean the preliminary
-/// upload completed. Progress is observed through [`FileWatch`].
-pub struct Upload {
-  client: Weak<ClientState>,
-  progress: FileWatch,
-}
-
-impl Upload {
-  /// Returns the operation's coalesced progress observer.
-  pub fn progress(&self) -> &FileWatch {
-    &self.progress
-  }
-
-  /// Waits for the upload to become non-active and returns that observation.
-  ///
-  /// `TDLib` exposes neither authoritative standalone success nor a failure reason
-  /// for preliminary uploads, so this method deliberately does not infer either.
-  pub async fn wait(&mut self) -> Result<FileProgress> {
-    self.progress.wait(|progress| progress.upload != TransferState::Active).await
-  }
-
-  /// Requests and awaits `cancelPreliminaryUploadFile`.
-  pub async fn cancel(self) -> Result {
-    let client = self.client.upgrade().ok_or(Error::Disconnected)?;
-    let cancel = fns::cancelPreliminaryUploadFile { file_id: self.progress.id };
-    client.execute_request(&cancel, false).await?;
-    Ok(())
   }
 }
 
@@ -503,71 +332,95 @@ impl Sender {
     client.execute_request(request, false).await
   }
 
-  /// Starts tracking one actual non-preview normal-message send.
+  /// Sends one actual non-preview normal message and awaits its terminal result.
   ///
   /// The request must return `enums::Message` and obey the tracked-request
-  /// invariant described in this crate's module-level documentation. The direct
-  /// response is parsed and bound before this method returns.
-  pub async fn send_message<F: Function<Return = enums::Message>>(&self, request: &F) -> Result<MessageSend> {
+  /// invariant described in this crate's module-level documentation. Cancellation
+  /// deletes a still-pending temporary message and returns [`Error::Cancelled`]
+  /// after `TDLib` reports its deletion; an authoritative success wins the race.
+  pub async fn send_message<F: Function<Return = Message>>(&self, request: &F, cancel: Option<&Cancel>) -> Result<types::message> {
     let client = self.0.upgrade().ok_or(Error::Disconnected)?;
-    let sends = client.track_messages(request, false).await?;
-    let [send] = sends.try_into().map_err(|_| Error::UnexpectedResponse("expected one message"))?;
-    Ok(send)
+    let operations = client.start_messages(request, false).await?;
+    let [operation] = operations.try_into().map_err(|_| Error::UnexpectedResponse("expected one message"))?;
+    operation.finish(&client, cancel).await
   }
 
-  /// Starts tracking a batch of actual non-preview normal-message sends.
+  /// Sends a batch of actual non-preview normal messages.
   ///
   /// Registration is atomic: duplicate temporary keys or collisions with existing
-  /// sends fail without registering only part of the batch. Returned operations
-  /// preserve direct-response order and settle independently.
-  pub async fn send_messages<F: Function<Return = enums::Messages>>(&self, request: &F) -> Result<Vec<MessageSend>> {
+  /// sends fail without registering only part of the batch. Terminal results stay
+  /// in direct-response order and preserve independent send failures.
+  pub async fn send_messages<F: Function<Return = Messages>>(&self, request: &F, cancel: Option<&Cancel>) -> Result<Vec<Result<types::message>>> {
     let client = self.0.upgrade().ok_or(Error::Disconnected)?;
-    client.track_messages(request, true).await
+    let operations = client.start_messages(request, true).await?;
+    let mut results = Vec::with_capacity(operations.len());
+    for operation in operations {
+      results.push(operation.finish(&client, cancel).await);
+    }
+    Ok(results)
   }
 
-  /// Attaches another operation to a currently pending message key.
-  ///
-  /// Reattachment is possible after dropping another observer because a pending
-  /// registry entry remains until its native terminal update.
-  pub fn track_message(&self, key: MessageKey) -> Result<MessageSend> {
-    let client = self.0.upgrade().ok_or(Error::Disconnected)?;
-    client.track_message(key)
-  }
-
-  /// Creates a future-only coalescing watch for `file_id`.
-  ///
-  /// This performs no `getFile` request. Use [`Self::send`] with the generated
-  /// function when a full current snapshot is also needed.
-  pub fn track_file(&self, file_id: i32) -> Result<FileWatch> {
-    let client = self.0.upgrade().ok_or(Error::Disconnected)?;
-    Ok(client.track_file(file_id))
-  }
-
-  /// Starts an exact-range download and returns immediately after submission.
+  /// Downloads an exact range while reporting coalesced progress.
   ///
   /// Any caller-supplied `synchronous` value is replaced with `true`, selecting
-  /// `TDLib`'s authoritative completion promise. Request serialization can fail
-  /// before an operation is returned.
-  pub fn download(&self, mut request: fns::downloadFile) -> Result<Download> {
+  /// `TDLib`'s authoritative completion promise. Cancellation awaits
+  /// `cancelDownloadFile`; completion wins if its response is already available.
+  pub async fn download(&self, request: fns::downloadFile, progress: &mut dyn FnMut(FileProgress), cancel: Option<&Cancel>) -> Result<types::file> {
     let client = self.0.upgrade().ok_or(Error::Disconnected)?;
     // TDLib's synchronous flag delays this request's response until its exact
     // range is available; it does not block this Rust thread.
-    request.synchronous = true;
-    let progress = client.track_file(request.file_id);
-    let (reply, response) = oneshot::channel();
-    client.submit_request(&request, false, PendingReply::Download(reply))?;
-    Ok(Download { client: Arc::downgrade(&client), progress, response: Some(response) })
+    let request = fns::downloadFile { synchronous: true, ..request };
+    let mut updates = client.file_updates(request.file_id);
+    let response = client.execute_request(&request, false);
+    tokio::pin!(response);
+    loop {
+      tokio::select! {
+        biased;
+        result = &mut response => {
+          let File::file(file) = result?;
+          progress(file_progress(&file));
+          return Ok(file);
+        }
+        update = updates.next() => progress(update?),
+        () = cancelled(cancel) => {
+          let request = fns::cancelDownloadFile { file_id: updates.id, only_if_pending: false };
+          let cancellation = client.execute_request(&request, false).await;
+          return match (cancellation, response.await) {
+            (_, Ok(File::file(file))) => Ok(file),
+            (Ok(_), Err(Error::Td(_))) => Err(Error::Cancelled),
+            (Err(error), Err(_)) | (Ok(_), Err(error)) => Err(error),
+          };
+        }
+      }
+    }
   }
 
-  /// Starts a preliminary upload and returns after its file ID is bound.
+  /// Runs a preliminary upload while reporting coalesced progress.
   ///
-  /// This method is asynchronous because `TDLib` assigns the observable file ID in
-  /// the direct response. It does not wait for upload inactivity or completion.
-  pub async fn upload(&self, request: &fns::preliminaryUploadFile) -> Result<Upload> {
+  /// The first non-active observation is returned without claiming standalone
+  /// success or failure. Cancellation awaits `cancelPreliminaryUploadFile`.
+  pub async fn upload(&self, request: &fns::preliminaryUploadFile, progress: &mut dyn FnMut(FileProgress), cancel: Option<&Cancel>) -> Result<FileProgress> {
     let client = self.0.upgrade().ok_or(Error::Disconnected)?;
     let (reply, response) = oneshot::channel();
     client.submit_request(request, false, PendingReply::Upload(reply))?;
-    response.await.map_err(|_| Error::Disconnected)?
+    let mut updates = response.await.map_err(|_| Error::Disconnected)??;
+    loop {
+      tokio::select! {
+        biased;
+        update = updates.next() => {
+          let update = update?;
+          progress(update);
+          if update.upload != TransferState::Active {
+            return Ok(update);
+          }
+        }
+        () = cancelled(cancel) => {
+          let request = fns::cancelPreliminaryUploadFile { file_id: updates.id };
+          client.execute_request(&request, false).await?;
+          return Err(Error::Cancelled);
+        }
+      }
+    }
   }
 }
 
@@ -736,9 +589,8 @@ struct OutgoingRequest<'a, F> {
 
 enum PendingReply {
   Request(oneshot::Sender<Result<Vec<u8>>>),
-  Messages { many: bool, reply: oneshot::Sender<Result<Vec<MessageSend>>> },
-  Download(oneshot::Sender<Result<types::file>>),
-  Upload(oneshot::Sender<Result<Upload>>),
+  Messages { many: bool, reply: oneshot::Sender<Result<Vec<MessageOperation>>> },
+  Upload(oneshot::Sender<Result<FileUpdates>>),
 }
 
 impl PendingReply {
@@ -746,7 +598,6 @@ impl PendingReply {
     match self {
       Self::Request(reply) => drop(reply.send(Err(error))),
       Self::Messages { reply, .. } => drop(reply.send(Err(error))),
-      Self::Download(reply) => drop(reply.send(Err(error))),
       Self::Upload(reply) => drop(reply.send(Err(error))),
     }
   }
@@ -756,8 +607,8 @@ impl PendingReply {
 struct ClientRegistry {
   accepting_requests: bool,
   requests: HashMap<u64, PendingReply>,
-  message_sends: HashMap<MessageKey, watch::Sender<MessageState>>,
-  file_watches: HashMap<i32, watch::Sender<FileState>>,
+  message_sends: HashMap<MessageKey, oneshot::Sender<Result<types::message>>>,
+  files: HashMap<i32, watch::Sender<FileState>>,
 }
 
 struct ClientState {
@@ -775,7 +626,7 @@ impl ClientState {
     serde_json::from_slice(&raw).map_err(Into::into)
   }
 
-  async fn track_messages<F: Function>(&self, request: &F, many: bool) -> Result<Vec<MessageSend>> {
+  async fn start_messages<F: Function>(&self, request: &F, many: bool) -> Result<Vec<MessageOperation>> {
     let (reply, response) = oneshot::channel();
     self.submit_request(request, false, PendingReply::Messages { many, reply })?;
     response.await.map_err(|_| Error::Disconnected)?
@@ -807,6 +658,10 @@ impl ClientState {
     Ok(())
   }
 
+  fn message_pending(&self, key: MessageKey) -> bool {
+    self.registry.lock().unwrap().message_sends.contains_key(&key)
+  }
+
   fn complete_request(self: &Arc<Self>, extra: u64, r#type: &str, raw: &[u8]) {
     let Some(reply) = self.registry.lock().unwrap().requests.remove(&extra) else { return };
     if let "error" = r#type {
@@ -820,82 +675,60 @@ impl ClientState {
         let messages = parse_messages(raw, many).and_then(|messages| self.bind_messages(messages));
         drop(reply.send(messages));
       }
-      PendingReply::Download(reply) => {
-        let result = parse_file(raw).inspect(|file| self.publish_file(file));
-        drop(reply.send(result));
-      }
       PendingReply::Upload(reply) => {
-        let client = Arc::downgrade(self);
         // The preliminary response is the first authoritative source of its file
-        // ID, so seed the watch before exposing the operation.
-        let result = parse_file(raw).map(|file| Upload { client, progress: self.bind_file(&file) });
+        // ID, so seed progress before waking the requester.
+        let result = parse_file(raw).map(|file| self.bind_file(&file));
         drop(reply.send(result));
       }
     }
   }
 
-  fn bind_messages(self: &Arc<Self>, messages: Vec<types::message>) -> Result<Vec<MessageSend>> {
+  fn bind_messages(self: &Arc<Self>, messages: Vec<types::message>) -> Result<Vec<MessageOperation>> {
     // Validate the whole batch before inserting anything. Partial registration
     // would strand the unregistered messages if a later key collided.
     let mut keys: Vec<_> = messages.iter().filter(|message| is_pending(message)).map(message_key).collect();
     keys.sort_unstable();
     if let Some([key, _]) = keys.array_windows().find(|[a, b]| a == b) {
-      return Err(Error::MessageCollision(*key));
+      return Err(message_collision(*key));
     }
 
     let mut registry = self.registry.lock().unwrap();
+    registry.message_sends.retain(|_, result| !result.is_closed());
     if let Some(key) = keys.into_iter().find(|key| registry.message_sends.contains_key(key)) {
-      return Err(Error::MessageCollision(key));
+      return Err(message_collision(key));
     }
 
-    let client = Arc::downgrade(self);
     let sends = messages.into_iter().map(|message| {
       let key = message_key(&message);
-      let pending = is_pending(&message);
-      let initial_state = if pending { MessageState::Pending(message) } else { MessageState::Succeeded(message) };
-      let (tx, rx) = watch::channel(initial_state);
-      if pending {
-        registry.message_sends.insert(key, tx);
+      let (result, receiver) = oneshot::channel();
+      if is_pending(&message) {
+        registry.message_sends.insert(key, result);
+      } else {
+        drop(result.send(Ok(message)));
       }
-      MessageSend { key, client: client.clone(), states: rx }
+      MessageOperation { key, result: receiver }
     });
 
     Ok(sends.collect())
   }
 
-  fn track_message(self: &Arc<Self>, key: MessageKey) -> Result<MessageSend> {
-    match self.registry.lock().unwrap().message_sends.get(&key) {
-      Some(states) => Ok(MessageSend { key, client: Arc::downgrade(self), states: states.subscribe() }),
-      None => Err(Error::MessageNotPending(key)),
-    }
-  }
-
-  fn track_file(self: &Arc<Self>, id: i32) -> FileWatch {
+  fn file_updates(self: &Arc<Self>, id: i32) -> FileUpdates {
     let mut registry = self.registry.lock().unwrap();
-    registry.file_watches.retain(|_, states| states.receiver_count() > 0);
-    let states = registry.file_watches.entry(id).or_insert_with(|| watch::channel(FileState::Unknown).0).subscribe();
-    FileWatch { id, states }
+    registry.files.retain(|_, states| states.receiver_count() > 0);
+    let states = registry.files.entry(id).or_insert_with(|| watch::channel(FileState::Unknown).0).subscribe();
+    FileUpdates { id, states, unseen: true }
   }
 
-  fn bind_file(self: &Arc<Self>, file: &types::file) -> FileWatch {
+  fn bind_file(self: &Arc<Self>, file: &types::file) -> FileUpdates {
     let file_id = file.id;
     let progress = file_progress(file);
     let mut registry = self.registry.lock().unwrap();
-    registry.file_watches.retain(|_, states| states.receiver_count() > 0);
-    let sender = registry.file_watches.entry(file_id).or_insert_with(|| watch::channel(FileState::Unknown).0);
+    registry.files.retain(|_, states| states.receiver_count() > 0);
+    let sender = registry.files.entry(file_id).or_insert_with(|| watch::channel(FileState::Unknown).0);
     sender.send_replace(FileState::Known(progress));
     let states = sender.subscribe();
-    FileWatch { id: file_id, states }
-  }
-
-  fn publish_file(&self, file: &types::file) {
-    let mut registry = self.registry.lock().unwrap();
-    if let Entry::Occupied(entry) = registry.file_watches.entry(file.id) {
-      match entry.get().receiver_count() {
-        0 => drop(entry.remove()),
-        _ => drop(entry.get().send_replace(FileState::Known(file_progress(file)))),
-      }
-    }
+    FileUpdates { id: file_id, states, unseen: true }
   }
 
   fn route_update(self: &Arc<Self>, r#type: &str, raw: &[u8]) {
@@ -921,28 +754,30 @@ impl ClientState {
     match update {
       Update::updateMessageSendSucceeded(update) => {
         let key = MessageKey { chat_id: update.message.chat_id, message_id: update.old_message_id };
-        if let Some(sender) = registry.message_sends.remove(&key) {
-          // The application queue must receive the original update unchanged, so
-          // retained message state necessarily owns a clone of the final message.
-          sender.send_replace(MessageState::Succeeded(update.message.clone()));
+        if let Some(sender) = registry.message_sends.remove(&key)
+          && !sender.is_closed()
+        {
+          // The result needs one clone because the original update remains intact
+          // for the ordered application queue.
+          drop(sender.send(Ok(update.message.clone())));
         }
       }
       Update::updateMessageSendFailed(update) => {
         let key = MessageKey { chat_id: update.message.chat_id, message_id: update.old_message_id };
-        if let Some(sender) = registry.message_sends.remove(&key) {
-          // Share the cloned failure between all operation observers while the
-          // original update continues to the application queue.
-          sender.send_replace(MessageState::Failed(Arc::new(update.clone())));
+        if let Some(sender) = registry.message_sends.remove(&key)
+          && !sender.is_closed()
+        {
+          drop(sender.send(Err(Error::MessageFailed(Box::new(update.clone())))));
         }
       }
       Update::updateDeleteMessages(update) if !update.from_cache => {
         for &message_id in &update.message_ids {
           if let Some(sender) = registry.message_sends.remove(&MessageKey { chat_id: update.chat_id, message_id }) {
-            sender.send_replace(MessageState::Deleted);
+            drop(sender.send(Err(Error::MessageDeleted(MessageKey { chat_id: update.chat_id, message_id }))));
           }
         }
       }
-      Update::updateFile(update) if let Some(sender) = registry.file_watches.get(&update.file.id) => {
+      Update::updateFile(update) if let Some(sender) = registry.files.get(&update.file.id) => {
         sender.send_replace(FileState::Known(file_progress(&update.file)));
       }
       _ => {}
@@ -960,18 +795,18 @@ impl ClientState {
     registry.accepting_requests = false;
     registry.requests.clear();
     registry.message_sends.clear();
-    registry.file_watches.clear();
+    registry.files.clear();
   }
 
   fn fail_operations(&self, error: &Arc<serde_json::Error>) {
-    let (message_sends, file_watches) = {
+    let (message_sends, files) = {
       let mut registry = self.registry.lock().unwrap();
-      (mem::take(&mut registry.message_sends), mem::take(&mut registry.file_watches))
+      (mem::take(&mut registry.message_sends), mem::take(&mut registry.files))
     };
     for (_, sender) in message_sends {
-      sender.send_replace(MessageState::Json(Arc::clone(error)));
+      drop(sender.send(Err(Error::Json(Arc::clone(error)))));
     }
-    for (_, sender) in file_watches {
+    for (_, sender) in files {
       sender.send_replace(FileState::Json(Arc::clone(error)));
     }
   }
@@ -997,18 +832,29 @@ fn message_key(message: &types::message) -> MessageKey {
   MessageKey { chat_id: message.chat_id, message_id: message.id }
 }
 
+fn message_collision(key: MessageKey) -> Error {
+  Error::MessageCollision(key)
+}
+
 fn is_pending(message: &types::message) -> bool {
-  matches!(message.sending_state, Some(enums::MessageSendingState::messageSendingStatePending(_)))
+  matches!(message.sending_state, Some(MessageSendingState::messageSendingStatePending(_)))
+}
+
+async fn cancelled(cancel: Option<&Cancel>) {
+  match cancel {
+    Some(cancel) => cancel.cancelled().await,
+    None => future::pending().await,
+  }
 }
 
 fn file_progress(file: &types::file) -> FileProgress {
-  let &types::file { size, expected_size, ref local, ref remote, .. } = file;
+  let &types::file { id: file_id, size, expected_size, ref local, ref remote, .. } = file;
   let &types::localFile { download_offset, downloaded_prefix_size, downloaded_size, is_downloading_active, is_downloading_completed, .. } = local;
   let &types::remoteFile { uploaded_size, is_uploading_active, is_uploading_completed, .. } = remote;
 
   let download = transfer_state(is_downloading_active, is_downloading_completed);
   let upload = transfer_state(is_uploading_active, is_uploading_completed);
-  FileProgress { size, expected_size, download_offset, downloaded_prefix_size, downloaded_size, download, uploaded_size, upload }
+  FileProgress { file_id, size, expected_size, download_offset, downloaded_prefix_size, downloaded_size, download, uploaded_size, upload }
 }
 
 fn transfer_state(active: bool, completed: bool) -> TransferState {
@@ -1020,16 +866,16 @@ fn transfer_state(active: bool, completed: bool) -> TransferState {
 }
 
 fn parse_file(raw: &[u8]) -> Result<types::file> {
-  let enums::File::file(file) = serde_json::from_slice(raw)?;
+  let File::file(file) = serde_json::from_slice(raw)?;
   Ok(file)
 }
 
 fn parse_messages(raw: &[u8], many: bool) -> Result<Vec<types::message>> {
   if many {
-    let enums::Messages::messages(messages) = serde_json::from_slice(raw)?;
+    let Messages::messages(messages) = serde_json::from_slice(raw)?;
     Ok(messages.messages.unwrap_or_default())
   } else {
-    let enums::Message::message(message) = serde_json::from_slice(raw)?;
+    let Message::message(message) = serde_json::from_slice(raw)?;
     Ok(vec![message])
   }
 }

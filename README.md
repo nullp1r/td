@@ -81,9 +81,7 @@ The runtime deliberately has a small public vocabulary:
 | `Client::sender` | Create a cloneable, non-owning request capability. |
 | `Sender::send` | Return a generated function's direct correlated response. |
 | `Sender::send_message` / `send_messages` | Start retained normal-message send operations. |
-| `Sender::track_message` | Attach another observer to a known pending send. |
 | `Sender::upload` / `download` | Start retained preliminary-upload or exact-range download operations. |
-| `Sender::track_file` | Observe coalesced transfer progress for a known file ID. |
 | `Client::recv` | Receive the next ordinary update in TDLib order. |
 | `Client::recv_auth` | Receive the next authorization state without losing ordinary updates. |
 | `Client::shutdown` | Consume the owner and complete TDLib's close protocol. |
@@ -99,7 +97,7 @@ The update queue is unbounded by design. TDLib's synchronous receiver cannot awa
 
 ### Message completion and cancellation
 
-TDLib's direct response for a normal-message send can contain a temporary local message. `Sender::send_message` and `send_messages` return retained operations after that response has been atomically bound to terminal updates. Call `MessageSend::wait` for authoritative success, failure, or deletion. These entry points are only for actual non-preview normal sends; use `Sender::send` for previews, getters, and edits. Misrouted pending-looking responses may never settle.
+TDLib's direct response for a normal-message send can contain a temporary local message. `Sender::send_message` and `send_messages` atomically bind that response to terminal updates, then await authoritative success, failure, or deletion. These entry points are only for actual non-preview normal sends; use `Sender::send` for previews, getters, and edits. Misrouted pending-looking responses may never settle.
 
 ```rust
 let content = types::inputMessageText {
@@ -111,46 +109,37 @@ let request = fns::sendMessage {
   input_message_content: content.into(),
   ..Default::default()
 };
-let mut send = sender.send_message(&request).await?;
-let message = send.wait().await?;
+let message = sender.send_message(&request, None).await?;
 ```
 
-`MessageSend::cancel` consumes the operation, requests deletion only while its temporary ID is still pending, and awaits the terminal outcome. It returns `None` when deletion wins or `Some(final_message)` when authoritative success wins. It never explicitly deletes a successfully observed final message. This is not server-atomic: TDLib may itself delete a concurrently accepted message after removing its pending record.
+Pass a borrowed `CancellationToken` when cancellation is needed. The method requests deletion only while the temporary ID is still pending and awaits the terminal outcome. `Error::Cancelled` means deletion won; an authoritative success is returned normally and its final ID is never explicitly deleted. This is not server-atomic: TDLib may itself delete a concurrently accepted message after removing its pending record.
 
-Cancellation policy stays outside the crate. Race borrowed observation against any application signal, then drive the consuming cancellation future:
+Cancellation policy stays outside the crate:
 
 ```rust
-let mut send = sender.send_message(&request).await?;
-tokio::select! {
-  result = send.wait() => result.map(Some),
-  () = cancelled() => send.cancel().await,
-}
+let cancel = CancellationToken::new();
+let message = sender.send_message(&request, Some(&cancel)).await?;
 ```
 
-Dropping `MessageSend` performs no native work. Its pending entry remains tracked until TDLib emits a terminal update, allowing a caller that retained `send.key()` to attach again with `track_message`.
+Dropping the future performs no native work. It abandons local observation while the native send continues and its terminal update remains available through `Client::recv`.
 
 ### File observation and transfers
 
-File operations follow the same ownership model. Passive `FileWatch` values retain only copyable progress and coalesce observations; every original `updateFile` still remains in the application update queue. `track_file` is future-only and performs no implicit `getFile` request:
-
-```rust
-let mut watch = sender.track_file(file_id)?;
-let progress = watch.wait(|progress| progress.download == td_client::TransferState::Completed).await?;
-```
-
-`Sender::download` forces TDLib's `downloadFile.synchronous` flag. This does not block the calling thread; it retains TDLib's asynchronous request promise until the requested full file or exact byte range is locally available. `Download::wait` consequently returns the authoritative file or failure:
+File operations retain only copyable progress and coalesce intermediate observations; every original `updateFile` still remains in the application update queue. `Sender::download` forces TDLib's `downloadFile.synchronous` flag. This does not block the calling thread; it retains TDLib's asynchronous request promise until the requested full file or exact byte range is locally available. A synchronous callback receives live observations, and the future returns the authoritative file or failure:
 
 ```rust
 let request = fns::downloadFile { file_id, priority: 16, offset: 0, limit: 0, ..Default::default() };
-let mut download = sender.download(request)?;
-let file = download.wait().await?;
+let mut progress = |progress: FileProgress| println!("downloaded {} bytes", progress.downloaded_size);
+let file = sender
+  .download(request, &mut progress, None)
+  .await?;
 ```
 
-`Sender::upload` awaits the direct `preliminaryUploadFile` response because that is where TDLib assigns the file ID. `Upload::wait` then reports the first non-active progress state, but does not call it success or failure: TDLib supplies no authoritative standalone preliminary-upload result. Completion belongs to the message or other operation that consumes the uploaded file.
+`Sender::upload` binds the file ID from the direct `preliminaryUploadFile` response, reports coalesced observations through the same callback shape, and returns the first non-active state. It does not call that state success or failure: TDLib supplies no authoritative standalone preliminary-upload result. Completion belongs to the message or other operation that consumes the uploaded file.
 
-The consuming `cancel` methods await the native cancellation ceremony. `Download::cancel` additionally awaits the original download response and returns `Some(file)` if completion won the race.
+Passing a cancellation token makes the future await the native cancellation ceremony. Downloads additionally await the original response and return the file if completion won the race.
 
-Dropping an operation abandons only local observation. It does not cancel work already submitted to TDLib, and explicit cancellation progresses only while its consuming future is polled.
+Progress callbacks run synchronously and should remain cheap. Dropping an operation future abandons only local observation. It does not cancel work already submitted to TDLib, and cancellation cleanup progresses only while the future is polled.
 
 ### Synchronous execution
 

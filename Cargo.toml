@@ -15,6 +15,7 @@ serde_json = "*"
 syn = { version = "*", features = ["full"] }
 thiserror = "*"
 tokio = "*"
+tokio-util = "*"
 tracing = "*"
 tracing-subscriber = "*"
 
