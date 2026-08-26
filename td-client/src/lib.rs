@@ -145,12 +145,11 @@
 
 use std::collections::{HashMap, VecDeque};
 use std::ffi::CStr;
-use std::future;
 use std::path::Path;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, LazyLock, Mutex, OnceLock, Weak};
 use std::time::Duration;
-use std::{fmt, mem, result, thread};
+use std::{fmt, future, mem, pin::pin, result, thread};
 
 use serde::{Deserialize, Serialize};
 use tokio::sync::{mpsc, oneshot, watch};
@@ -374,8 +373,7 @@ impl Sender {
     assert!(request.synchronous, "downloadFile.synchronous must be true");
     let client = self.0.upgrade().ok_or(Error::Disconnected)?;
     let mut updates = client.file_updates(request.file_id);
-    let response = client.execute_request(request, false);
-    tokio::pin!(response);
+    let mut response = pin!(client.execute_request(request, false));
     loop {
       tokio::select! {
         biased;
