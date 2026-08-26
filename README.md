@@ -125,17 +125,17 @@ Dropping the future performs no native work. It abandons local observation while
 
 ### File observation and transfers
 
-File operations retain only copyable progress and coalesce intermediate observations; every original `updateFile` still remains in the application update queue. `Sender::download` forces TDLib's `downloadFile.synchronous` flag. This does not block the calling thread; it retains TDLib's asynchronous request promise until the requested full file or exact byte range is locally available. A synchronous callback receives live observations, and the future returns the authoritative file or failure:
+File operations retain only copyable progress and coalesce intermediate observations; every original `updateFile` still remains in the application update queue. `Sender::download` requires TDLib's `downloadFile.synchronous` flag to be `true` and panics otherwise. This does not block the calling thread; it retains TDLib's asynchronous request promise until the requested full file or exact byte range succeeds, fails, is cancelled, or is superseded by another range request. A synchronous callback receives live observations, and the future returns the final file state:
 
 ```rust
-let request = fns::downloadFile { file_id, priority: 16, offset: 0, limit: 0, ..Default::default() };
+let request = fns::downloadFile { file_id, priority: 16, offset: 0, limit: 0, synchronous: true };
 let mut progress = |progress: FileProgress| println!("downloaded {} bytes", progress.downloaded_size);
 let file = sender
-  .download(request, &mut progress, None)
+  .download(&request, &mut progress, None)
   .await?;
 ```
 
-`Sender::upload` binds the file ID from the direct `preliminaryUploadFile` response, reports coalesced observations through the same callback shape, and returns the first non-active state. It does not call that state success or failure: TDLib supplies no authoritative standalone preliminary-upload result. Completion belongs to the message or other operation that consumes the uploaded file.
+`Sender::upload` binds the file ID from the direct `preliminaryUploadFile` response, reports coalesced observations through the same callback shape, and waits until preliminary staging first becomes inactive. The returned state contains the file ID and latest byte counts, not upload success or failure: TDLib explicitly does not complete a preliminary upload until the file is sent in a message.
 
 Passing a cancellation token makes the future await the native cancellation ceremony. Downloads additionally await the original response and return the file if completion won the race.
 

@@ -99,18 +99,19 @@
 //!
 //! # Files
 //!
-//! [`Sender::download`] forces `downloadFile.synchronous = true`. In `TDLib` this is
-//! an asynchronous request promise whose response becomes ready only when the
-//! requested full file or exact byte range is locally available. The method returns
-//! that authoritative file or failure and calls its `FnMut(FileProgress)` argument
-//! for coalesced observations. Cancellation awaits both `cancelDownloadFile` and
-//! the original response; completion wins the race.
+//! [`Sender::download`] requires `downloadFile.synchronous = true`. In `TDLib` this
+//! is an asynchronous request promise whose response becomes ready only when the
+//! requested full file or exact byte range succeeds, fails, is cancelled, or is
+//! superseded by a request for another range. The method returns that final file
+//! state and calls its progress callback for coalesced observations. Cancellation
+//! awaits both `cancelDownloadFile` and the original response; completion wins the
+//! race.
 //!
 //! [`Sender::upload`] binds the file ID from `preliminaryUploadFile`, reports
-//! coalesced progress through the same callback shape, and returns the first
-//! non-active observation without labelling it success or failure. `TDLib` exposes
-//! no authoritative standalone preliminary-upload result; completion belongs to
-//! the operation consuming the file, commonly a message send. Cancellation awaits
+//! coalesced progress through the same callback shape, and waits until preliminary
+//! staging first becomes inactive. `TDLib` explicitly does not complete the upload
+//! until the file is sent in a message, so the returned file ID and byte counts are
+//! neither standalone success nor failure. Cancellation awaits
 //! `cancelPreliminaryUploadFile`.
 //!
 //! Progress callbacks run synchronously and should remain cheap. Dropping an
@@ -362,16 +363,18 @@ impl Sender {
 
   /// Downloads an exact range while reporting coalesced progress.
   ///
-  /// Any caller-supplied `synchronous` value is replaced with `true`, selecting
-  /// `TDLib`'s authoritative completion promise. Cancellation awaits
-  /// `cancelDownloadFile`; completion wins if its response is already available.
-  pub async fn download(&self, request: fns::downloadFile, progress: &mut dyn FnMut(FileProgress), cancel: Option<&Cancel>) -> Result<types::file> {
+  /// The request must set `synchronous` to `true`, selecting `TDLib`'s final
+  /// exact-range response. Cancellation awaits `cancelDownloadFile`; completion
+  /// wins if its response is already available.
+  ///
+  /// # Panics
+  ///
+  /// Panics if `request.synchronous` is `false`.
+  pub async fn download(&self, request: &fns::downloadFile, progress: &mut dyn FnMut(FileProgress), cancel: Option<&Cancel>) -> Result<types::file> {
+    assert!(request.synchronous, "downloadFile.synchronous must be true");
     let client = self.0.upgrade().ok_or(Error::Disconnected)?;
-    // TDLib's synchronous flag delays this request's response until its exact
-    // range is available; it does not block this Rust thread.
-    let request = fns::downloadFile { synchronous: true, ..request };
     let mut updates = client.file_updates(request.file_id);
-    let response = client.execute_request(&request, false);
+    let response = client.execute_request(request, false);
     tokio::pin!(response);
     loop {
       tokio::select! {
@@ -395,10 +398,12 @@ impl Sender {
     }
   }
 
-  /// Runs a preliminary upload while reporting coalesced progress.
+  /// Runs preliminary file staging while reporting coalesced progress.
   ///
-  /// The first non-active observation is returned without claiming standalone
-  /// success or failure. Cancellation awaits `cancelPreliminaryUploadFile`.
+  /// Returns the first non-active observation, including the assigned file ID and
+  /// latest byte counts. `TDLib` does not complete a preliminary upload until the
+  /// file is sent in a message, so this result is not standalone upload success or
+  /// failure. Cancellation awaits `cancelPreliminaryUploadFile`.
   pub async fn upload(&self, request: &fns::preliminaryUploadFile, progress: &mut dyn FnMut(FileProgress), cancel: Option<&Cancel>) -> Result<FileProgress> {
     let client = self.0.upgrade().ok_or(Error::Disconnected)?;
     let (reply, response) = oneshot::channel();
