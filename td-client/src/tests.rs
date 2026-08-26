@@ -1,336 +1,294 @@
 use std::assert_matches;
-use std::process;
-use std::time::Duration;
+use std::future::pending as future_pending;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use tokio::sync::oneshot::error::TryRecvError;
 use tokio::time::timeout;
 
-use td_types::enums::OptionValue;
-use td_types::types::message;
-
-use super::message_send::{MessageKey, MessageSendOutcome};
 use super::*;
 
-fn test_params(name: &str) -> fns::setTdlibParameters {
-  let api_id = 2040;
-  let api_hash = "b18441a1ff607e10a989891a5462e627";
-  let dir = format!("/tmp/td-client-unit-{}-{name}", process::id());
-  params(api_id, api_hash, dir)
-}
-
-fn state(id: i32) -> (Arc<ClientState>, mpsc::UnboundedReceiver<Result<Update>>) {
-  let (events, rx) = mpsc::unbounded_channel();
-  let (next_extra, replies, message_sends) = Default::default();
-  let requests = Mutex::new(PendingRequests { accepting: true, replies });
-  let message_sends = Mutex::new(message_sends);
-  let state = Arc::new(ClientState { id, next_extra, requests, message_sends, events });
-  (state, rx)
-}
-
-fn fake_client(id: i32) -> Client {
-  let (state, events) = state(id);
-  let (buffered_updates, closed) = Default::default();
-  Client { state, events, buffered_updates, closed }
+fn client_state(id: i32) -> (Arc<ClientState>, mpsc::UnboundedReceiver<Result<Update>>) {
+  let (updates, updates_rx) = mpsc::unbounded_channel();
+  let next_request_id = Default::default();
+  let registry = Mutex::new(ClientRegistry { accepting_requests: true, ..Default::default() });
+  let client = Arc::new(ClientState { id, next_request_id, registry, updates });
+  (client, updates_rx)
 }
 
 fn router(states: &[&Arc<ClientState>]) -> Router {
-  let clients = states.iter().map(|state| (state.id, Arc::downgrade(state))).collect();
+  let clients = Mutex::new(states.iter().map(|&state| (state.id, Arc::downgrade(state))).collect());
   let (clients_changed, _) = watch::channel(());
-  let (worker, stale) = Default::default();
-  let timeout = 1f64.to_bits().into();
-  Router { clients: Mutex::new(clients), worker, clients_changed, stale, timeout }
-}
-
-fn option(name: &str) -> Update {
-  let value = types::optionValueString { value: name.into() }.into();
-  types::updateOption { name: name.into(), value }.into()
-}
-
-fn auth(authorization_state: AuthorizationState) -> Update {
-  types::updateAuthorizationState { authorization_state }.into()
-}
-
-fn emit(client: &Client, update: Update) {
-  client.state.events.send(Ok(update)).expect("client unexpectedly dropped its event receiver");
+  let (receiver, native_calls) = Default::default();
+  let receive_timeout = 1f64.to_bits().into();
+  Router { clients, receiver, clients_changed, receive_timeout, native_calls }
 }
 
 #[test]
-fn debug_describes_client_state() {
-  let client = fake_client(42);
-  assert_eq!(format!("{client:?}"), "Client { id: 42, .. }");
+fn synchronous_requests_preserve_typed_results_and_errors() {
+  let result = execute(&fns::getFileMimeType { file_name: "photo.jpg".into() });
+  assert_matches!(result, Ok(enums::Text::text(types::text { text })) if text == "image/jpeg");
+  let error = types::error { code: 418, message: "teapot".into() };
+  assert_matches!(execute(&fns::testReturnError { error: error.clone() }), Err(Error::Td(actual)) if actual == error);
+}
+
+fn pending(id: i64) -> serde_json::Value {
+  serde_json::json!({
+    "@type": "message",
+    "id": id,
+    "chat_id": 9,
+    "sending_state": { "@type": "messageSendingStatePending" }
+  })
+}
+
+fn file(id: i32, active: bool, uploaded: i64) -> serde_json::Value {
+  serde_json::json!({
+    "@type": "file",
+    "id": id,
+    "size": 100,
+    "expected_size": 100,
+    "local": {
+      "path": "",
+      "can_be_downloaded": true,
+      "can_be_deleted": false,
+      "is_downloading_active": false,
+      "is_downloading_completed": false,
+      "download_offset": 0,
+      "downloaded_prefix_size": 0,
+      "downloaded_size": 0
+    },
+    "remote": {
+      "id": "",
+      "unique_id": "",
+      "is_uploading_active": active,
+      "is_uploading_completed": false,
+      "uploaded_size": uploaded
+    }
+  })
+}
+
+fn routed(mut value: serde_json::Value, client_id: i32, extra: Option<u64>) -> Vec<u8> {
+  value["@client_id"] = client_id.into();
+  if let Some(extra) = extra {
+    value["@extra"] = extra.into();
+  }
+  serde_json::to_vec(&value).unwrap()
 }
 
 #[tokio::test]
-async fn auth_and_recv_preserve_order() {
-  let mut client = fake_client(-1);
-  emit(&client, option("first"));
-  emit(&client, auth(AuthorizationState::authorizationStateWaitPhoneNumber));
-  emit(&client, auth(AuthorizationState::authorizationStateReady));
-  emit(&client, option("second"));
-  emit(&client, auth(AuthorizationState::authorizationStateClosed));
+async fn message_responses_bind_before_terminal_updates() {
+  let (client, mut updates) = client_state(1001);
+  let router = router(&[&client]);
+  let (reply, response) = oneshot::channel();
+  client.registry.lock().unwrap().requests.insert(7, PendingReply::Messages { many: false, reply });
+
+  router.route(&routed(pending(10), 1001, Some(7)));
+  let sends = response.await.unwrap().unwrap();
+  let [send]: [MessageSend; 1] = sends.try_into().ok().unwrap();
+  assert_matches!(&*send.state(), MessageState::Pending(message) if message.id == 10);
+  assert!(client.registry.lock().unwrap().message_sends.contains_key(&MessageKey { chat_id: 9, message_id: 10 }));
+  let key = send.key();
+  drop(send);
+  let mut send = client.track_message(key).unwrap();
+
+  router.route(
+    br#"{
+      "@client_id": 1001,
+      "@type": "updateMessageSendSucceeded",
+      "message": {"@type": "message", "id": 20, "chat_id": 9},
+      "old_message_id": 10
+    }"#,
+  );
+  let message = send.wait().await.unwrap();
+  assert_eq!((message.chat_id, message.id), (9, 20));
+  assert!(client.registry.lock().unwrap().message_sends.is_empty());
+  assert_matches!(updates.try_recv(), Ok(Ok(Update::updateMessageSendSucceeded(update))) if update.old_message_id == 10);
+}
+
+#[tokio::test]
+async fn message_batches_settle_independently_and_in_original_order() {
+  let (client, _) = client_state(1002);
+  let router = router(&[&client]);
+  let (reply, response) = oneshot::channel();
+  client.registry.lock().unwrap().requests.insert(8, PendingReply::Messages { many: true, reply });
+  router.route(&routed(serde_json::json!({ "@type": "messages", "total_count": 2, "messages": [pending(11), pending(12)] }), 1002, Some(8)));
+  let sends = response.await.unwrap().unwrap();
+  let [mut first, mut second]: [MessageSend; 2] = sends.try_into().ok().unwrap();
+
+  router.route(
+    br#"{
+      "@client_id": 1002,
+      "@type": "updateMessageSendFailed",
+      "message": {"@type": "message", "id": 12, "chat_id": 9},
+      "old_message_id": 12,
+      "error": {"@type": "error", "code": 400, "message": "failed"}
+    }"#,
+  );
+  router.route(
+    br#"{
+      "@client_id": 1002,
+      "@type": "updateMessageSendSucceeded",
+      "message": {"@type": "message", "id": 21, "chat_id": 9},
+      "old_message_id": 11
+    }"#,
+  );
+
+  assert_eq!(first.wait().await.unwrap().id, 21);
+  assert_matches!(second.wait().await.err(), Some(Error::MessageFailed(update)) if update.error.code == 400);
+}
+
+#[test]
+fn duplicate_message_keys_fail_without_partial_registration() {
+  let (client, _) = client_state(1003);
+  let messages = vec![
+    types::message { chat_id: 9, id: 13, sending_state: Some(types::messageSendingStatePending::default().into()), ..Default::default() },
+    types::message { chat_id: 9, id: 13, sending_state: Some(types::messageSendingStatePending::default().into()), ..Default::default() },
+  ];
+  let result = client.bind_messages(messages);
+  assert_matches!(result.err(), Some(Error::MessageCollision(MessageKey { chat_id: 9, message_id: 13 })));
+  assert!(client.registry.lock().unwrap().message_sends.is_empty());
+}
+
+#[tokio::test]
+async fn waiting_can_be_raced_with_consuming_cancellation() {
+  let (client, _) = client_state(1010);
+  let messages = vec![types::message { chat_id: 9, id: 15, ..Default::default() }];
+  let [mut send]: [MessageSend; 1] = client.bind_messages(messages).unwrap().try_into().ok().unwrap();
+  tokio::select! {
+    result = send.wait() => assert_eq!(result.unwrap().id, 15),
+    () = future_pending() => assert_matches!(send.cancel().await, Ok(Some(types::message { id: 15, .. }))),
+  }
+}
+
+#[tokio::test]
+async fn observed_message_success_beats_cancellation() {
+  let (client, _) = client_state(1011);
+  let router = router(&[&client]);
+  let messages = vec![
+    types::message { chat_id: 9, id: 16, sending_state: Some(types::messageSendingStatePending::default().into()), ..Default::default() }, //.
+  ];
+  let [send]: [MessageSend; 1] = client.bind_messages(messages).unwrap().try_into().ok().unwrap();
+  router.route(
+    br#"{
+      "@client_id": 1011,
+      "@type": "updateMessageSendSucceeded",
+      "message": {"@type": "message", "id": 26, "chat_id": 9},
+      "old_message_id": 16
+    }"#,
+  );
+
+  let result = timeout(Duration::from_millis(100), send.cancel()).await.unwrap();
+  assert_matches!(result, Ok(Some(types::message { id: 26, .. })));
+  assert!(client.registry.lock().unwrap().requests.is_empty());
+}
+
+#[tokio::test]
+async fn file_tracking_coalesces_updates_without_cloning_files() {
+  let (client, mut updates) = client_state(1004);
+  let router = router(&[&client]);
+  let mut progress = client.track_file(42);
+
+  router.route(&routed(serde_json::json!({ "@type": "updateFile", "file": file(42, true, 60) }), 1004, None));
+  assert_matches!(&*progress.state(), FileState::Known(progress) if progress.uploaded_size == 60);
+
+  router.route(&routed(serde_json::json!({ "@type": "updateFile", "file": file(42, false, 100) }), 1004, None));
+  let complete = progress //.
+    .wait(|progress| progress.upload == TransferState::Inactive && progress.uploaded_size == progress.size)
+    .await
+    .unwrap();
+  assert_eq!(complete.uploaded_size, 100);
+  assert_matches!(updates.try_recv(), Ok(Ok(Update::updateFile(update))) if update.file.remote.uploaded_size == 60);
+  assert_matches!(updates.try_recv(), Ok(Ok(Update::updateFile(update))) if update.file.remote.uploaded_size == 100);
+}
+
+#[tokio::test]
+async fn upload_response_registers_progress_before_waking_requester() {
+  let (client, _) = client_state(1005);
+  let router = router(&[&client]);
+  let (reply, response) = oneshot::channel();
+  client.registry.lock().unwrap().requests.insert(9, PendingReply::Upload(reply));
+  router.route(&routed(file(43, true, 1), 1005, Some(9)));
+  let mut upload = response.await.unwrap().unwrap();
+  assert_matches!(&*upload.progress().state(), FileState::Known(progress) if progress.uploaded_size == 1);
+
+  router.route(&routed(serde_json::json!({ "@type": "updateFile", "file": file(43, false, 100) }), 1005, None));
+  let stopped = upload.wait().await.unwrap();
+  assert_eq!((stopped.upload, stopped.uploaded_size), (TransferState::Inactive, 100));
+}
+
+#[tokio::test]
+async fn completed_downloads_survive_client_and_wait_is_one_shot() {
+  let (client, _) = client_state(1013);
+  let weak = Arc::downgrade(&client);
+  let (reply, response) = oneshot::channel();
+  reply.send(Ok(types::file { id: 46, ..Default::default() })).unwrap();
+  let mut download = Download { client: Arc::downgrade(&client), progress: client.track_file(46), response: Some(response) };
+  let (reply, response) = oneshot::channel();
+  reply.send(Ok(types::file { id: 47, ..Default::default() })).unwrap();
+  let cancel = Download { client: Arc::downgrade(&client), progress: client.track_file(47), response: Some(response) };
+  drop(client);
+  assert!(weak.upgrade().is_none());
+  assert_matches!(download.wait().await, Ok(types::file { id: 46, .. }));
+  assert_matches!(download.wait().await, Err(Error::UnexpectedResponse("download was already awaited")));
+  assert_matches!(cancel.cancel().await, Ok(Some(types::file { id: 47, .. })));
+}
+
+#[tokio::test]
+async fn auth_waiting_buffers_application_updates() {
+  let (state, updates) = client_state(1012);
+  let mut client = Client { state: Arc::clone(&state), updates, buffered_updates: VecDeque::new(), closed: false };
+  state.updates.send(Ok(types::updateOption::default().into())).unwrap();
+  let auth = types::updateAuthorizationState { authorization_state: AuthorizationState::authorizationStateWaitPhoneNumber };
+  state.updates.send(Ok(auth.into())).unwrap();
 
   assert_matches!(client.recv_auth().await, Ok(AuthorizationState::authorizationStateWaitPhoneNumber));
-  assert_matches!(client.recv().await, Ok(Some(Update::updateOption(update))) if update.name == "first");
-  assert_matches!(client.recv().await, Ok(Some(Update::updateOption(update))) if update.name == "second");
-  assert_matches!(client.recv().await, Ok(None));
-  assert_matches!(client.recv().await, Ok(None));
-  assert_matches!(client.recv_auth().await, Ok(AuthorizationState::authorizationStateClosed));
-
-  let mut bot = fake_client(-3);
-  emit(&bot, auth(AuthorizationState::authorizationStateClosing));
-  let res = bot.authorize_bot("unused").await;
-  assert_matches!(res, Err(Error::Auth(AuthorizationState::authorizationStateClosing)));
+  assert_matches!(client.recv().await, Ok(Some(Update::updateOption(_))));
 }
 
 #[tokio::test]
-async fn detached_requests_are_rejected_after_owner_disconnects() {
-  let client = fake_client(-2);
-  let sender = client.sender();
-  let retained = Arc::clone(&client.state);
-  drop(client);
-
-  assert_eq!(sender.0.strong_count(), 1);
-  let res = sender.send(&fns::testSquareInt { x: 2 }).await;
-  assert_matches!(res, Err(Error::Disconnected));
-  drop(retained);
-  assert_eq!(sender.0.strong_count(), 0);
+async fn malformed_updates_wake_file_waiters_with_the_original_error() {
+  let (client, mut updates) = client_state(1006);
+  let router = router(&[&client]);
+  let mut progress = client.track_file(44);
+  router.route(br#"{"@client_id":1006,"@type":"updateFile","file":"invalid"}"#);
+  assert_matches!(progress.wait(|_| false).await, Err(Error::Json(_)));
+  assert_matches!(updates.try_recv(), Ok(Err(Error::Json(_))));
 }
 
-#[tokio::test]
-async fn tracked_send_rejects_preview_requests() {
-  let client = fake_client(-4);
-  let options = Some(types::messageSendOptions { only_preview: true, ..Default::default() });
-  let request = fns::sendMessage { options, ..Default::default() };
-  let result = client.sender().send_message(&request).await;
-  assert_matches!(result, Err(Error::MessagePreview));
+#[test]
+fn malformed_envelopes_fail_every_routable_request() {
+  let (first, _) = client_state(1007);
+  let (second, _) = client_state(1008);
+  let router = router(&[&first, &second]);
+  let (first_tx, mut first_rx) = oneshot::channel();
+  let (second_tx, mut second_rx) = oneshot::channel();
+  first.registry.lock().unwrap().requests.insert(1, PendingReply::Request(first_tx));
+  second.registry.lock().unwrap().requests.insert(1, PendingReply::Request(second_tx));
+  router.route(b"{");
+  assert_matches!(first_rx.try_recv(), Ok(Err(Error::Json(_))));
+  assert_matches!(second_rx.try_recv(), Ok(Err(Error::Json(_))));
+  assert_matches!(first_rx.try_recv(), Err(TryRecvError::Closed));
 }
 
-#[tokio::test]
-async fn shutdown_cleanup_preserves_event_error() {
-  let fut = async {
+#[tokio::test(flavor = "multi_thread")]
+async fn native_multi_client_lifecycle() {
+  let test = async {
     set_log_level(0);
     set_receive_timeout(Duration::from_millis(10));
-    let client = Client::new(test_params("shutdown-error")).await.expect("client failed to start");
-    let sender = client.sender();
-    let err = serde_json::from_slice::<Update>(b"{").expect_err("invalid JSON unexpectedly parsed");
-    client.state.events.send(Err(err.into())).expect("client unexpectedly dropped its event receiver");
-
-    let id = client.state.id;
-    let res = client.shutdown().await;
-    assert_matches!(res, Err(Error::Json(_)));
-    let registered = ROUTER.clients.lock().unwrap().contains_key(&id);
-    assert!(!registered);
-    assert_eq!(sender.0.strong_count(), 0);
-    let res = sender.send(&fns::testSquareInt { x: 2 }).await;
-    assert_matches!(res, Err(Error::Disconnected));
+    let nonce = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+    let first = Client::new(params(2040, "b18441a1ff607e10a989891a5462e627", format!("/tmp/td-client-{nonce}-first")));
+    let second = Client::new(params(2040, "b18441a1ff607e10a989891a5462e627", format!("/tmp/td-client-{nonce}-second")));
+    let (first, second) = tokio::join!(first, second);
+    let (first, second) = (first.unwrap(), second.unwrap());
+    let mime_type = execute(&fns::getFileMimeType { file_name: "photo.jpg".into() });
+    assert_matches!(mime_type, Ok(enums::Text::text(types::text { text })) if text == "image/jpeg");
+    let (first_sender, second_sender) = (first.sender(), second.sender());
+    let (first_request, second_request) = (fns::testSquareInt { x: 3 }, fns::testSquareInt { x: 4 });
+    let (a, b) = tokio::join!(first_sender.send(&first_request), second_sender.send(&second_request));
+    assert_matches!(a, Ok(enums::TestInt::testInt(types::testInt { value: 9 })));
+    assert_matches!(b, Ok(enums::TestInt::testInt(types::testInt { value: 16 })));
+    let (a, b) = tokio::join!(first.shutdown(), second.shutdown());
+    a.unwrap();
+    b.unwrap();
   };
-
-  timeout(Duration::from_secs(30), fut).await.expect("shutdown error test timed out");
-}
-
-#[test]
-fn protocol_routes_responses_events_and_failures() {
-  let request = OutgoingRequest { extra: 7, request: &fns::testSquareInt { x: 3 } };
-  let request = serde_json::to_vec(&request).expect("request failed to serialize");
-  assert_eq!(request, br#"{"@extra":7,"@type":"testSquareInt","x":3}"#);
-
-  let (first, mut first_events) = state(1);
-  let (second, mut second_events) = state(2);
-  let router = router(&[&first, &second]);
-  let (first_tx, mut first_reply) = oneshot::channel();
-  let (second_tx, mut second_reply) = oneshot::channel();
-  first.requests.lock().unwrap().replies.insert(7, PendingReply::Request(first_tx));
-  second.requests.lock().unwrap().replies.insert(7, PendingReply::Request(second_tx));
-
-  let response = br#"{"@client_id":1,"@extra":7,"@type":"testInt","value":9}"#;
-  router.route_message(response);
-  let reply = first_reply.try_recv().expect("first response was not routed").expect("first request failed");
-  assert_eq!(reply, response);
-  let reply = second_reply.try_recv();
-  assert_matches!(reply, Err(TryRecvError::Empty));
-  let event = first_events.try_recv();
-  assert_matches!(event, Err(mpsc::error::TryRecvError::Empty));
-
-  router.route_message(br#"{"@client_id":2,"@extra":7,"@type":"error","code":418,"message":"teapot"}"#);
-  let reply = second_reply.try_recv();
-  assert_matches!(reply, Ok(Err(Error::Td(types::error { code: 418, message }))) if message == "teapot");
-
-  router.route_message(
-    br#"{
-      "@client_id": 1,
-      "@type": "updateOption",
-      "name": "version",
-      "value": {"@type": "optionValueString", "value": "1.8.66"}
-    }"#,
-  );
-  let event = first_events.try_recv();
-  assert_matches!(event,
-    Ok(Ok(Update::updateOption(types::updateOption { name, value: OptionValue::optionValueString(o) })))
-    if name == "version" && o.value == "1.8.66");
-  let event = second_events.try_recv();
-  assert_matches!(event, Err(mpsc::error::TryRecvError::Empty));
-
-  let (first_tx, mut first_reply) = oneshot::channel();
-  let (second_tx, mut second_reply) = oneshot::channel();
-  first.requests.lock().unwrap().replies.insert(8, PendingReply::Request(first_tx));
-  second.requests.lock().unwrap().replies.insert(8, PendingReply::Request(second_tx));
-  router.route_message(b"{");
-  let reply = first_reply.try_recv();
-  assert_matches!(reply, Ok(Err(Error::Json(_))));
-  let reply = second_reply.try_recv();
-  assert_matches!(reply, Ok(Err(Error::Json(_))));
-  let event = first_events.try_recv();
-  assert_matches!(event, Ok(Err(Error::Json(_))));
-  let event = second_events.try_recv();
-  assert_matches!(event, Ok(Err(Error::Json(_))));
-}
-
-#[test]
-fn message_sends_bind_before_reply_and_preserve_terminal_updates() {
-  let (state, mut events) = state(1);
-  let router = router(&[&state]);
-
-  let registration_id = 7;
-  let mut send_result = state.message_sends.lock().unwrap().register(registration_id);
-  let (reply, mut response) = oneshot::channel();
-  state.requests.lock().unwrap().replies.insert(registration_id, PendingReply::Message(reply));
-
-  let pending = br#"{"@client_id":1,"@extra":7,"@type":"message","id":100,"chat_id":9}"#;
-  router.route_message(pending);
-  let pending = response.try_recv().expect("send response was not routed").expect("send request failed");
-  let message { chat_id, id, .. } = pending;
-  assert_eq!((chat_id, id), (9, 100));
-
-  let succeeded = br#"{
-    "@client_id": 1,
-    "@type": "updateMessageSendSucceeded",
-    "message": {"@type": "message", "id": 200, "chat_id": 9},
-    "old_message_id": 100
-  }"#;
-  router.route_message(succeeded);
-  let result = send_result.try_recv().expect("send result was not routed").expect("send failed");
-  assert_matches!(result, MessageSendOutcome::Succeeded(message { id: 200, chat_id: 9, .. }));
-  let update = events.try_recv().expect("terminal update was not routed").expect("terminal update failed");
-  assert_matches!(update, Update::updateMessageSendSucceeded(update) if (update.message.id, update.old_message_id) == (200, 100));
-}
-
-#[test]
-fn message_send_terminal_updates_correlate() {
-  let (state, _) = state(1);
-  let router = router(&[&state]);
-
-  let registration_id = 8;
-  let mut send_result = state.message_sends.lock().unwrap().register(registration_id);
-  let key = MessageKey { chat_id: 9, message_id: 101 };
-  let binding = state.message_sends.lock().unwrap().bind(registration_id, key);
-  binding.expect("send binding failed");
-  let failed = br#"{
-    "@client_id": 1,
-    "@type": "updateMessageSendFailed",
-    "message": {"@type": "message", "id": 101, "chat_id": 9},
-    "old_message_id": 101,
-    "error": {"@type": "error", "code": 400, "message": "failed"}
-  }"#;
-  router.route_message(failed);
-  let result = send_result.try_recv().expect("send failure was not routed").expect("send result channel failed");
-  assert_matches!(result, MessageSendOutcome::Failed(update) if (update.old_message_id, update.error.code) == (101, 400));
-
-  let registration_id = 9;
-  let mut send_result = state.message_sends.lock().unwrap().register(registration_id);
-  let key = MessageKey { chat_id: 9, message_id: 102 };
-  let binding = state.message_sends.lock().unwrap().bind(registration_id, key);
-  binding.expect("send binding failed");
-  router.route_message(
-    br#"{
-      "@client_id": 1,
-      "@type": "updateDeleteMessages",
-      "chat_id": 9,
-      "message_ids": [102],
-      "is_permanent": false,
-      "from_cache": true
-    }"#,
-  );
-  let result = send_result.try_recv();
-  assert_matches!(result, Err(TryRecvError::Empty));
-  router.route_message(
-    br#"{
-      "@client_id": 1,
-      "@type": "updateDeleteMessages",
-      "chat_id": 9,
-      "message_ids": [102],
-      "is_permanent": true,
-      "from_cache": false
-    }"#,
-  );
-  let result = send_result.try_recv().expect("send deletion was not routed").expect("send result channel failed");
-  assert_matches!(result, MessageSendOutcome::Deleted);
-
-  let (first_registration_id, second_registration_id) = (10, 11);
-  let mut first_result = state.message_sends.lock().unwrap().register(first_registration_id);
-  let mut second_result = state.message_sends.lock().unwrap().register(second_registration_id);
-  let first_key = MessageKey { chat_id: 9, message_id: 103 };
-  let binding = state.message_sends.lock().unwrap().bind(first_registration_id, first_key);
-  binding.expect("first send binding failed");
-  let second_key = MessageKey { chat_id: 9, message_id: 104 };
-  let binding = state.message_sends.lock().unwrap().bind(second_registration_id, second_key);
-  binding.expect("second send binding failed");
-  router.route_message(
-    br#"{
-      "@client_id": 1,
-      "@type": "updateMessageSendSucceeded",
-      "message": {"@type": "message", "id": 204, "chat_id": 9},
-      "old_message_id": 104
-    }"#,
-  );
-  router.route_message(
-    br#"{
-      "@client_id": 1,
-      "@type": "updateMessageSendSucceeded",
-      "message": {"@type": "message", "id": 203, "chat_id": 9},
-      "old_message_id": 103
-    }"#,
-  );
-  let result = first_result.try_recv();
-  assert_matches!(result, Ok(Ok(MessageSendOutcome::Succeeded(message))) if message.id == 203);
-  let result = second_result.try_recv();
-  assert_matches!(result, Ok(Ok(MessageSendOutcome::Succeeded(message))) if message.id == 204);
-}
-
-#[test]
-fn message_send_waiters_fail_on_invalid_input_and_disconnect() {
-  let (state, _) = state(1);
-  let router = router(&[&state]);
-
-  let registration_id = 12;
-  let mut invalid_response_result = state.message_sends.lock().unwrap().register(registration_id);
-  let (reply, mut invalid_response) = oneshot::channel();
-  state.requests.lock().unwrap().replies.insert(registration_id, PendingReply::Message(reply));
-  router.route_message(br#"{"@client_id":1,"@extra":12,"@type":"ok"}"#);
-  assert_matches!(invalid_response.try_recv(), Ok(Err(Error::Json(_))));
-  assert_matches!(invalid_response_result.try_recv(), Err(TryRecvError::Closed));
-
-  let registration_id = 13;
-  let mut malformed_result = state.message_sends.lock().unwrap().register(registration_id);
-  let key = MessageKey { chat_id: 9, message_id: 105 };
-  let binding = state.message_sends.lock().unwrap().bind(registration_id, key);
-  binding.expect("send binding failed");
-  router.route_message(
-    br#"{
-      "@client_id": 1,
-      "@type": "updateMessageSendSucceeded",
-      "message": "invalid",
-      "old_message_id": 105
-    }"#,
-  );
-  assert_matches!(malformed_result.try_recv(), Ok(Err(Error::Json(_))));
-
-  let mut disconnected = state.message_sends.lock().unwrap().register(14);
-  router.route_message(
-    br#"{
-      "@client_id": 1,
-      "@type": "updateAuthorizationState",
-      "authorization_state": {"@type": "authorizationStateClosed"}
-    }"#,
-  );
-  assert_matches!(disconnected.try_recv(), Err(TryRecvError::Closed));
+  timeout(Duration::from_secs(30), test).await.unwrap();
 }

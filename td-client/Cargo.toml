@@ -13,13 +13,13 @@ serde_json.workspace = true
 td-sys.workspace = true
 td-types.workspace = true
 thiserror.workspace = true
-tokio = { workspace = true, features = ["sync", "time"] }
+tokio = { workspace = true, features = ["sync"] }
 
 [build-dependencies]
 td-sys.workspace = true
 
 [dev-dependencies]
 anyhow.workspace = true
-tokio = { workspace = true, features = ["macros", "process", "rt-multi-thread", "signal"] }
+tokio = { workspace = true, features = ["macros", "process", "rt-multi-thread", "signal", "time"] }
 tracing.workspace = true
 tracing-subscriber.workspace = true

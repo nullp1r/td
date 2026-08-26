@@ -34,7 +34,7 @@ impl<'a> Cursor<'a> {
       let Some(tail) = self.rest.strip_prefix("//") else { break };
       self.rest = tail.split_once('\n').map_or("", |(_, rest)| rest);
     }
-    start.get(..start.len() - self.rest.len()).unwrap_or("")
+    start.substr_range(self.rest).and_then(|r| start.get(..r.start)).unwrap_or("")
   }
 
   /// Consumes the longest prefix whose characters satisfy `pred`.

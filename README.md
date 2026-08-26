@@ -13,7 +13,7 @@ Lonami's [grammers] and [Telethon] have both been a huge inspiration for this pr
 - Requests statically paired with their response types, generated from TDLib's [`td_api.tl`][td-api] schema.
 - Concurrent requests and multiple independent clients routed through TDLib's single process-wide receiver.
 - Ordered application updates with no library-defined dropping, retry, or logging policy.
-- `sendMessage` helpers that wait for Telegram's terminal success, failure, or deletion update instead of reporting a temporary local message as delivered.
+- Retained message-send and file-transfer operations with observable progress, explicit awaiting, and awaited cancellation.
 - One non-cloneable lifecycle owner, cloneable request-only senders, and fallible graceful shutdown.
 
 ## Architecture
@@ -24,7 +24,7 @@ Most applications use only [`td-client`](td-client) and [`td-types`](td-types). 
 
 ## Get started
 
-The bundled fetch path supports x86-64 and ARM64 on Linux with glibc and on macOS. It requires [Rust 1.97][rust], plus `curl`, `jq`, and `tar`; Linux also needs `readelf`.
+The bundled fetch path supports x86-64 and ARM64 on Linux with glibc and on macOS. It requires [Rust 1.98][rust], plus `curl`, `jq`, and `tar`; Linux also needs `readelf`.
 
 Fetch the native library and its matching schema before building:
 
@@ -80,11 +80,14 @@ The runtime deliberately has a small public vocabulary:
 | `Client::bot` | Apply parameters and complete the bot-token flow. |
 | `Client::sender` | Create a cloneable, non-owning request capability. |
 | `Sender::send` | Return a generated function's direct correlated response. |
-| `Sender::send_message` | Return the final sent message, or its terminal failure. |
-| `Sender::send_message_until` | Enforce an absolute deadline through compensating deletion. |
+| `Sender::send_message` / `send_messages` | Start retained normal-message send operations. |
+| `Sender::track_message` | Attach another observer to a known pending send. |
+| `Sender::upload` / `download` | Start retained preliminary-upload or exact-range download operations. |
+| `Sender::track_file` | Observe coalesced transfer progress for a known file ID. |
 | `Client::recv` | Receive the next ordinary update in TDLib order. |
 | `Client::recv_auth` | Receive the next authorization state without losing ordinary updates. |
 | `Client::shutdown` | Consume the owner and complete TDLib's close protocol. |
+| `td_client::execute` | Run a TDLib function through the synchronous `td_execute` path. |
 
 ### Requests and updates
 
@@ -96,11 +99,68 @@ The update queue is unbounded by design. TDLib's synchronous receiver cannot awa
 
 ### Message completion and cancellation
 
-TDLib's direct `sendMessage` response contains a temporary local message. Use `Sender::send_message` for the authoritative final message; use `Sender::send` with `sendMessage` only when the pending response or a preview is intentionally required. Message edits and deletions already complete through their direct responses and also use `send`.
+TDLib's direct response for a normal-message send can contain a temporary local message. `Sender::send_message` and `send_messages` return retained operations after that response has been atomically bound to terminal updates. Call `MessageSend::wait` for authoritative success, failure, or deletion. These entry points are only for actual non-preview normal sends; use `Sender::send` for previews, getters, and edits. Misrouted pending-looking responses may never settle.
 
-`send_message_until` deletes the temporary message if its deadline wins and also deletes the final message if success races with cancellation. This is compensating cleanup, not a server-atomic operation: a recipient can briefly observe a concurrently delivered message, and the future may finish after the deadline while cleanup completes.
+```rust
+let content = types::inputMessageText {
+  text: types::formattedText { text: "hello".into(), ..Default::default() },
+  ..Default::default()
+};
+let request = fns::sendMessage {
+  chat_id,
+  input_message_content: content.into(),
+  ..Default::default()
+};
+let mut send = sender.send_message(&request).await?;
+let message = send.wait().await?;
+```
 
-Dropping a request or tracked-send future abandons only the Rust waiter. It does not cancel work already submitted to TDLib. Deadline cleanup likewise progresses only while its future is polled.
+`MessageSend::cancel` consumes the operation, requests deletion only while its temporary ID is still pending, and awaits the terminal outcome. It returns `None` when deletion wins or `Some(final_message)` when authoritative success wins. It never explicitly deletes a successfully observed final message. This is not server-atomic: TDLib may itself delete a concurrently accepted message after removing its pending record.
+
+Cancellation policy stays outside the crate. Race borrowed observation against any application signal, then drive the consuming cancellation future:
+
+```rust
+let mut send = sender.send_message(&request).await?;
+tokio::select! {
+  result = send.wait() => result.map(Some),
+  () = cancelled() => send.cancel().await,
+}
+```
+
+Dropping `MessageSend` performs no native work. Its pending entry remains tracked until TDLib emits a terminal update, allowing a caller that retained `send.key()` to attach again with `track_message`.
+
+### File observation and transfers
+
+File operations follow the same ownership model. Passive `FileWatch` values retain only copyable progress and coalesce observations; every original `updateFile` still remains in the application update queue. `track_file` is future-only and performs no implicit `getFile` request:
+
+```rust
+let mut watch = sender.track_file(file_id)?;
+let progress = watch.wait(|progress| progress.download == td_client::TransferState::Completed).await?;
+```
+
+`Sender::download` forces TDLib's `downloadFile.synchronous` flag. This does not block the calling thread; it retains TDLib's asynchronous request promise until the requested full file or exact byte range is locally available. `Download::wait` consequently returns the authoritative file or failure:
+
+```rust
+let request = fns::downloadFile { file_id, priority: 16, offset: 0, limit: 0, ..Default::default() };
+let mut download = sender.download(request)?;
+let file = download.wait().await?;
+```
+
+`Sender::upload` awaits the direct `preliminaryUploadFile` response because that is where TDLib assigns the file ID. `Upload::wait` then reports the first non-active progress state, but does not call it success or failure: TDLib supplies no authoritative standalone preliminary-upload result. Completion belongs to the message or other operation that consumes the uploaded file.
+
+The consuming `cancel` methods await the native cancellation ceremony. `Download::cancel` additionally awaits the original download response and returns `Some(file)` if completion won the race.
+
+Dropping an operation abandons only local observation. It does not cancel work already submitted to TDLib, and explicit cancellation progresses only while its consuming future is polled.
+
+### Synchronous execution
+
+`td_client::execute(&request)` exposes TDLib's stateless synchronous path with the same generated request/response typing and error mapping as asynchronous sends. Only functions documented by TDLib as synchronously executable are meaningful there:
+
+```rust
+let mime_type = td_client::execute(&fns::getFileMimeType { file_name: "photo.jpg".into() })?;
+```
+
+The runtime serializes `td_execute` with `td_receive` and finishes parsing while holding that process-wide lock because either native call may invalidate TDLib's shared response buffer. An execute call can therefore wait for the configured native receive timeout.
 
 ### Authorization and shutdown
 
@@ -127,7 +187,7 @@ Detailed workspace API documentation is generated and published by [`td/docs`](t
 
 | Crate | Responsibility |
 | --- | --- |
-| [`td-client`](td-client) | Typed async requests, ordered updates, authorization, terminal message sends, and lifecycle. |
+| [`td-client`](td-client) | Typed requests, ordered updates, retained message and file operations, authorization, synchronous execution, and lifecycle. |
 | [`td-types`](td-types) | Generated requests, responses, objects, updates, [Serde] implementations, and upstream documentation. |
 | [`td-sys`](td-sys) | Raw unsafe bindings to TDLib's JSON C API plus native linking configuration. |
 | [`td-parser`](td-parser) | A purpose-built, mostly borrowed parser for the [TDLib Type Language schema][td-api]. |
@@ -150,10 +210,10 @@ The ignored [live test](td-client/tests/live.rs) exercises a real bot and dedica
 
 ```bash
 cp td-client/tests/live/config.example.json td-client/tests/live/config.json
-cargo test -p td-client --test live -- --ignored --test-threads=1 --nocapture
+cargo test -p td-client --test live -- --ignored --nocapture --test-threads=1
 ```
 
-It covers text send/edit/delete, common media uploads, forced-document behavior, terminal update preservation, and deadline cleanup. Authorization is retained in `td-client/tests/live/session`; delete that ignored directory when changing bot accounts.
+It covers text send/edit/delete, common media uploads, forced-document behavior, terminal update preservation, and cancellation. Authorization is retained in `td-client/tests/live/session`; delete that ignored directory when changing bot accounts.
 
 To emit a standalone generated API file at `td/td_api.rs` for inspection, run the [code-generation integration test](td-codegen/tests/codegen.rs):
 
@@ -169,7 +229,7 @@ Each live native client has exactly one non-cloneable `Client`. Its cloneable `S
 
 Terminal message-send tracking is receiver-owned rather than update-loop-owned. The receiver binds a direct response's temporary `(chat_id, message_id)` before waking its request future, then observes matching success, failure, or deletion updates without removing them from the application stream. Send completion therefore progresses even while the application is not polling `Client::recv`.
 
-The library preserves transport order and reports serialization, TDLib, message, and lifecycle failures. Retry, flood-wait handling, logging, task supervision, and backpressure stay in the application. `send_message_until` applies the caller's explicit deadline through protocol-aware cleanup; `set_receive_timeout` only tunes the next process-wide native receive wait and is not a request timeout.
+The library preserves transport order and reports serialization, TDLib, message, transfer, and lifecycle failures. Retry, deadlines, flood-wait handling, logging, task supervision, and backpressure stay in the application. `set_receive_timeout` only tunes the next process-wide native receive wait and is not a request timeout.
 
 Updating TDLib with [`td/fetch`](td/fetch) also updates the [schema][td-api] used to generate Rust. In addition to running the full suite, re-audit TDLib's direct-response-before-terminal-update ordering before accepting an upgrade, because terminal `sendMessage` correlation depends on that implementation behavior rather than a schema guarantee.
 

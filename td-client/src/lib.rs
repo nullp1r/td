@@ -1,85 +1,168 @@
-//! Asynchronous, typed access to `TDLib`'s client-ID JSON interface.
+//! A small typed runtime for `TDLib`'s client-ID JSON interface.
 //!
-//! This crate connects the generated requests and responses in `td_types::fns`
-//! and `td_types::enums` to `TDLib`'s process-wide JSON transport. It preserves
-//! `TDLib`'s update order,
-//! correlates concurrent requests, routes multiple clients through one receiver
-//! thread, and makes the native client's asynchronous shutdown protocol explicit.
+//! `td-client` connects the generated functions and objects from [`td_types`] to
+//! `TDLib`'s asynchronous native transport. It correlates concurrent requests,
+//! routes any number of clients through `TDLib`'s single process-wide receiver,
+//! preserves application-update order, tracks the operations whose direct
+//! response is not their final result, and makes graceful shutdown explicit.
 //!
-//! # Ownership and capabilities
+//! The crate deliberately has no retry, deadline, logging, overflow, or task
+//! policy. Those choices belong to the application. Its public model consists of
+//! one owning [`Client`], cloneable non-owning [`Sender`] values, and retained
+//! non-cloneable operations for message sends and file transfers.
 //!
-//! A live `TDLib` instance has exactly one owning [`Client`]. The client is
-//! intentionally not cloneable: it owns the ordered update stream and is the only
-//! value that can complete shutdown. [`Client::sender`] creates a cloneable
-//! [`Sender`] for detached request tasks. A sender holds only a weak reference, so
-//! it neither keeps the client alive nor grants access to updates or shutdown.
+//! # Client ownership and shutdown
 //!
-//! ```no_run
-//! use td_client::Client;
-//! use td_types::fns;
+//! A native client has exactly one Rust owner. [`Client`] receives ordered updates
+//! and owns the right to call [`Client::shutdown`]; it is intentionally not
+//! cloneable. [`Client::sender`] creates a [`Sender`] containing a weak reference,
+//! so detached request tasks do not keep the client alive or acquire update and
+//! shutdown authority.
 //!
-//! # async fn run() -> td_client::Result {
-//! let params = td_client::params(123456, "api hash", ".td");
-//! let mut client = Client::bot(params, "bot token").await?;
-//! let sender = client.sender();
+//! Dropping `Client` revokes its senders but performs no native cleanup. A normal
+//! application always consumes the client with `shutdown`, which sends `TDLib`'s
+//! `close` function, observes `authorizationStateClosed`, and waits for the
+//! process-wide receiver to reach a safe ownership transition.
 //!
-//! let _me = sender.send(&fns::getMe {}).await?;
-//! if let Some(_update) = client.recv().await? {
-//!   // Dispatch the update without blocking the receive loop on slow work.
+//! ```text
+//! use td_client::{Client, Result};
+//! use td_types::{enums::User, fns, types};
+//!
+//! async fn run() -> Result {
+//!   let parameters = td_client::params(123456, "api hash", ".td");
+//!   let client = Client::bot(parameters, "bot token").await?;
+//!   let sender = client.sender();
+//!
+//!   let User::user(types::user { id, .. }) = sender.send(&fns::getMe {}).await?;
+//!   println!("authorized as {id}");
+//!
+//!   drop(sender);
+//!   client.shutdown().await
 //! }
-//!
-//! drop(sender);
-//! client.shutdown().await
-//! # }
 //! ```
 //!
-//! Dropping `Client` revokes new requests, including requests attempted through
-//! surviving senders, but it does not call `TDLib` or finish native shutdown. Call
-//! [`Client::shutdown`] and handle its result before process exit.
+//! If application work can fail, preserve that error separately from shutdown:
 //!
-//! # Requests and updates
+//! ```text
+//! let result = application(&mut client).await;
+//! let shutdown = client.shutdown().await;
+//! result?;
+//! shutdown
+//! ```
 //!
-//! [`Sender::send`] returns a function's direct correlated response. For most
-//! `TDLib` functions that is the complete operation. A `sendMessage` direct response
-//! is different: it contains a temporary local message and is followed by an
-//! authoritative success, failure, or deletion update. Use
-//! [`Sender::send_message`] or [`Sender::send_message_until`] when that terminal
-//! outcome is required. Message-edit functions already complete through their
-//! direct response and should use [`Sender::send`].
+//! # Direct requests
 //!
-//! [`Client::recv`] returns ordinary updates in `TDLib` order and hides authorization
-//! transitions. During an interactive login, [`Client::recv_auth`] returns those
-//! transitions and buffers intervening ordinary updates for later calls to
-//! `recv`. The queue is deliberately unbounded: the synchronous native receiver
-//! cannot await capacity, and this library does not invent an update-dropping or
-//! overflow policy.
+//! [`Sender::send`] accepts any generated [`Function`] and returns its declared
+//! response type. Serialization failures, `TDLib` `error` objects, malformed
+//! responses, and disconnection are all returned to the caller. Requests accepted
+//! concurrently are distinguished by `@extra`; a request racing shutdown is
+//! either submitted before `close` or rejected.
 //!
-//! Dropping any request future only abandons local observation. It never cancels
-//! work already submitted to `TDLib`. Deadline-based message sending performs
-//! explicit compensating deletion while its future continues to be polled.
+//! Most `TDLib` functions complete with this direct response. In particular,
+//! message edits complete through `send`; `updateMessageEdited` is an application
+//! update, not a request-completion signal.
 //!
-//! # Process-wide receiver
+//! # Message sends
 //!
-//! `TDLib` multiplexes every client through one `td_receive` function. This crate
-//! therefore runs exactly one process-lifetime receiver thread. It routes required
-//! `@client_id` values to weak client entries, then uses `@extra` to complete a
-//! request-local one-shot or enqueues an uncorrelated update. When no clients are
-//! registered, the thread parks without calling `TDLib`. [`set_receive_timeout`]
-//! configures the next native receive wait for the whole process; it is not a
-//! request deadline.
+//! Normal send functions returning [`td_types::enums::Message`] or
+//! [`td_types::enums::Messages`] can first return temporary messages whose
+//! `sending_state` is pending. [`Sender::send_message`] and
+//! [`Sender::send_messages`] bind those temporary `(chat_id, message_id)` keys on
+//! the receiver thread before waking the requester, then expose [`MessageSend`]
+//! operations. [`MessageSend::wait`] observes authoritative success, failure, or
+//! non-cache deletion without requiring the application to poll [`Client::recv`].
+//! The original terminal update is still enqueued unchanged.
 //!
-//! Graceful [`Client::shutdown`] sends the generated `close` function through the
-//! correlated request path, waits for `authorizationStateClosed`, disconnects all
-//! local capabilities, and then waits until the receiver has crossed a safe idle
-//! or new-owner boundary. Errors are reported to the caller; destructors perform
-//! no blocking or native work.
+//! The tracked methods rely on a caller invariant: use them only for actual
+//! non-preview normal-message sends. Preview requests construct pending-looking
+//! messages but emit no terminal send update; getters and edits have different
+//! completion contracts. Send all of those through [`Sender::send`] instead.
+//!
+//! ```text
+//! let content = types::inputMessageText {
+//!   text: types::formattedText { text: "hello".into(), ..Default::default() },
+//!   ..Default::default()
+//! };
+//! let request = fns::sendMessage {
+//!   chat_id,
+//!   input_message_content: content.into(),
+//!   ..Default::default()
+//! };
+//! let mut send = sender.send_message(&request).await?;
+//! let final_message = send.wait().await?;
+//! ```
+//!
+//! Cancellation consumes the retained operation because only one path may decide
+//! its cleanup. [`MessageSend::cancel`] deletes a still-pending temporary ID and
+//! awaits the terminal result. It returns `None` if deletion wins and
+//! `Some(final_message)` if authoritative success was already observed; it never
+//! explicitly deletes that successful final ID. This is not server-atomic: `TDLib`
+//! itself may delete a concurrently accepted message after removing its pending
+//! record.
+//!
+//! Dropping a message operation performs no cancellation. Its registry entry
+//! remains until the native terminal update, so a caller that retained its
+//! [`MessageKey`] may reattach with [`Sender::track_message`].
+//!
+//! # Files
+//!
+//! [`Sender::track_file`] creates a sparse, future-only [`FileWatch`] for a known
+//! file ID. Watches retain only copyable [`FileProgress`] and coalesce intermediate
+//! observations; every full `updateFile` remains available through
+//! [`Client::recv`]. Use the generated `getFile` function separately when a full
+//! current snapshot is required.
+//!
+//! [`Sender::download`] forces `downloadFile.synchronous = true`. In `TDLib` this is
+//! an asynchronous request promise whose response becomes ready only when the
+//! requested full file or exact byte range is locally available. [`Download::wait`]
+//! therefore has authoritative completion and failure semantics, while
+//! [`Download::progress`] exposes coalesced updates. [`Download::cancel`] awaits
+//! both `cancelDownloadFile` and the original download response and reports
+//! `Some(file)` when completion won the race.
+//!
+//! [`Sender::upload`] starts `preliminaryUploadFile` and waits only long enough to
+//! receive and bind its file ID. `TDLib` exposes no authoritative standalone result
+//! for that preliminary upload: [`Upload::wait`] returns the first observed
+//! non-active progress state without labelling it success or failure. Completion
+//! belongs to the operation that consumes the uploaded file, commonly a tracked
+//! message send. [`Upload::cancel`] awaits `cancelPreliminaryUploadFile`.
+//!
+//! Dropping any file operation abandons local observation and performs no native
+//! cancellation. Explicit cancellation makes progress only while its future is
+//! polled.
+//!
+//! # Updates and authorization
+//!
+//! [`Client::recv`] returns ordinary updates in `TDLib` transport order and consumes
+//! authorization transitions internally. [`Client::recv_auth`] returns the next
+//! authorization state while buffering intervening ordinary updates; later calls
+//! to `recv` replay that buffer in order.
+//!
+//! The update queue is unbounded. `TDLib`'s synchronous native receiver cannot await
+//! capacity, and silently dropping or inventing a spill policy would lose protocol
+//! information. Applications should keep their receive loop moving and dispatch
+//! slow work separately.
+//!
+//! # Synchronous functions
+//!
+//! [`execute`] exposes modern `td_execute` for the small set of functions `TDLib`
+//! documents as synchronously executable. It is client-independent and uses the
+//! same generated request/response typing and error mapping as `Sender::send`.
+//! Because `TDLib` may invalidate a returned JSON buffer on the next `td_receive` or
+//! `td_execute`, both calls share one process-wide mutex and parsing finishes while
+//! that mutex is held. An execute call may consequently wait for the configured
+//! receive timeout.
+//!
+//! [`set_receive_timeout`] changes only the next low-level receive wait. It is not
+//! an operation timeout or retry policy.
 
+use std::collections::hash_map::Entry;
 use std::collections::{HashMap, VecDeque};
 use std::ffi::CStr;
 use std::path::Path;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::{Arc, LazyLock, Mutex, MutexGuard, OnceLock, Weak};
-use std::time::{Duration, Instant};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, LazyLock, Mutex, OnceLock, Weak};
+use std::time::Duration;
 use std::{fmt, mem, result, thread};
 
 use serde::{Deserialize, Serialize};
@@ -87,61 +170,42 @@ use tokio::sync::{mpsc, oneshot, watch};
 
 use td_types::enums::{AuthorizationState, Update};
 use td_types::traits::Function;
-use td_types::{fns, types};
-
-mod message_send;
+use td_types::{enums, fns, types};
 
 /// A `td-client` operation result.
 pub type Result<T = ()> = result::Result<T, Error>;
 
-/// An error produced while configuring, using, or shutting down a client.
+/// A failure at the typed `TDLib` boundary or in a retained operation.
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
-  /// `TDLib` returned its typed `error` object for a request or event.
+  /// `TDLib` returned an `error` object.
   #[error("TDLib: {} {}", .0.code, .0.message)]
   Td(types::error),
-  /// A request could not be serialized or a `TDLib` object could not be decoded.
+  /// A request could not be serialized or a response or update could not be decoded.
   ///
-  /// The parse error is shared so an unrouteable process-wide envelope can be
-  /// reported to every live client without converting or duplicating it.
+  /// The error is shared because one malformed process-wide envelope must fail
+  /// every client whose route can no longer be determined.
   #[error("JSON: {0}")]
   Json(#[source] Arc<serde_json::Error>),
-  /// Bot authorization entered a state the bot-token flow cannot handle.
+  /// The narrow [`Client::bot`] flow encountered an authorization state it cannot handle.
   #[error("unexpected auth state: {0:?}")]
   Auth(AuthorizationState),
-  /// A tracked `sendMessage` requested a preview, which has no terminal send result.
-  #[error("message previews have no send result; use Sender::send")]
-  MessagePreview,
-  /// `TDLib` reported the authoritative failure of a tracked message send.
+  /// `TDLib` reported the terminal failure of a tracked message send.
   #[error("message {} in chat {} failed: {} {}", .0.old_message_id, .0.message.chat_id, .0.error.code, .0.error.message)]
-  MessageFailed(Box<types::updateMessageSendFailed>),
-  /// The temporary message for a tracked send was deleted before it completed.
-  #[error("message {message_id} in chat {chat_id} was deleted while being sent")]
-  MessageDeleted {
-    /// Chat in which the send was pending.
-    chat_id: i64,
-    /// Temporary message ID that was deleted.
-    message_id: i64,
-  },
-  /// A deadline expired and compensating deletion of the send completed.
-  ///
-  /// `message_id` is the temporary message identifier returned by `sendMessage`.
-  #[error("message {message_id} in chat {chat_id} exceeded its send deadline and was deleted")]
-  MessageDeadline {
-    /// Chat in which the deadline expired.
-    chat_id: i64,
-    /// Temporary message ID returned by the direct response.
-    message_id: i64,
-  },
-  /// `TDLib` returned a temporary message key already assigned to another pending send.
-  #[error("TDLib reused pending message {message_id} in chat {chat_id}")]
-  MessageCorrelation {
-    /// Chat containing the reused temporary ID.
-    chat_id: i64,
-    /// Temporary message ID already bound to a tracked send.
-    message_id: i64,
-  },
-  /// The owning client or its response path is no longer available.
+  MessageFailed(Arc<types::updateMessageSendFailed>),
+  /// A non-cache deletion removed a tracked temporary message before success.
+  #[error("message {} in chat {} was deleted while being sent", .0.message_id, .0.chat_id)]
+  MessageDeleted(MessageKey),
+  /// A tracked response attempted to reuse an existing temporary-message key.
+  #[error("message {} in chat {} is already being tracked", .0.message_id, .0.chat_id)]
+  MessageCollision(MessageKey),
+  /// No pending message currently has the requested key.
+  #[error("message {} in chat {} isn't pending", .0.message_id, .0.chat_id)]
+  MessageNotPending(MessageKey),
+  /// `TDLib` returned a structurally impossible result or an operation was awaited twice.
+  #[error("unexpected TDLib response: {0}")]
+  UnexpectedResponse(&'static str),
+  /// The owning client or a required response channel disappeared.
   #[error("client disconnected")]
   Disconnected,
 }
@@ -152,92 +216,370 @@ impl From<serde_json::Error> for Error {
   }
 }
 
-/// A cloneable, non-owning capability for issuing `TDLib` requests.
+/// The stable local identity of a pending message send.
 ///
-/// A sender stores a weak reference to its [`Client`]. It is suitable for
-/// detached tasks, but it neither extends the client's lifetime nor grants update
-/// or shutdown access. Once the owner is dropped or its close operation wins the
-/// request gate, new requests fail with [`Error::Disconnected`]. A request that
-/// wins the race against close may still finish.
+/// `TDLib` replaces `message_id` on success. Terminal success and failure updates
+/// refer back to this temporary ID through `old_message_id`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct MessageKey {
+  /// The chat containing the pending message.
+  pub chat_id: i64,
+  /// The temporary message ID returned by the direct send response.
+  pub message_id: i64,
+}
+
+/// The latest retained state of a message send.
+#[derive(Debug)]
+pub enum MessageState {
+  /// `TDLib` returned a temporary message and no terminal update has been observed.
+  Pending(types::message),
+  /// The direct response was already final or `TDLib` emitted send success.
+  Succeeded(types::message),
+  /// `TDLib` emitted a terminal send failure.
+  Failed(Arc<types::updateMessageSendFailed>),
+  /// A non-cache deletion removed the temporary message.
+  Deleted,
+  /// A malformed update made further tracking unreliable.
+  Json(Arc<serde_json::Error>),
+}
+
+/// A retained, non-owning normal-message send operation.
+///
+/// Observation borrows the operation and cancellation consumes it. Dropping the
+/// value is inert; retain [`MessageKey`] and use [`Sender::track_message`] to
+/// reattach before the native terminal update if needed.
+#[must_use = "call wait().await to observe the send outcome"]
+pub struct MessageSend {
+  key: MessageKey,
+  client: Weak<ClientState>,
+  states: watch::Receiver<MessageState>,
+}
+
+impl MessageSend {
+  /// Returns the chat and temporary message ID used for terminal correlation.
+  pub fn key(&self) -> MessageKey {
+    self.key
+  }
+
+  /// Borrows the latest state without waiting for a change.
+  pub fn state(&self) -> watch::Ref<'_, MessageState> {
+    self.states.borrow()
+  }
+
+  /// Waits for authoritative success, failure, or deletion.
+  ///
+  /// Successful messages are cloned from the retained watch state so the
+  /// operation remains observable and can participate in `tokio::select!`.
+  pub async fn wait(&mut self) -> Result<types::message> {
+    let not_pending = |s: &MessageState| !matches!(s, MessageState::Pending(_));
+    let state = self.states.wait_for(not_pending).await.map_err(|_| Error::Disconnected)?;
+    match &*state {
+      MessageState::Pending(_) => unreachable!(),
+      MessageState::Succeeded(message) => Ok(message.clone()),
+      MessageState::Failed(update) => Err(Error::MessageFailed(Arc::clone(update))),
+      MessageState::Deleted => Err(Error::MessageDeleted(self.key)),
+      MessageState::Json(error) => Err(Error::Json(Arc::clone(error))),
+    }
+  }
+
+  /// Requests cancellation if the message is still pending and awaits its outcome.
+  ///
+  /// Returns `Ok(None)` when deletion wins and `Ok(Some(message))` when an
+  /// authoritative success wins the race. A successful final message is never
+  /// explicitly deleted by this method.
+  pub async fn cancel(mut self) -> Result<Option<types::message>> {
+    if self.pending()? {
+      let cancellation = match self.client.upgrade() {
+        Some(client) => client.delete_message(self.key).await,
+        None => Err(Error::Disconnected),
+      };
+      // Deletion can fail after a terminal update won the race. Preserve that
+      // authoritative result; surface the deletion error only while still pending.
+      if let Err(error) = cancellation
+        && self.pending()?
+      {
+        return Err(error);
+      }
+    }
+    match self.wait().await {
+      Err(Error::MessageDeleted(_)) => Ok(None),
+      Ok(message) => Ok(Some(message)),
+      Err(error) => Err(error),
+    }
+  }
+
+  fn pending(&mut self) -> Result<bool> {
+    match &*self.states.borrow_and_update() {
+      MessageState::Json(error) => Err(Error::Json(Arc::clone(error))),
+      MessageState::Pending(_) => Ok(true),
+      _ => Ok(false),
+    }
+  }
+}
+
+/// The latest retained state of a watched file ID.
+#[derive(Debug)]
+pub enum FileState {
+  /// No direct response or `updateFile` has seeded this future-only watch yet.
+  Unknown,
+  /// The latest coalesced transfer progress.
+  Known(FileProgress),
+  /// A malformed update made further observation unreliable.
+  Json(Arc<serde_json::Error>),
+}
+
+/// The copy-only transfer fields retained from a `TDLib` `file` object.
+///
+/// Paths, remote identifiers, and other owned metadata remain in the original
+/// application update and are not duplicated here.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct FileProgress {
+  /// Current file size, or zero when unknown.
+  pub size: i64,
+  /// Expected file size, which `TDLib` may report approximately.
+  pub expected_size: i64,
+  /// Start offset of the currently downloaded range.
+  pub download_offset: i64,
+  /// Contiguous downloaded prefix size from `download_offset`.
+  pub downloaded_prefix_size: i64,
+  /// Total number of downloaded bytes.
+  pub downloaded_size: i64,
+  /// Current download activity.
+  pub download: TransferState,
+  /// Total number of uploaded bytes.
+  pub uploaded_size: i64,
+  /// Current upload activity.
+  pub upload: TransferState,
+}
+
+/// A compact projection of `TDLib`'s active and completed transfer flags.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TransferState {
+  /// The transfer is neither active nor reported complete.
+  Inactive,
+  /// The transfer is currently active.
+  Active,
+  /// `TDLib` reports the transfer complete.
+  Completed,
+}
+
+/// A retained, coalescing observer for one `TDLib` file ID.
+///
+/// A watch created with [`Sender::track_file`] is future-only and starts in
+/// [`FileState::Unknown`]. Direct upload and download operations seed their watch
+/// from the correlated file response before returning it.
+pub struct FileWatch {
+  id: i32,
+  states: watch::Receiver<FileState>,
+}
+
+impl FileWatch {
+  /// Returns the watched `TDLib` file ID.
+  pub fn id(&self) -> i32 {
+    self.id
+  }
+
+  /// Borrows the latest progress state without waiting for a change.
+  pub fn state(&self) -> watch::Ref<'_, FileState> {
+    self.states.borrow()
+  }
+
+  /// Waits until `terminal` accepts a known progress snapshot.
+  ///
+  /// Passive file IDs have no inherent transfer direction or terminal policy, so
+  /// the caller supplies the condition. The predicate borrows the retained value;
+  /// the accepted snapshot is then returned by value.
+  pub async fn wait(&mut self, mut terminal: impl FnMut(&FileProgress) -> bool) -> Result<FileProgress> {
+    loop {
+      match &*self.states.borrow_and_update() {
+        FileState::Known(progress) if terminal(progress) => return Ok(*progress),
+        FileState::Json(error) => return Err(Error::Json(Arc::clone(error))),
+        _ => {}
+      }
+      if self.states.changed().await.is_err() {
+        return match &*self.states.borrow() {
+          FileState::Json(error) => Err(Error::Json(Arc::clone(error))),
+          _ => Err(Error::Disconnected),
+        };
+      }
+    }
+  }
+}
+
+/// A retained exact-range `downloadFile` operation.
+///
+/// Construction forces `TDLib`'s `synchronous` request flag. The Rust API remains
+/// asynchronous; the correlated response is retained until the requested range is
+/// available, fails, or is cancelled.
+pub struct Download {
+  client: Weak<ClientState>,
+  progress: FileWatch,
+  response: Option<oneshot::Receiver<Result<types::file>>>,
+}
+
+impl Download {
+  /// Returns the operation's coalesced progress observer.
+  pub fn progress(&self) -> &FileWatch {
+    &self.progress
+  }
+
+  /// Waits for `TDLib`'s authoritative download response.
+  ///
+  /// The response can be taken once. Borrowing rather than consuming the operation
+  /// permits a caller to race this future with a cancellation source and then call
+  /// [`Self::cancel`].
+  pub async fn wait(&mut self) -> Result<types::file> {
+    let response = self.response.take().ok_or(Error::UnexpectedResponse("download was already awaited"))?;
+    response.await.map_err(|_| Error::Disconnected)?
+  }
+
+  /// Requests download cancellation and awaits both sides of the race.
+  ///
+  /// Returns `Some(file)` if the original exact-range download completed and
+  /// `None` if cancellation completed it with `TDLib`'s cancellation error.
+  pub async fn cancel(self) -> Result<Option<types::file>> {
+    let Self { client, progress, response } = self;
+    let response = response.ok_or(Error::UnexpectedResponse("download was already awaited"))?;
+    let Some(client) = client.upgrade() else {
+      return response.await.map_err(|_| Error::Disconnected)?.map(Some);
+    };
+    let cancel = fns::cancelDownloadFile { file_id: progress.id, only_if_pending: false };
+    let cancel = client.execute_request(&cancel, false).await;
+    match (cancel, response.await.map_err(|_| Error::Disconnected)?) {
+      (_, Ok(file)) => Ok(Some(file)),
+      (Ok(_), Err(Error::Td(_))) => Ok(None),
+      (Err(error), Err(_)) | (Ok(_), Err(error)) => Err(error),
+    }
+  }
+}
+
+/// A retained `preliminaryUploadFile` operation.
+///
+/// The direct response supplies the file ID but does not mean the preliminary
+/// upload completed. Progress is observed through [`FileWatch`].
+pub struct Upload {
+  client: Weak<ClientState>,
+  progress: FileWatch,
+}
+
+impl Upload {
+  /// Returns the operation's coalesced progress observer.
+  pub fn progress(&self) -> &FileWatch {
+    &self.progress
+  }
+
+  /// Waits for the upload to become non-active and returns that observation.
+  ///
+  /// `TDLib` exposes neither authoritative standalone success nor a failure reason
+  /// for preliminary uploads, so this method deliberately does not infer either.
+  pub async fn wait(&mut self) -> Result<FileProgress> {
+    self.progress.wait(|progress| progress.upload != TransferState::Active).await
+  }
+
+  /// Requests and awaits `cancelPreliminaryUploadFile`.
+  pub async fn cancel(self) -> Result {
+    let client = self.client.upgrade().ok_or(Error::Disconnected)?;
+    let cancel = fns::cancelPreliminaryUploadFile { file_id: self.progress.id };
+    client.execute_request(&cancel, false).await?;
+    Ok(())
+  }
+}
+
+/// A cloneable, non-owning request capability for one [`Client`].
+///
+/// `Sender` cannot receive updates or initiate shutdown, and its weak reference
+/// does not extend the owning client's lifetime.
 #[derive(Clone)]
 pub struct Sender(Weak<ClientState>);
 
 impl Sender {
-  /// Executes `request` and returns its direct correlated `TDLib` response.
+  /// Sends a generated function and returns its direct correlated response.
   ///
-  /// Message edits complete through this direct response after their upload, server operation, and updates finish.
-  /// They do not use the message-send tracker. Use [`Self::send_message`] for `sendMessage` when the later authoritative result is required.
-  ///
-  /// # Errors
-  ///
-  /// Returns [`Error::Td`] for a `TDLib` error response, [`Error::Json`] for request or response encoding failures, and [`Error::Disconnected`] if the
-  /// client cannot accept or complete the request.
-  ///
-  /// # Cancellation
-  ///
-  /// Dropping this future does not cancel a request already sent to `TDLib`. If the client remains live, its eventual response is removed from the
-  /// correlation table and discarded.
+  /// Use this for ordinary functions, message edits, getters, and preview-only
+  /// sends. Normal sends requiring a later authoritative terminal result use
+  /// [`Self::send_message`] or [`Self::send_messages`] instead.
   pub async fn send<F: Function>(&self, request: &F) -> Result<F::Return> {
-    let state = self.0.upgrade().ok_or(Error::Disconnected)?;
-    state.execute_request(request, false).await
+    let client = self.0.upgrade().ok_or(Error::Disconnected)?;
+    client.execute_request(request, false).await
   }
 
-  /// Sends a message and waits for its authoritative success, failure, or deletion update.
+  /// Starts tracking one actual non-preview normal-message send.
   ///
-  /// The successful value is the final message from `updateMessageSendSucceeded`, not the temporary message in the direct `sendMessage` response. The
-  /// terminal update is also delivered unchanged through [`Client::recv`].
-  ///
-  /// # Errors
-  ///
-  /// In addition to request and decoding failures, returns [`Error::MessagePreview`] for preview-only sends, [`Error::MessageFailed`] for
-  /// `updateMessageSendFailed`, and [`Error::MessageDeleted`] when a non-cache deletion removes the temporary message.
-  ///
-  /// # Cancellation
-  ///
-  /// Dropping this future unregisters its local waiter but does not cancel or delete the native send.
-  pub async fn send_message(&self, request: &fns::sendMessage) -> Result<types::message> {
-    let state = self.0.upgrade().ok_or(Error::Disconnected)?;
-    state.send_message(request, None).await
+  /// The request must return [`enums::Message`] and obey the tracked-request
+  /// invariant described in this crate's module-level documentation. The direct
+  /// response is parsed and bound before this method returns.
+  pub async fn send_message<F: Function<Return = enums::Message>>(&self, request: &F) -> Result<MessageSend> {
+    let client = self.0.upgrade().ok_or(Error::Disconnected)?;
+    let sends = client.track_messages(request, false).await?;
+    let [send] = sends.try_into().map_err(|_| Error::UnexpectedResponse("expected one message"))?;
+    Ok(send)
   }
 
-  /// Sends a message until `deadline`, then deletes the pending or concurrently sent message.
+  /// Starts tracking a batch of actual non-preview normal-message sends.
   ///
-  /// The direct response is awaited first because it supplies the temporary ID needed for cleanup. Once the deadline wins, this method deletes that ID,
-  /// waits for the terminal send result, and also deletes the final ID if success raced with cancellation. It returns [`Error::MessageDeadline`] only
-  /// after cleanup succeeds; a cleanup failure is preserved instead.
+  /// Registration is atomic: duplicate temporary keys or collisions with existing
+  /// sends fail without registering only part of the batch. Returned operations
+  /// preserve direct-response order and settle independently.
+  pub async fn send_messages<F: Function<Return = enums::Messages>>(&self, request: &F) -> Result<Vec<MessageSend>> {
+    let client = self.0.upgrade().ok_or(Error::Disconnected)?;
+    client.track_messages(request, true).await
+  }
+
+  /// Attaches another operation to a currently pending message key.
   ///
-  /// Cancellation is compensating rather than server-atomic: recipients can briefly observe a message that concurrently succeeds before deletion. The
-  /// future can therefore resolve after `deadline` while it awaits the temporary ID, terminal result, or deletion responses.
+  /// Reattachment is possible after dropping another observer because a pending
+  /// registry entry remains until its native terminal update.
+  pub fn track_message(&self, key: MessageKey) -> Result<MessageSend> {
+    let client = self.0.upgrade().ok_or(Error::Disconnected)?;
+    client.track_message(key)
+  }
+
+  /// Creates a future-only coalescing watch for `file_id`.
   ///
-  /// # Errors
+  /// This performs no `getFile` request. Use [`Self::send`] with the generated
+  /// function when a full current snapshot is also needed.
+  pub fn track_file(&self, file_id: i32) -> Result<FileWatch> {
+    let client = self.0.upgrade().ok_or(Error::Disconnected)?;
+    Ok(client.track_file(file_id))
+  }
+
+  /// Starts an exact-range download and returns immediately after submission.
   ///
-  /// Returns the errors described by [`Self::send_message`], [`Error::MessageDeadline`] after successful deadline cleanup, or the `TDLib`/transport error
-  /// that prevented cleanup.
+  /// Any caller-supplied `synchronous` value is replaced with `true`, selecting
+  /// `TDLib`'s authoritative completion promise. Request serialization can fail
+  /// before an operation is returned.
+  pub fn download(&self, mut request: fns::downloadFile) -> Result<Download> {
+    let client = self.0.upgrade().ok_or(Error::Disconnected)?;
+    // TDLib's synchronous flag delays this request's response until its exact
+    // range is available; it does not block this Rust thread.
+    request.synchronous = true;
+    let progress = client.track_file(request.file_id);
+    let (reply, response) = oneshot::channel();
+    client.submit_request(&request, false, PendingReply::Download(reply))?;
+    Ok(Download { client: Arc::downgrade(&client), progress, response: Some(response) })
+  }
+
+  /// Starts a preliminary upload and returns after its file ID is bound.
   ///
-  /// # Cancellation
-  ///
-  /// Dropping this future unregisters local tracking and also stops any compensating cancellation still in progress.
-  pub async fn send_message_until(&self, request: &fns::sendMessage, deadline: Instant) -> Result<types::message> {
-    let state = self.0.upgrade().ok_or(Error::Disconnected)?;
-    state.send_message(request, Some(deadline)).await
+  /// This method is asynchronous because `TDLib` assigns the observable file ID in
+  /// the direct response. It does not wait for upload inactivity or completion.
+  pub async fn upload(&self, request: &fns::preliminaryUploadFile) -> Result<Upload> {
+    let client = self.0.upgrade().ok_or(Error::Disconnected)?;
+    let (reply, response) = oneshot::channel();
+    client.submit_request(request, false, PendingReply::Upload(reply))?;
+    response.await.map_err(|_| Error::Disconnected)?
   }
 }
 
-#[must_use = "call shutdown().await to finish TDLib cleanly"]
-/// The sole owner of a `TDLib` client, its update stream, and its shutdown right.
+/// The sole owner of one live `TDLib` client, its ordered updates, and shutdown right.
 ///
-/// `Client` is intentionally not [`Clone`]. Shared request-only access comes from
-/// [`Client::sender`], update and authorization consumption require `&mut Client`,
-/// and graceful shutdown consumes the owner. Call [`Client::shutdown`] before
-/// dropping a live client.
+/// `Client` is intentionally non-`Clone`. Use [`Self::sender`] for detached
+/// request-only access and consume the client with [`Self::shutdown`].
+#[must_use = "call shutdown().await to finish TDLib cleanly"]
 pub struct Client {
-  /// Shared transport state; this is the session's sole durable strong owner.
   state: Arc<ClientState>,
-  /// Ordered handoff from the synchronous process-wide receiver thread.
-  events: mpsc::UnboundedReceiver<Result<Update>>,
-  /// Ordinary updates temporarily displaced while authorization is consumed.
+  updates: mpsc::UnboundedReceiver<Result<Update>>,
   buffered_updates: VecDeque<Update>,
-  /// Whether `authorizationStateClosed` has already crossed this event receiver.
   closed: bool,
 }
 
@@ -248,74 +590,44 @@ impl fmt::Debug for Client {
 }
 
 impl Client {
-  /// Creates a client and applies the supplied `TDLib` parameters.
+  /// Creates a client and applies `TDLib` parameters without completing authorization.
   ///
-  /// This configures a fresh native client but does not complete authorization.
-  /// Use [`Self::recv_auth`] plus generated authentication functions for an
-  /// interactive login, or [`Self::bot`] for the bot-token flow.
-  ///
-  /// If parameter setup fails, the constructor attempts graceful shutdown and
-  /// returns the original setup error.
-  ///
-  /// # Errors
-  ///
-  /// Returns a serialization error, `TDLib`'s parameter error, or
-  /// [`Error::Disconnected`] if the native response path closes.
-  pub async fn new(params: fns::setTdlibParameters) -> Result<Self> {
+  /// Drive interactive authorization with [`Self::recv_auth`] and generated
+  /// authentication functions. If parameter setup fails, construction attempts
+  /// graceful shutdown and returns the original failure.
+  pub async fn new(parameters: fns::setTdlibParameters) -> Result<Self> {
     let client = Self::create_unconfigured();
-    if let Err(err) = client.state.execute_request(&params, false).await {
+    if let Err(error) = client.state.execute_request(&parameters, false).await {
       let _ = client.shutdown().await;
-      return Err(err);
+      return Err(error);
     }
     Ok(client)
   }
 
   /// Creates, configures, and authorizes a bot client.
   ///
-  /// The helper handles the parameter and bot-token states and returns only once
-  /// `TDLib` reaches `authorizationStateReady`. Any other authorization state is
-  /// returned as [`Error::Auth`]. For user accounts or custom authorization,
-  /// construct with [`Self::new`] and drive [`Self::recv_auth`] directly.
-  ///
-  /// If authorization fails, this method attempts graceful shutdown and preserves
-  /// the original failure.
-  ///
-  /// # Errors
-  ///
-  /// Returns setup/request errors or [`Error::Auth`] for an unsupported state in
-  /// the bot-token flow.
-  pub async fn bot(params: fns::setTdlibParameters, token: &str) -> Result<Self> {
-    let mut client = Self::new(params).await?;
-    if let Err(err) = client.authorize_bot(token).await {
+  /// The helper handles `TDLib`'s parameter and bot-token states. Any other state is
+  /// returned as [`Error::Auth`]. Failures attempt graceful shutdown before the
+  /// original error is returned.
+  pub async fn bot(parameters: fns::setTdlibParameters, token: &str) -> Result<Self> {
+    let mut client = Self::new(parameters).await?;
+    if let Err(error) = client.authorize_bot(token).await {
       let _ = client.shutdown().await;
-      return Err(err);
+      return Err(error);
     }
     Ok(client)
   }
 
-  /// Returns a non-owning request capability for this client.
-  ///
-  /// Cloning the returned [`Sender`] does not keep `self` or its native lifecycle
-  /// alive. See [`Sender`] for shutdown-race behavior.
+  /// Returns a cloneable weak request capability for this client.
   pub fn sender(&self) -> Sender {
     Sender(Arc::downgrade(&self.state))
   }
 
   /// Receives the next ordinary update in `TDLib` order.
   ///
-  /// Authorization-state updates are consumed internally. Ordinary updates seen
-  /// by [`Self::recv_auth`] are returned here first in their original order. Once
-  /// `authorizationStateClosed` has been observed and buffered updates are empty,
-  /// this method returns `Ok(None)` on every call.
-  ///
-  /// Use `recv_auth` while driving authorization: auth transitions consumed here
-  /// are not replayed later.
-  ///
-  /// # Errors
-  ///
-  /// Returns an update decoding or uncorrelated `TDLib` error, or
-  /// [`Error::Disconnected`] if the event channel closes before `TDLib`'s terminal
-  /// authorization state is observed.
+  /// Authorization transitions are consumed internally. Ordinary updates buffered
+  /// by [`Self::recv_auth`] are returned first. After the closed authorization
+  /// state and buffered updates are exhausted, this returns `Ok(None)`.
   pub async fn recv(&mut self) -> Result<Option<Update>> {
     loop {
       let update = match self.buffered_updates.pop_front() {
@@ -323,28 +635,22 @@ impl Client {
         None if self.closed => return Ok(None),
         None => self.recv_event().await?,
       };
-
-      let Update::updateAuthorizationState(_) = &update else {
-        return Ok(Some(update));
-      };
+      match update {
+        Update::updateAuthorizationState(_) => {}
+        update => return Ok(Some(update)),
+      }
     }
   }
 
   /// Receives the next authorization state without losing ordinary updates.
   ///
-  /// Every intervening non-authorization update is buffered for [`Self::recv`].
-  /// Once the closed state has been observed, this method returns
-  /// `authorizationStateClosed` immediately without consuming that buffer.
-  ///
-  /// # Errors
-  ///
-  /// Returns an update decoding or uncorrelated `TDLib` error, or
-  /// [`Error::Disconnected`] if the event channel closes first.
+  /// Intervening non-authorization updates are buffered for [`Self::recv`]. Once
+  /// closed has been observed, subsequent calls return
+  /// `authorizationStateClosed` immediately.
   pub async fn recv_auth(&mut self) -> Result<AuthorizationState> {
     if self.closed {
       return Ok(AuthorizationState::authorizationStateClosed);
     }
-
     loop {
       match self.recv_event().await? {
         Update::updateAuthorizationState(update) => return Ok(update.authorization_state),
@@ -355,49 +661,36 @@ impl Client {
 
   /// Gracefully closes `TDLib` and consumes the sole lifecycle owner.
   ///
-  /// Unless the terminal state was already observed, shutdown closes the request
-  /// gate, sends the generated `close` function through normal response
-  /// correlation, and waits for `authorizationStateClosed`. It then revokes all
-  /// senders, unregisters this client, and waits for the process-wide receiver to
-  /// become idle or continue on behalf of another client.
-  ///
-  /// Event errors observed while waiting are preserved, but shutdown continues to
-  /// seek the terminal state. If closing itself fails, local state is still
-  /// disconnected and unregistered; an error return does not claim native
-  /// shutdown completed.
-  ///
-  /// # Errors
-  ///
-  /// Returns the close response error, the first event error observed before the
-  /// terminal state, or [`Error::Disconnected`] if the close handshake cannot be
-  /// observed.
+  /// Shutdown closes the request gate atomically with submitting `close`, observes
+  /// `authorizationStateClosed`, revokes local operations, unregisters the client,
+  /// and awaits the receiver's safe idle or new-owner transition. Event failures
+  /// encountered while draining are preserved while shutdown continues toward the
+  /// terminal state.
   pub async fn shutdown(mut self) -> Result {
-    let res = self.close_and_wait().await;
+    let result = self.close_and_wait().await;
     self.state.disconnect();
-    ROUTER.unregister_and_wait_for_receiver(self.state.id).await;
-    res
+    ROUTER.unregister(self.state.id).await;
+    result
   }
 
-  /// Creates and registers the Rust state for a fresh, unconfigured native client.
   fn create_unconfigured() -> Self {
     // SAFETY: The call takes no arguments and returns an opaque ID by value.
     let id = unsafe { td_sys::td_create_client_id() };
-    let (tx, rx) = mpsc::unbounded_channel();
-    let (replies, next_extra, message_sends, buffered_updates, closed) = Default::default();
-    let requests = Mutex::new(PendingRequests { replies, accepting: true });
-    let message_sends = Mutex::new(message_sends);
-    let state = Arc::new(ClientState { id, next_extra, requests, message_sends, events: tx });
+    let (updates, receiver) = mpsc::unbounded_channel();
+    let (next_request_id, buffered_updates) = Default::default();
+    let registry = ClientRegistry { accepting_requests: true, ..Default::default() };
+    let state = Arc::new(ClientState { id, next_request_id, registry: Mutex::new(registry), updates });
     ROUTER.register(id, Arc::downgrade(&state));
-    Self { state, buffered_updates, closed, events: rx }
+    Self { state, updates: receiver, buffered_updates, closed: false }
   }
 
-  /// Drives the deliberately narrow bot-token authorization state machine.
   async fn authorize_bot(&mut self, token: &str) -> Result {
     loop {
       match self.recv_auth().await? {
         AuthorizationState::authorizationStateWaitTdlibParameters => {}
         AuthorizationState::authorizationStateWaitPhoneNumber => {
-          self.state.execute_request(&fns::checkAuthenticationBotToken { token: token.into() }, false).await?;
+          let request = fns::checkAuthenticationBotToken { token: token.into() };
+          self.state.execute_request(&request, false).await?;
         }
         AuthorizationState::authorizationStateReady => return Ok(()),
         state => return Err(Error::Auth(state)),
@@ -405,31 +698,26 @@ impl Client {
     }
   }
 
-  /// Sends `close` if necessary and drains events through the terminal auth state.
   async fn close_and_wait(&mut self) -> Result {
     if self.closed {
       return Ok(());
     }
-
     self.state.execute_request(&fns::close {}, true).await?;
-    let mut res = Ok(());
+    let mut result = Ok(());
     while !self.closed {
       match self.recv_event().await {
         Ok(_) => {}
-        Err(Error::Disconnected) => return res.and(Err(Error::Disconnected)),
-        // An event error does not prove that TDLib stopped. Preserve the first
-        // failure while continuing to seek authorizationStateClosed.
-        Err(err) => res = res.and(Err(err)),
+        Err(Error::Disconnected) => return result.and(Err(Error::Disconnected)),
+        Err(error) => result = result.and(Err(error)),
       }
     }
-    res
+    result
   }
 
-  /// Receives one raw client event and applies lifecycle side effects.
   async fn recv_event(&mut self) -> Result<Update> {
-    let update = self.events.recv().await.ok_or(Error::Disconnected)??;
+    let update = self.updates.recv().await.ok_or(Error::Disconnected)??;
     if let Update::updateAuthorizationState(update) = &update
-      && let AuthorizationState::authorizationStateClosed = update.authorization_state
+      && let AuthorizationState::authorizationStateClosed = &update.authorization_state
     {
       self.closed = true;
       self.state.disconnect();
@@ -438,387 +726,474 @@ impl Client {
   }
 }
 
-/// Serializes request correlation beside the fields of a generated `TDLib` function.
 #[derive(Serialize)]
 struct OutgoingRequest<'a, F> {
-  /// Per-client response correlation key serialized as `TDLib`'s `@extra` field.
   #[serde(rename = "@extra")]
   extra: u64,
-  /// Generated function fields flattened beside `@extra`.
   #[serde(flatten)]
   request: &'a F,
 }
 
-/// The request/close ordering gate and all responses awaiting direct correlation.
-///
-/// The mutex containing this value is held through `td_send`. Consequently,
-/// ordinary requests are either installed and sent before `close`, or observe
-/// `accepting == false` and never reach `TDLib`.
-struct PendingRequests {
-  /// Whether new ordinary requests may be sent; `close` changes this to false.
-  accepting: bool,
-  /// Direct response waiters keyed by their per-client `@extra` value.
-  replies: HashMap<u64, PendingReply>,
-}
-
-/// A direct raw-JSON response channel for an ordinary generated function.
-type RequestReply = oneshot::Sender<Result<Vec<u8>>>;
-/// The direct temporary-message response channel for a tracked `sendMessage`.
-type MessageReply = oneshot::Sender<Result<types::message>>;
-
-/// The continuation selected when a correlated direct response arrives.
 enum PendingReply {
-  /// Return the response bytes for typed deserialization by the requesting task.
-  Request(RequestReply),
-  /// Parse and bind a temporary message before waking the send-tracking task.
-  Message(MessageReply),
+  Request(oneshot::Sender<Result<Vec<u8>>>),
+  Messages { many: bool, reply: oneshot::Sender<Result<Vec<MessageSend>>> },
+  Download(oneshot::Sender<Result<types::file>>),
+  Upload(oneshot::Sender<Result<Upload>>),
 }
 
-/// Shared state used by request futures and the process-wide router.
-///
-/// The owning [`Client`] normally holds the only durable strong reference.
-/// Individual requests temporarily acquire one by upgrading a [`Sender`], while
-/// the router retains only a [`Weak`] entry.
+impl PendingReply {
+  fn fail(self, error: Error) {
+    match self {
+      Self::Request(reply) => drop(reply.send(Err(error))),
+      Self::Messages { reply, .. } => drop(reply.send(Err(error))),
+      Self::Download(reply) => drop(reply.send(Err(error))),
+      Self::Upload(reply) => drop(reply.send(Err(error))),
+    }
+  }
+}
+
+#[derive(Default)]
+struct ClientRegistry {
+  accepting_requests: bool,
+  requests: HashMap<u64, PendingReply>,
+  message_sends: HashMap<MessageKey, watch::Sender<MessageState>>,
+  file_watches: HashMap<i32, watch::Sender<FileState>>,
+}
+
 struct ClientState {
-  /// Opaque native client ID used for process-wide routing.
   id: i32,
-  /// Monotonic source of per-client `@extra` correlation keys.
-  next_extra: AtomicU64,
-  /// Short synchronous request gate; never held across an `.await`.
-  requests: Mutex<PendingRequests>,
-  /// Correlation from temporary messages to authoritative send outcomes.
-  message_sends: Mutex<message_send::Registry>,
-  /// Ordered application-event sink and owner-liveness signal.
-  events: mpsc::UnboundedSender<Result<Update>>,
+  next_request_id: AtomicU64,
+  registry: Mutex<ClientRegistry>,
+  updates: mpsc::UnboundedSender<Result<Update>>,
 }
 
 impl ClientState {
-  /// Executes a generated function and deserializes its declared return type.
   async fn execute_request<F: Function>(&self, request: &F, closing: bool) -> Result<F::Return> {
-    let response = self.execute_raw_request(request, closing).await?;
-    serde_json::from_slice(&response).map_err(Into::into)
+    let (reply, response) = oneshot::channel();
+    self.submit_request(request, closing, PendingReply::Request(reply))?;
+    let raw = response.await.map_err(|_| Error::Disconnected)??;
+    serde_json::from_slice(&raw).map_err(Into::into)
   }
 
-  /// Executes a generated function while leaving its successful response as JSON bytes.
-  async fn execute_raw_request<F: Function>(&self, request: &F, closing: bool) -> Result<Vec<u8>> {
-    let (extra, serialized) = self.serialize_correlated_request(request)?;
+  async fn track_messages<F: Function>(&self, request: &F, many: bool) -> Result<Vec<MessageSend>> {
     let (reply, response) = oneshot::channel();
-    self.register_and_send_request(extra, &serialized, closing, PendingReply::Request(reply))?;
+    self.submit_request(request, false, PendingReply::Messages { many, reply })?;
     response.await.map_err(|_| Error::Disconnected)?
   }
 
-  /// Allocates an `@extra` key and serializes a NUL-terminated native request.
-  fn serialize_correlated_request<F: Function>(&self, request: &F) -> Result<(u64, Vec<u8>)> {
-    let extra = self.next_extra.fetch_add(1, Ordering::Relaxed);
-    let mut serialized = serde_json::to_vec(&OutgoingRequest { extra, request })?;
-    serialized.push(0);
-    Ok((extra, serialized))
-  }
+  fn submit_request<F: Function>(&self, request: &F, closing: bool, reply: PendingReply) -> Result {
+    let extra = self.next_request_id.fetch_add(1, Ordering::Relaxed);
+    let mut request = serde_json::to_vec(&OutgoingRequest { extra, request })?;
+    request.push(0);
 
-  /// Atomically orders, registers, and sends one request against shutdown.
-  fn register_and_send_request(&self, extra: u64, request: &[u8], closing: bool, reply: PendingReply) -> Result {
-    let mut requests = self.requests.lock().unwrap();
-    if !requests.accepting || (!closing && self.events.is_closed()) {
+    let mut registry = self.registry.lock().unwrap();
+    if !registry.accepting_requests || (!closing && self.updates.is_closed()) {
       return Err(Error::Disconnected);
     }
     if closing {
-      requests.accepting = false;
+      registry.accepting_requests = false;
     }
-
-    requests.replies.insert(extra, reply);
-    // Keep the gate locked through td_send: releasing it here would allow close
-    // to overtake a request that had already been accepted.
-    // SAFETY: `self.id` came from TDLib. `request` is live and NUL-terminated.
+    registry.requests.insert(extra, reply);
+    // Keep the request gate locked through td_send: close must not overtake a
+    // request whose reply was accepted into the registry.
+    // SAFETY: The client ID came from TDLib and `request` is live and NUL-terminated.
     unsafe { td_sys::td_send(self.id, request.as_ptr().cast()) };
     Ok(())
   }
 
-  /// Completes and removes the direct waiter for a routed `@extra` response.
-  fn complete_request(&self, extra: u64, r#type: &str, raw: &[u8]) {
-    let Some(reply) = self.requests.lock().unwrap().replies.remove(&extra) else { return };
+  async fn delete_message(&self, MessageKey { chat_id, message_id }: MessageKey) -> Result {
+    let delete = fns::deleteMessages { chat_id, message_ids: vec![message_id], revoke: true };
+    self.execute_request(&delete, false).await?;
+    Ok(())
+  }
+
+  fn complete_request(self: &Arc<Self>, extra: u64, r#type: &str, raw: &[u8]) {
+    let Some(reply) = self.registry.lock().unwrap().requests.remove(&extra) else { return };
+    if let "error" = r#type {
+      return reply.fail(parse_td_error(raw));
+    }
     match reply {
-      PendingReply::Request(reply) => {
-        let response = match r#type {
-          "error" => Err(parse_td_error(raw)),
-          _ => Ok(raw.to_vec()),
-        };
-        let _ = reply.send(response);
+      PendingReply::Request(reply) => drop(reply.send(Ok(raw.to_vec()))),
+      PendingReply::Messages { many, reply } => {
+        // Binding occurs on the sole receiver thread before waking the requester;
+        // a terminal send update therefore cannot pass an unregistered key.
+        let messages = parse_messages(raw, many).and_then(|messages| self.bind_messages(messages));
+        drop(reply.send(messages));
       }
-      PendingReply::Message(reply) => self.complete_message_request(extra, r#type, raw, reply),
+      PendingReply::Download(reply) => {
+        let result = parse_file(raw).inspect(|file| self.publish_file(file));
+        drop(reply.send(result));
+      }
+      PendingReply::Upload(reply) => {
+        let client = Arc::downgrade(self);
+        // The preliminary response is the first authoritative source of its file
+        // ID, so seed the watch before exposing the operation.
+        let result = parse_file(raw).map(|file| Upload { client, progress: self.bind_file(&file) });
+        drop(reply.send(result));
+      }
     }
   }
 
-  /// Parses an uncorrelated `TDLib` object and enqueues it for the owning client.
-  fn send_event(&self, r#type: &str, raw: &[u8]) {
-    let event = match r#type {
-      "error" => Err(parse_td_error(raw)),
-      _ => self.parse_update(raw),
-    };
-    let _ = self.events.send(event);
-  }
+  fn bind_messages(self: &Arc<Self>, messages: Vec<types::message>) -> Result<Vec<MessageSend>> {
+    // Validate the whole batch before inserting anything. Partial registration
+    // would strand the unregistered messages if a later key collided.
+    let mut keys: Vec<_> = messages.iter().filter(|message| is_pending(message)).map(message_key).collect();
+    keys.sort_unstable();
+    if let Some([key, _]) = keys.array_windows().find(|[a, b]| a == b) {
+      return Err(Error::MessageCollision(*key));
+    }
 
-  /// Deserializes an update and applies internal observers before returning it.
-  fn parse_update(&self, raw: &[u8]) -> Result<Update> {
-    let update = match serde_json::from_slice(raw) {
-      Ok(update) => update,
-      Err(error) => {
-        let error = Arc::new(error);
-        self.message_sends.lock().unwrap().fail_json(&error);
-        return Err(Error::Json(error));
+    let mut registry = self.registry.lock().unwrap();
+    if let Some(key) = keys.into_iter().find(|key| registry.message_sends.contains_key(key)) {
+      return Err(Error::MessageCollision(key));
+    }
+
+    let client = Arc::downgrade(self);
+    let sends = messages.into_iter().map(|message| {
+      let key = message_key(&message);
+      let pending = is_pending(&message);
+      let initial_state = if pending { MessageState::Pending(message) } else { MessageState::Succeeded(message) };
+      let (tx, rx) = watch::channel(initial_state);
+      if pending {
+        registry.message_sends.insert(key, tx);
       }
-    };
-    // Internal progress cannot depend on the application polling Client::recv.
-    // send_event subsequently enqueues this same update unchanged.
-    self.observe_update(&update);
-    Ok(update)
+      MessageSend { key, client: client.clone(), states: rx }
+    });
+
+    Ok(sends.collect())
   }
 
-  /// Completes internal message/lifecycle work implied by one application update.
+  fn track_message(self: &Arc<Self>, key: MessageKey) -> Result<MessageSend> {
+    match self.registry.lock().unwrap().message_sends.get(&key) {
+      Some(states) => Ok(MessageSend { key, client: Arc::downgrade(self), states: states.subscribe() }),
+      None => Err(Error::MessageNotPending(key)),
+    }
+  }
+
+  fn track_file(self: &Arc<Self>, id: i32) -> FileWatch {
+    let mut registry = self.registry.lock().unwrap();
+    registry.file_watches.retain(|_, states| states.receiver_count() > 0);
+    let states = registry.file_watches.entry(id).or_insert_with(|| watch::channel(FileState::Unknown).0).subscribe();
+    FileWatch { id, states }
+  }
+
+  fn bind_file(self: &Arc<Self>, file: &types::file) -> FileWatch {
+    let file_id = file.id;
+    let progress = file_progress(file);
+    let mut registry = self.registry.lock().unwrap();
+    registry.file_watches.retain(|_, states| states.receiver_count() > 0);
+    let sender = registry.file_watches.entry(file_id).or_insert_with(|| watch::channel(FileState::Unknown).0);
+    sender.send_replace(FileState::Known(progress));
+    let states = sender.subscribe();
+    FileWatch { id: file_id, states }
+  }
+
+  fn publish_file(&self, file: &types::file) {
+    let mut registry = self.registry.lock().unwrap();
+    if let Entry::Occupied(entry) = registry.file_watches.entry(file.id) {
+      match entry.get().receiver_count() {
+        0 => drop(entry.remove()),
+        _ => drop(entry.get().send_replace(FileState::Known(file_progress(file)))),
+      }
+    }
+  }
+
+  fn route_update(self: &Arc<Self>, r#type: &str, raw: &[u8]) {
+    let update = match r#type {
+      "error" => Err(parse_td_error(raw)),
+      _ => match serde_json::from_slice(raw) {
+        Ok(update) => {
+          self.observe_update(&update);
+          Ok(update)
+        }
+        Err(error) => {
+          let error = Arc::new(error);
+          self.fail_operations(&error);
+          Err(Error::Json(error))
+        }
+      },
+    };
+    drop(self.updates.send(update));
+  }
+
   fn observe_update(&self, update: &Update) {
-    self.message_sends.lock().unwrap().observe(update);
+    let mut registry = self.registry.lock().unwrap();
+    match update {
+      Update::updateMessageSendSucceeded(update) => {
+        let key = MessageKey { chat_id: update.message.chat_id, message_id: update.old_message_id };
+        if let Some(sender) = registry.message_sends.remove(&key) {
+          // The application queue must receive the original update unchanged, so
+          // retained message state necessarily owns a clone of the final message.
+          sender.send_replace(MessageState::Succeeded(update.message.clone()));
+        }
+      }
+      Update::updateMessageSendFailed(update) => {
+        let key = MessageKey { chat_id: update.message.chat_id, message_id: update.old_message_id };
+        if let Some(sender) = registry.message_sends.remove(&key) {
+          // Share the cloned failure between all operation observers while the
+          // original update continues to the application queue.
+          sender.send_replace(MessageState::Failed(Arc::new(update.clone())));
+        }
+      }
+      Update::updateDeleteMessages(update) if !update.from_cache => {
+        for &message_id in &update.message_ids {
+          if let Some(sender) = registry.message_sends.remove(&MessageKey { chat_id: update.chat_id, message_id }) {
+            sender.send_replace(MessageState::Deleted);
+          }
+        }
+      }
+      Update::updateFile(update) if let Some(sender) = registry.file_watches.get(&update.file.id) => {
+        sender.send_replace(FileState::Known(file_progress(&update.file)));
+      }
+      _ => {}
+    }
+    drop(registry);
     if let Update::updateAuthorizationState(update) = update
-      && let AuthorizationState::authorizationStateClosed = update.authorization_state
+      && let AuthorizationState::authorizationStateClosed = &update.authorization_state
     {
       self.disconnect();
     }
   }
 
-  /// Revokes new work and drops every local request or message-send waiter.
   fn disconnect(&self) {
-    let mut requests = self.requests.lock().unwrap();
-    requests.accepting = false;
-    requests.replies.clear();
-    drop(requests);
-    self.message_sends.lock().unwrap().disconnect();
+    let mut registry = self.registry.lock().unwrap();
+    registry.accepting_requests = false;
+    registry.requests.clear();
+    registry.message_sends.clear();
+    registry.file_watches.clear();
   }
 
-  /// Fails every waiter and the event stream after an unrouteable JSON envelope.
-  fn report_json_error(&self, error: &Arc<serde_json::Error>) {
-    let replies = {
-      let mut requests = self.requests.lock().unwrap();
-      mem::take(&mut requests.replies)
+  fn fail_operations(&self, error: &Arc<serde_json::Error>) {
+    let (message_sends, file_watches) = {
+      let mut registry = self.registry.lock().unwrap();
+      (mem::take(&mut registry.message_sends), mem::take(&mut registry.file_watches))
     };
-    for (_, reply) in replies {
-      match reply {
-        PendingReply::Request(reply) => {
-          let _ = reply.send(Err(Error::Json(Arc::clone(error))));
-        }
-        PendingReply::Message(reply) => {
-          let _ = reply.send(Err(Error::Json(Arc::clone(error))));
-        }
-      }
+    for (_, sender) in message_sends {
+      sender.send_replace(MessageState::Json(Arc::clone(error)));
     }
-    self.message_sends.lock().unwrap().fail_json(error);
-    let _ = self.events.send(Err(Error::Json(Arc::clone(error))));
+    for (_, sender) in file_watches {
+      sender.send_replace(FileState::Json(Arc::clone(error)));
+    }
+  }
+
+  fn fail_routing(&self, error: &Arc<serde_json::Error>) {
+    let requests = mem::take(&mut self.registry.lock().unwrap().requests);
+    for (_, reply) in requests {
+      reply.fail(Error::Json(Arc::clone(error)));
+    }
+    self.fail_operations(error);
+    drop(self.updates.send(Err(Error::Json(Arc::clone(error)))));
   }
 }
 
 impl Drop for ClientState {
   fn drop(&mut self) {
-    // Destruction stays lock-free and native-call-free. The receiver prunes the
-    // dead weak entry at its next registry access.
-    ROUTER.stale.store(true, Ordering::Release);
+    // Local cleanup only: destructors never call TDLib or wait for the receiver.
+    ROUTER.clients.lock().unwrap().remove(&self.id);
   }
 }
 
-/// Borrowed routing fields parsed before a full response or update is decoded.
-///
-/// `TDLib` guarantees `@client_id` and `@type`, so both remain required. `@extra`
-/// is absent only for uncorrelated updates and events.
+fn message_key(message: &types::message) -> MessageKey {
+  MessageKey { chat_id: message.chat_id, message_id: message.id }
+}
+
+fn is_pending(message: &types::message) -> bool {
+  matches!(message.sending_state, Some(enums::MessageSendingState::messageSendingStatePending(_)))
+}
+
+fn file_progress(file: &types::file) -> FileProgress {
+  let &types::file { size, expected_size, ref local, ref remote, .. } = file;
+  let &types::localFile { download_offset, downloaded_prefix_size, downloaded_size, is_downloading_active, is_downloading_completed, .. } = local;
+  let &types::remoteFile { uploaded_size, is_uploading_active, is_uploading_completed, .. } = remote;
+
+  let download = transfer_state(is_downloading_active, is_downloading_completed);
+  let upload = transfer_state(is_uploading_active, is_uploading_completed);
+  FileProgress { size, expected_size, download_offset, downloaded_prefix_size, downloaded_size, download, uploaded_size, upload }
+}
+
+fn transfer_state(active: bool, completed: bool) -> TransferState {
+  match (active, completed) {
+    (_, true) => TransferState::Completed,
+    (true, _) => TransferState::Active,
+    (false, _) => TransferState::Inactive,
+  }
+}
+
+fn parse_file(raw: &[u8]) -> Result<types::file> {
+  let enums::File::file(file) = serde_json::from_slice(raw)?;
+  Ok(file)
+}
+
+fn parse_messages(raw: &[u8], many: bool) -> Result<Vec<types::message>> {
+  if many {
+    let enums::Messages::messages(messages) = serde_json::from_slice(raw)?;
+    Ok(messages.messages.unwrap_or_default())
+  } else {
+    let enums::Message::message(message) = serde_json::from_slice(raw)?;
+    Ok(vec![message])
+  }
+}
+
 #[derive(Deserialize)]
 struct IncomingEnvelope<'a> {
-  /// Native client to which the object belongs.
   #[serde(rename = "@client_id")]
   client_id: i32,
-  /// Optional request key distinguishing a response from an event.
   #[serde(rename = "@extra")]
   extra: Option<u64>,
-  /// `TDLib` object discriminator, borrowed from the receive buffer.
   #[serde(rename = "@type")]
   r#type: &'a str,
 }
 
-/// Process-wide registry and sole native receiver-thread coordination state.
+#[derive(Deserialize)]
+struct ResponseEnvelope<'a> {
+  #[serde(rename = "@type")]
+  r#type: &'a str,
+}
+
 struct Router {
-  /// Weak client routes keyed by `TDLib`'s native client ID.
   clients: Mutex<HashMap<i32, Weak<ClientState>>>,
-  /// Handle used to unpark the process-lifetime receiver thread after registration.
-  worker: OnceLock<thread::Thread>,
-  /// Versioned signal for registration and receiver idle transitions.
+  receiver: OnceLock<thread::Thread>,
   clients_changed: watch::Sender<()>,
-  /// Cheap indication that at least one weak entry may now be dead.
-  stale: AtomicBool,
-  /// Process-wide receive timeout stored as the bits of an `f64` number of seconds.
-  timeout: AtomicU64,
+  receive_timeout: AtomicU64,
+  native_calls: Mutex<()>,
 }
 
 impl Router {
-  /// Locks the client registry, pruning dead weak entries only when requested.
-  fn live_clients(&self) -> MutexGuard<'_, HashMap<i32, Weak<ClientState>>> {
-    let mut clients = self.clients.lock().unwrap();
-    if self.stale.swap(false, Ordering::Acquire) {
-      clients.retain(|_, state| state.strong_count() > 0);
-    }
-    clients
-  }
-
-  /// Registers a weak route, starts or unparks the worker, and publishes the change.
-  fn register(&self, id: i32, state: Weak<ClientState>) {
-    self.live_clients().insert(id, state);
-    self.worker.get_or_init(|| thread::spawn(receive_loop).thread().clone()).unpark();
+  fn register(&self, id: i32, client: Weak<ClientState>) {
+    self.clients.lock().unwrap().insert(id, client);
+    self.receiver.get_or_init(|| thread::spawn(receive_loop).thread().clone()).unpark();
     self.clients_changed.send_replace(());
   }
 
-  /// Removes a route and, if it was last, awaits a safe receiver transition.
-  ///
-  /// The transition is either the receiver observing the empty registry before it
-  /// parks, or another registration taking ownership of its continued native work.
-  async fn unregister_and_wait_for_receiver(&self, id: i32) {
+  async fn unregister(&self, id: i32) {
     let mut changed = self.clients_changed.subscribe();
     {
-      let mut clients = self.live_clients();
+      let mut clients = self.clients.lock().unwrap();
       clients.remove(&id);
-      let 0 = clients.len() else { return };
-      // Subscribe before removal and consume the current version under the same
-      // registry lock. The next version must describe a later ownership boundary.
-      changed.borrow_and_update();
-    }
-    let _ = changed.changed().await;
-  }
-
-  /// Upgrades the weak state for one native client ID.
-  fn find_client(&self, id: i32) -> Option<Arc<ClientState>> {
-    Weak::upgrade(self.live_clients().get(&id)?)
-  }
-
-  /// Reports whether the registry has no live clients after stale pruning.
-  fn is_empty(&self) -> bool {
-    self.live_clients().is_empty()
-  }
-
-  /// Routes one borrowed native buffer by `@client_id`, then optional `@extra`.
-  fn route_message(&self, raw: &[u8]) {
-    let envelope = match serde_json::from_slice::<IncomingEnvelope<'_>>(raw) {
-      Ok(envelope) => envelope,
-      Err(err) => {
-        self.broadcast_json_error(err);
+      if !clients.is_empty() {
         return;
       }
+      // Consume the current watch version while holding the registry lock. The
+      // next version is necessarily a later receiver-idle or registration event.
+      changed.borrow_and_update();
+    }
+    drop(changed.changed().await);
+  }
+
+  fn route(&self, raw: &[u8]) {
+    let IncomingEnvelope { client_id, extra, r#type } = match serde_json::from_slice(raw) {
+      Ok(envelope) => envelope,
+      Err(error) => return self.broadcast(error),
     };
-
-    let IncomingEnvelope { client_id, extra, r#type } = envelope;
-    let Some(client) = self.find_client(client_id) else { return };
-
+    let Some(client) = self.clients.lock().unwrap().get(&client_id).and_then(Weak::upgrade) else { return };
     match extra {
       Some(extra) => client.complete_request(extra, r#type, raw),
-      None => client.send_event(r#type, raw),
+      None => client.route_update(r#type, raw),
     }
   }
 
-  /// Reports an envelope error to every client because no route can be trusted.
-  fn broadcast_json_error(&self, error: serde_json::Error) {
+  fn broadcast(&self, error: serde_json::Error) {
     let error = Arc::new(error);
-    for state in self.live_clients().values().filter_map(Weak::upgrade) {
-      state.report_json_error(&error);
+    // Upgrade under the map lock, then release it before reporting. Reporting can
+    // drop a final ClientState, whose destructor removes its weak map entry.
+    let clients: Vec<_> = self.clients.lock().unwrap().values().filter_map(Weak::upgrade).collect();
+    for client in clients {
+      client.fail_routing(&error);
     }
   }
 
-  /// Updates the timeout used by the receiver's next native call.
-  fn set_receive_timeout(&self, timeout: Duration) {
-    self.timeout.store(timeout.as_secs_f64().to_bits(), Ordering::Relaxed);
-  }
-
-  /// Performs at most one native receive and routes its borrowed response buffer.
-  fn receive_one(&self) {
-    let timeout = f64::from_bits(self.timeout.load(Ordering::Relaxed));
-
-    // SAFETY: Only the process-wide receiver thread calls `td_receive`;
-    // this crate never calls `td_execute`.
+  fn receive(&self) {
+    // The guard also protects the lifetime of TDLib's shared response buffer
+    // through envelope parsing and full routing.
+    let _native_call = self.native_calls.lock().unwrap();
+    let timeout = f64::from_bits(self.receive_timeout.load(Ordering::Relaxed));
+    // SAFETY: This is the process-wide sole caller of `td_receive`.
     let raw = unsafe { td_sys::td_receive(timeout) };
     if raw.is_null() {
       return;
     }
-
-    // SAFETY: `raw` is non-null and points to TDLib's NUL-terminated buffer,
-    // which remains valid until the next receive or execute call.
-    self.route_message(unsafe { CStr::from_ptr(raw) }.to_bytes());
+    // SAFETY: TDLib returned a non-null NUL-terminated buffer valid until the next receive.
+    self.route(unsafe { CStr::from_ptr(raw) }.to_bytes());
   }
 }
 
-/// The lazily initialized process-wide client router.
 static ROUTER: LazyLock<Router> = LazyLock::new(|| {
   let (clients_changed, _) = watch::channel(());
-  let (clients, worker, stale) = Default::default();
-  let timeout = 1f64.to_bits().into();
-  Router { clients, worker, clients_changed, stale, timeout }
+  let (clients, receiver, native_calls) = Default::default();
+  let receive_timeout = 1f64.to_bits().into();
+  Router { clients, receiver, clients_changed, receive_timeout, native_calls }
 });
 
-/// Runs the sole process-lifetime native receiver, parking between live registries.
 fn receive_loop() {
   loop {
-    if ROUTER.is_empty() {
+    if ROUTER.clients.lock().unwrap().is_empty() {
+      // Publish the empty observation before parking so the last graceful
+      // shutdown can finish; registration publishes too and unparks this thread.
       ROUTER.clients_changed.send_replace(());
       thread::park();
     } else {
-      ROUTER.receive_one();
+      ROUTER.receive();
     }
   }
 }
 
-/// Decodes a `TDLib` `error`, preserving a malformed error object as JSON failure.
 fn parse_td_error(raw: &[u8]) -> Error {
   serde_json::from_slice(raw).map_or_else(Into::into, Error::Td)
 }
 
-/// Sets the maximum wait used by the process-wide receiver's next `TDLib` call.
+/// Executes a `TDLib` function through the client-independent synchronous interface.
 ///
-/// The default is one second. Changing it does not interrupt a receive already in
-/// progress; it takes effect when the receiver next calls `TDLib`. A shorter value
-/// can reduce final-shutdown handoff latency at the cost of more native calls, and
-/// zero can cause the receiver thread to poll continuously while clients are live.
-///
-/// This is transport tuning, not a request, retry, or operation timeout.
-pub fn set_receive_timeout(timeout: Duration) {
-  ROUTER.set_receive_timeout(timeout);
+/// Only functions documented by `TDLib` as synchronously executable are meaningful
+/// here. The request and response retain generated typing, and `TDLib` `error`
+/// objects become [`Error::Td`]. Calls are serialized with the process-wide
+/// receiver because either native function may invalidate the other's response
+/// buffer.
+pub fn execute<F: Function>(request: &F) -> Result<F::Return> {
+  let mut request = serde_json::to_vec(request)?;
+  request.push(0);
+  let _native_call = ROUTER.native_calls.lock().unwrap();
+  // SAFETY: `request` is live and NUL-terminated, and `native_calls` excludes calls that can invalidate the returned buffer.
+  let raw = unsafe { td_sys::td_execute(request.as_ptr().cast()) };
+  if raw.is_null() {
+    return Err(Error::UnexpectedResponse("synchronous request returned null"));
+  }
+  // SAFETY: TDLib returned a non-null NUL-terminated buffer that remains valid while `native_calls` is held.
+  let raw = unsafe { CStr::from_ptr(raw) }.to_bytes();
+  let ResponseEnvelope { r#type } = serde_json::from_slice(raw)?;
+  if let "error" = r#type { Err(parse_td_error(raw)) } else { serde_json::from_slice(raw).map_err(Into::into) }
 }
 
-/// Sets `TDLib`'s process-wide internal log verbosity.
+/// Sets the process-wide wait used by the next native receive call.
 ///
-/// `TDLib` defaults to level 5. Levels 0 through 5 select fatal, error,
-/// warning/debug-warning, informational, debug, and verbose-debug logging;
-/// higher supported values enable progressively more detail.
+/// The default is one second. A change does not interrupt a receive already in
+/// progress. Short values reduce final shutdown and synchronous-execution latency
+/// at the cost of more native calls; zero causes polling while clients are live.
+/// This is transport tuning, not a request timeout.
+pub fn set_receive_timeout(timeout: Duration) {
+  ROUTER.receive_timeout.store(timeout.as_secs_f64().to_bits(), Ordering::Relaxed);
+}
+
+/// Sets `TDLib`'s process-wide native log verbosity level.
 pub fn set_log_level(level: i32) {
   // SAFETY: The call passes no pointers or borrowed storage.
   unsafe { td_sys::td_set_log_verbosity_level(level) };
 }
 
-/// Returns a small server-oriented starting point for `TDLib` parameters with the
-/// given credentials and rooted at `dir`.
+/// Builds conventional `TDLib` parameters rooted at `directory`.
 ///
-/// The value enables the file, chat-info, and message databases and stores databases
-/// and files below `{dir}/db` and `{dir}/files` on top of the settings provided by
-/// [`defaults`].
-pub fn params(api_id: i32, api_hash: impl Into<String>, dir: impl AsRef<Path>) -> fns::setTdlibParameters {
-  let dir = dir.as_ref();
+/// Databases are stored under `db`, downloaded files under `files`, and the file,
+/// chat-info, and message databases are enabled. Applications remain free to
+/// modify the returned generated struct before constructing [`Client`].
+pub fn params(api_id: i32, api_hash: impl Into<String>, directory: impl AsRef<Path>) -> fns::setTdlibParameters {
+  let directory = directory.as_ref();
   fns::setTdlibParameters {
     api_id,
     api_hash: api_hash.into(),
-    database_directory: dir.join("db").display().to_string(),
-    files_directory: dir.join("files").display().to_string(),
+    database_directory: directory.join("db").display().to_string(),
+    files_directory: directory.join("files").display().to_string(),
     use_file_database: true,
     use_chat_info_database: true,
     use_message_database: true,
-    ..defaults()
-  }
-}
-
-/// Returns a small server-oriented starting point for `TDLib` parameters.
-///
-/// The value uses English and the `Server` device model, and reports this crate's
-/// version as the application version. All databases remain disabled, and required
-/// credentials and storage directories retain their generated defaults.
-pub fn defaults() -> fns::setTdlibParameters {
-  fns::setTdlibParameters {
     system_language_code: "en".into(),
     device_model: "Server".into(),
     application_version: env!("CARGO_PKG_VERSION").into(),

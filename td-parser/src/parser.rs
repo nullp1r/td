@@ -138,7 +138,7 @@ fn desc_and_meta_desc(doc: &str) -> [Option<&str>; 2] {
 /// an inline tag; continuation lines beginning `//-` remain part of its value.
 fn doc_tags(doc: &str) -> impl Iterator<Item = [&str; 2]> {
   doc.split("//@").skip(1).flat_map(|part| part.split(" @")).filter_map(|part| {
-    let (key, value) = part.trim().split_once(char::is_whitespace)?;
+    let (key, value) = part.trim_ascii().split_once(char::is_whitespace)?;
     Some([key, value])
   })
 }

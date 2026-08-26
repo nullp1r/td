@@ -1,3 +1,5 @@
+//! Exercises the public client lifecycle against native `TDLib`.
+
 use std::assert_matches;
 use std::process;
 use std::time::Duration;

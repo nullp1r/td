@@ -1,8 +1,10 @@
+//! Exercises message and media lifecycles against Telegram.
+
 use std::env;
 use std::fs::{self, File};
 use std::path::Path;
 use std::process;
-use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use anyhow::{Context, Result, bail, ensure};
 use serde::Deserialize;
@@ -55,13 +57,11 @@ async fn run(config: Config, root: &Path, marker: &str) -> Result<()> {
 
   td_client::set_log_level(0);
   td_client::set_receive_timeout(Duration::from_millis(50));
-  let params = fns::setTdlibParameters {
-    api_id,
-    api_hash,
-    database_directory: SESSION_DIRECTORY.into(),
-    files_directory: format!("{}/files", root.display()),
-    ..td_client::defaults()
-  };
+  let mut params = td_client::params(api_id, api_hash, SESSION_DIRECTORY);
+  params.files_directory = root.join("files").display().to_string();
+  params.use_file_database = false;
+  params.use_chat_info_database = false;
+  params.use_message_database = false;
   tracing::info!("creating an isolated TDLib client");
   let mut client = Client::new(params).await.context("failed to create the live-test client")?;
 
@@ -114,7 +114,7 @@ async fn exercise(client: &mut Client, chat_id: i64, root: &Path, marker: &str) 
   text_message_lifecycle(client, chat_id, marker).await?;
   media_uploads(client, chat_id, root, marker).await?;
   media_edit(client, chat_id, root, marker).await?;
-  document_deadline(client, chat_id, root, marker).await
+  cancel_document(client, chat_id, root, marker).await
 }
 
 async fn text_message_lifecycle(client: &mut Client, chat_id: i64, marker: &str) -> Result<()> {
@@ -122,7 +122,8 @@ async fn text_message_lifecycle(client: &mut Client, chat_id: i64, marker: &str)
   let sender = client.sender();
   let input_message_content = text_content(marker);
   let request = fns::sendMessage { chat_id, input_message_content, ..Default::default() };
-  let sent = sender.send_message(&request).await.context("failed to send the live-test text message")?;
+  let mut send = sender.send_message(&request).await.context("failed to start the live-test text message")?;
+  let sent = send.wait().await.context("the live-test text message failed")?;
   let message_id = sent.id;
   tracing::info!(message_id, "text message sent");
 
@@ -193,7 +194,8 @@ async fn upload_media(client: &mut Client, chat_id: i64, upload: MediaUpload<'_>
   tracing::info!(media, file_name, "uploading media");
   let input_message_content = kind.content(path, caption);
   let request = fns::sendMessage { chat_id, input_message_content, ..Default::default() };
-  let message = sender.send_message(&request).await.with_context(|| format!("failed to send {file_name} as {media}"))?;
+  let mut send = sender.send_message(&request).await.with_context(|| format!("failed to start {file_name} as {media}"))?;
+  let message = send.wait().await.with_context(|| format!("failed to send {file_name} as {media}"))?;
   let message_id = message.id;
   tracing::info!(message_id, media, "media uploaded");
   let verification = async {
@@ -230,7 +232,8 @@ async fn media_edit(client: &mut Client, chat_id: i64, root: &Path, marker: &str
   let sender = client.sender();
   let input_message_content = MediaKind::Video.content(&original_path, marker);
   let request = fns::sendMessage { chat_id, input_message_content, ..Default::default() };
-  let message = sender.send_message(&request).await.context("failed to send the media-edit source")?;
+  let mut send = sender.send_message(&request).await.context("failed to start the media-edit source")?;
+  let message = send.wait().await.context("failed to send the media-edit source")?;
   let message_id = message.id;
   let verification = async {
     wait_for_send_success(client, chat_id, message_id).await?;
@@ -251,42 +254,38 @@ async fn media_edit(client: &mut Client, chat_id: i64, root: &Path, marker: &str
   deletion
 }
 
-async fn document_deadline(client: &mut Client, chat_id: i64, root: &Path, marker: &str) -> Result<()> {
-  tracing::info!("sending a document with an already-expired deadline");
-  let path = root.join("deadline.bin");
-  let file = File::create(&path).context("failed to create the deadline-test document")?;
-  file.set_len(8 * 1024 * 1024).context("failed to size the deadline-test document")?;
+async fn cancel_document(client: &mut Client, chat_id: i64, root: &Path, marker: &str) -> Result<()> {
+  tracing::info!("sending and immediately cancelling a document");
+  let path = root.join("cancellation.bin");
+  let file = File::create(&path).context("failed to create the cancellation-test document")?;
+  file.set_len(8 * 1024 * 1024).context("failed to size the cancellation-test document")?;
   drop(file);
   let sender = client.sender();
   let input_message_content = MediaKind::Document.content(&path, marker);
   let request = fns::sendMessage { chat_id, input_message_content, ..Default::default() };
-  let result = sender.send_message_until(&request, Instant::now()).await;
-
-  let temporary_message_id = match result {
-    Err(Error::MessageDeadline { chat_id: result_chat_id, message_id }) => {
-      ensure!(result_chat_id == chat_id, "deadline result belongs to chat {result_chat_id} instead of {chat_id}");
-      tracing::info!(message_id, "document send reached its deadline and was deleted");
-      message_id
-    }
-    Ok(message) => {
+  let send = sender.send_message(&request).await.context("failed to start the cancellation-test document")?;
+  let temporary_message_id = send.key().message_id;
+  match send.cancel().await {
+    Ok(None) => tracing::info!(temporary_message_id, "pending document send was deleted"),
+    Ok(Some(message)) => {
       delete_message(&sender, chat_id, message.id).await?;
-      bail!("the deadline-test document was sent before an already-expired deadline");
+      bail!("the cancellation-test document succeeded before cancellation won");
     }
-    Err(error) => return Err(error).context("deadline-test document failed unexpectedly"),
-  };
+    Err(error) => return Err(error).context("cancellation-test document failed unexpectedly"),
+  }
 
   expect_missing(&sender, chat_id, temporary_message_id).await?;
-  if let Some(final_message_id) = wait_for_deadline_terminal(client, chat_id, temporary_message_id).await? {
+  if let Some(final_message_id) = wait_for_cancellation_terminal(client, chat_id, temporary_message_id).await? {
     expect_missing(&sender, chat_id, final_message_id).await?;
   }
   Ok(())
 }
 
-async fn wait_for_deadline_terminal(client: &mut Client, chat_id: i64, temporary_message_id: i64) -> Result<Option<i64>> {
+async fn wait_for_cancellation_terminal(client: &mut Client, chat_id: i64, temporary_message_id: i64) -> Result<Option<i64>> {
   loop {
-    let update = client.recv().await.context("failed while waiting for the deadline-test terminal update")?;
+    let update = client.recv().await.context("failed while waiting for the cancellation-test terminal update")?;
     let Some(update) = update else {
-      bail!("client closed before the deadline-test terminal update");
+      bail!("client closed before the cancellation-test terminal update");
     };
     match update {
       Update::updateMessageSendSucceeded(update) => {

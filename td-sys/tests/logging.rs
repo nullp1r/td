@@ -1,3 +1,5 @@
+//! Exercises the native `TDLib` logging callback.
+
 use std::ffi::{CStr, CString, c_char};
 use std::fmt;
 

@@ -1,3 +1,5 @@
+//! Runs the example echo bot.
+
 use tokio::signal;
 
 use td_client::{Client, Result, Sender};
@@ -53,10 +55,10 @@ async fn on_update(sender: &Sender, update: Update) -> Result {
   Ok(())
 }
 
-async fn reply_text(sender: &Sender, chat_id: i64, message_id: i64, text: types::formattedText) -> Result {
+async fn reply_text(sender: &Sender, chat_id: i64, message_id: i64, text: types::formattedText) -> Result<types::message> {
   let reply_to = Some(types::inputMessageReplyToMessage { message_id, ..Default::default() }.into());
   let input_message_content = types::inputMessageText { text, ..Default::default() }.into();
   let request = fns::sendMessage { chat_id, reply_to, input_message_content, ..Default::default() };
-  sender.send_message(&request).await?;
-  Ok(())
+  let mut send = sender.send_message(&request).await?;
+  send.wait().await
 }

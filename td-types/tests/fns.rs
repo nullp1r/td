@@ -1,3 +1,5 @@
+//! Verifies generated function serialization and response associations.
+
 use td_types::{fns, types};
 
 #[test]

@@ -5,8 +5,7 @@
 //! `#[serde(with = ...)]`, keeping the public Rust representation as `i64`,
 //! `Vec<i64>`, or `Vec<u8>`.
 
-use std::io::{Cursor, Write as _};
-use std::str;
+use core::fmt::NumBuffer;
 
 use serde::de::{self, Deserialize, Deserializer};
 use serde::ser::{Serialize, Serializer};
@@ -22,16 +21,7 @@ impl<'de> Deserialize<'de> for Int64 {
 
 impl Serialize for Int64 {
   fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
-    // Twenty bytes fit every signed i64, including the sign of i64::MIN. Writing
-    // through io::Write lets formatting target the stack buffer directly.
-    let mut buf = [0; 20];
-    let len = {
-      let mut w = Cursor::new(&mut buf[..]);
-      let _ = write!(w, "{}", self.0);
-      w.position() as usize
-    };
-    // SAFETY: `buf[..len]` was written by `i64`'s ASCII decimal formatter.
-    s.serialize_str(unsafe { str::from_utf8_unchecked(&buf[..len]) })
+    s.serialize_str(self.0.format_into(&mut NumBuffer::new()))
   }
 }
 

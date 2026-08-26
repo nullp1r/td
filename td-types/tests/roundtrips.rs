@@ -1,3 +1,5 @@
+//! Verifies generated wire-format round trips.
+
 use std::fmt::Debug;
 
 use serde::{Deserialize, Serialize};

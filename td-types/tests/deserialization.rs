@@ -1,3 +1,5 @@
+//! Verifies generated deserialization behavior and failures.
+
 use std::assert_matches;
 
 use td_types::{enums, types};

@@ -5,7 +5,7 @@ members = ["td-*"]
 [workspace.package]
 version = "0.1.0"
 edition = "2024"
-rust-version = "1.97"
+rust-version = "1.98"
 
 [workspace.dependencies]
 anyhow = "*"
@@ -23,6 +23,9 @@ td-codegen = { path = "td-codegen" }
 td-parser = { path = "td-parser" }
 td-sys = { path = "td-sys" }
 td-types = { path = "td-types" }
+
+[workspace.lints.rust]
+missing_docs = "deny"
 
 [workspace.lints.clippy]
 cargo = { level = "deny", priority = -1 }

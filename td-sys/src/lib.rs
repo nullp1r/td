@@ -42,6 +42,7 @@
 
 use core::ffi::{c_char, c_double, c_int, c_void};
 
+/// Cargo build-script support for linking the native library.
 pub mod build;
 
 /// Called when `TDLib` adds a message to its internal log.

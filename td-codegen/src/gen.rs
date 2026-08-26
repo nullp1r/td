@@ -31,7 +31,7 @@ pub fn compile(schema: &str) -> Result<String, td_parser::Error<'_>> {
   let _ = write!(out, "{body}");
   let t2 = Instant::now();
 
-  let [parse, codegen] = [[t0, t1], [t1, t2]].map(|[a, b]| b.duration_since(a));
+  let [parse, codegen] = [t1.duration_since(t0), t2.duration_since(t1)];
   let header = crate::header(schema, [parse, codegen]).to_string();
   if !header.is_empty() {
     out.insert_str(0, &header);
@@ -189,7 +189,7 @@ fn r#fn(ctx: &Context, comb: &Combinator) -> impl fmt::Display {
   fmt::from_fn(move |f| {
     writeln!(f, "{}", r#struct(ctx, comb, true))?;
     writeln!(f)?;
-    writeln!(f, "{:2}impl Function for {} {{", "", name)?;
+    writeln!(f, "{:2}impl Function for {name} {{", "")?;
     writeln!(f, "{:4}type Return = {ret_path}{ret_type};", "")?;
     write!(f, "{:2}}}", "")
   })
@@ -235,7 +235,7 @@ fn field(ctx: &Context, field: &Field, is_fn: bool, struct_name: &str) -> impl f
 
 fn type_expr(ctx: &Context, expr: &TypeExpr, is_fn: bool, struct_name: &str) -> impl fmt::Display {
   fmt::from_fn(move |f| match expr {
-    TypeExpr::Bare(name) if let Some(name) = util::to_native(name) => f.write_str(name),
+    TypeExpr::Bare(name) if let Some(native) = util::to_native(name) => f.write_str(native),
     TypeExpr::Bare(name) if ctx.is_enum(name) => {
       // Vector recursion calls this helper with no enclosing struct and is
       // already indirect. Direct recursive SCC edges are boxed conservatively.

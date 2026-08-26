@@ -1,3 +1,5 @@
+//! Verifies exact fixtures, upstream generation, and generator throughput.
+
 use std::assert_matches;
 use std::path::Path;
 use std::{fs, io};

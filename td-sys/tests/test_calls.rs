@@ -1,3 +1,5 @@
+//! Exercises the legacy native JSON client API.
+
 use std::ffi::{CStr, CString};
 use std::sync::{Mutex, Once};
 

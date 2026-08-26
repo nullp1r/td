@@ -37,7 +37,7 @@ pub fn to_native(name: &str) -> Option<&'static str> {
 /// Formats a schema name as a Rust identifier, adding `r#` for any keyword.
 pub fn escaped_keyword(s: &str) -> impl fmt::Display {
   fmt::from_fn(move |f| {
-    if RUST_KEYWORDS.contains(&s) {
+    if RUST_KEYWORDS.binary_search(&s).is_ok() {
       f.write_str("r#")?;
     }
     f.write_str(s)
