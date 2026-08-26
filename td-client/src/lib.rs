@@ -1,6 +1,6 @@
 //! A small typed runtime for `TDLib`'s client-ID JSON interface.
 //!
-//! `td-client` connects the generated functions and objects from [`td_types`] to
+//! `td-client` connects the generated functions and objects from `td-types` to
 //! `TDLib`'s asynchronous native transport. It correlates concurrent requests,
 //! routes any number of clients through `TDLib`'s single process-wide receiver,
 //! preserves application-update order, tracks the operations whose direct
@@ -24,7 +24,7 @@
 //! `close` function, observes `authorizationStateClosed`, and waits for the
 //! process-wide receiver to reach a safe ownership transition.
 //!
-//! ```text
+//! ```ignore
 //! use td_client::{Client, Result};
 //! use td_types::{enums::User, fns, types};
 //!
@@ -43,7 +43,7 @@
 //!
 //! If application work can fail, preserve that error separately from shutdown:
 //!
-//! ```text
+//! ```ignore
 //! let result = application(&mut client).await;
 //! let shutdown = client.shutdown().await;
 //! result?;
@@ -52,7 +52,7 @@
 //!
 //! # Direct requests
 //!
-//! [`Sender::send`] accepts any generated [`Function`] and returns its declared
+//! [`Sender::send`] accepts any generated `Function` and returns its declared
 //! response type. Serialization failures, `TDLib` `error` objects, malformed
 //! responses, and disconnection are all returned to the caller. Requests accepted
 //! concurrently are distinguished by `@extra`; a request racing shutdown is
@@ -64,8 +64,8 @@
 //!
 //! # Message sends
 //!
-//! Normal send functions returning [`td_types::enums::Message`] or
-//! [`td_types::enums::Messages`] can first return temporary messages whose
+//! Normal send functions returning `td_types::enums::Message` or
+//! `td_types::enums::Messages` can first return temporary messages whose
 //! `sending_state` is pending. [`Sender::send_message`] and
 //! [`Sender::send_messages`] bind those temporary `(chat_id, message_id)` keys on
 //! the receiver thread before waking the requester, then expose [`MessageSend`]
@@ -78,7 +78,7 @@
 //! messages but emit no terminal send update; getters and edits have different
 //! completion contracts. Send all of those through [`Sender::send`] instead.
 //!
-//! ```text
+//! ```ignore
 //! let content = types::inputMessageText {
 //!   text: types::formattedText { text: "hello".into(), ..Default::default() },
 //!   ..Default::default()
@@ -505,7 +505,7 @@ impl Sender {
 
   /// Starts tracking one actual non-preview normal-message send.
   ///
-  /// The request must return [`enums::Message`] and obey the tracked-request
+  /// The request must return `enums::Message` and obey the tracked-request
   /// invariant described in this crate's module-level documentation. The direct
   /// response is parsed and bound before this method returns.
   pub async fn send_message<F: Function<Return = enums::Message>>(&self, request: &F) -> Result<MessageSend> {
