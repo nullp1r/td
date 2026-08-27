@@ -125,13 +125,12 @@ Dropping the future performs no native work. It abandons local observation while
 
 ### File observation and transfers
 
-File operations retain only copyable progress and coalesce intermediate observations; every original `updateFile` still remains in the application update queue. `Sender::download` requires TDLib's `downloadFile.synchronous` flag to be `true` and panics otherwise. This does not block the calling thread; it retains TDLib's asynchronous request promise until the requested full file or exact byte range succeeds, fails, is cancelled, or is superseded by another range request. A synchronous callback receives live observations, and the future returns the final file state:
+File operations retain only copyable progress and coalesce intermediate observations; every original `updateFile` still remains in the application update queue. `Sender::download` requires TDLib's `downloadFile.synchronous` flag to be `true` and panics otherwise. This does not block the calling thread; it retains TDLib's asynchronous request promise until the requested full file or exact byte range succeeds, fails, is cancelled, or is superseded by another range request. A synchronous `Send` callback receives live observations without making the operation future thread-bound, and the future returns the final file state:
 
 ```rust
 let request = fns::downloadFile { file_id, priority: 16, offset: 0, limit: 0, synchronous: true };
-let mut progress = |progress: FileProgress| println!("downloaded {} bytes", progress.downloaded_size);
 let file = sender
-  .download(&request, &mut progress, None)
+  .download(&request, None, |progress| println!("downloaded {} bytes", progress.downloaded_size))
   .await?;
 ```
 

@@ -9,7 +9,7 @@
 //! The crate deliberately has no retry, deadline, logging, overflow, or task
 //! policy. Those choices belong to the application. Its public model consists of
 //! one owning [`Client`] and cloneable non-owning [`Sender`] values. Long-running
-//! operations are ordinary futures with optional [`Cancel`]s.
+//! operations are ordinary futures with optional [`CancellationToken`]s.
 //!
 //! # Client ownership and shutdown
 //!
@@ -103,9 +103,9 @@
 //! is an asynchronous request promise whose response becomes ready only when the
 //! requested full file or exact byte range succeeds, fails, is cancelled, or is
 //! superseded by a request for another range. The method returns that final file
-//! state and calls its progress callback for coalesced observations. Cancellation
-//! awaits both `cancelDownloadFile` and the original response; completion wins the
-//! race.
+//! state and reports coalesced observations through a synchronous `Send` callback.
+//! Cancellation awaits both `cancelDownloadFile` and the original response;
+//! completion wins the race.
 //!
 //! [`Sender::upload`] binds the file ID from `preliminaryUploadFile`, reports
 //! coalesced progress through the same callback shape, and waits until preliminary
@@ -114,7 +114,7 @@
 //! neither standalone success nor failure. Cancellation awaits
 //! `cancelPreliminaryUploadFile`.
 //!
-//! Progress callbacks run synchronously and should remain cheap. Dropping an
+//! Progress callbacks run synchronously and should remain cheap. Dropping the
 //! operation future abandons local observation without native cancellation;
 //! cancellation cleanup progresses while that future is polled.
 //!
@@ -158,7 +158,7 @@ use td_types::enums::{AuthorizationState, File, Message, MessageSendingState, Me
 use td_types::traits::Function;
 use td_types::{fns, types};
 
-pub use tokio_util::sync::CancellationToken as Cancel;
+pub use tokio_util::sync::CancellationToken;
 
 /// A `td-client` operation result.
 pub type Result<T = ()> = result::Result<T, Error>;
@@ -219,7 +219,7 @@ struct MessageOperation {
 }
 
 impl MessageOperation {
-  async fn finish(mut self, client: &ClientState, cancel: Option<&Cancel>) -> Result<types::message> {
+  async fn finish(mut self, client: &ClientState, cancel: Option<&CancellationToken>) -> Result<types::message> {
     tokio::select! {
       biased;
       result = &mut self.result => result.map_err(|_| Error::Disconnected)?,
@@ -338,7 +338,7 @@ impl Sender {
   /// invariant described in this crate's module-level documentation. Cancellation
   /// deletes a still-pending temporary message and returns [`Error::Cancelled`]
   /// after `TDLib` reports its deletion; an authoritative success wins the race.
-  pub async fn send_message<F: Function<Return = Message>>(&self, request: &F, cancel: Option<&Cancel>) -> Result<types::message> {
+  pub async fn send_message<F: Function<Return = Message>>(&self, request: &F, cancel: Option<&CancellationToken>) -> Result<types::message> {
     let client = self.0.upgrade().ok_or(Error::Disconnected)?;
     let operations = client.start_messages(request, false).await?;
     let [operation] = operations.try_into().map_err(|_| Error::UnexpectedResponse("expected one message"))?;
@@ -350,7 +350,7 @@ impl Sender {
   /// Registration is atomic: duplicate temporary keys or collisions with existing
   /// sends fail without registering only part of the batch. Terminal results stay
   /// in direct-response order and preserve independent send failures.
-  pub async fn send_messages<F: Function<Return = Messages>>(&self, request: &F, cancel: Option<&Cancel>) -> Result<Vec<Result<types::message>>> {
+  pub async fn send_messages<F: Function<Return = Messages>>(&self, request: &F, cancel: Option<&CancellationToken>) -> Result<Vec<Result<types::message>>> {
     let client = self.0.upgrade().ok_or(Error::Disconnected)?;
     let operations = client.start_messages(request, true).await?;
     let mut results = Vec::with_capacity(operations.len());
@@ -364,12 +364,27 @@ impl Sender {
   ///
   /// The request must set `synchronous` to `true`, selecting `TDLib`'s final
   /// exact-range response. Cancellation awaits `cancelDownloadFile`; completion
-  /// wins if its response is already available.
+  /// wins if its response is already available. The `Send` progress callback keeps
+  /// the operation future movable between executor threads.
   ///
   /// # Panics
   ///
   /// Panics if `request.synchronous` is `false`.
-  pub async fn download(&self, request: &fns::downloadFile, progress: &mut dyn FnMut(FileProgress), cancel: Option<&Cancel>) -> Result<types::file> {
+  pub async fn download(
+    &self,
+    request: &fns::downloadFile,
+    cancel: Option<&CancellationToken>,
+    mut progress: impl FnMut(FileProgress) + Send,
+  ) -> Result<types::file> {
+    self.download_inner(request, cancel, &mut progress).await
+  }
+
+  async fn download_inner(
+    &self,
+    request: &fns::downloadFile,
+    cancel: Option<&CancellationToken>,
+    progress: &mut (dyn FnMut(FileProgress) + Send),
+  ) -> Result<types::file> {
     assert!(request.synchronous, "downloadFile.synchronous must be true");
     let client = self.0.upgrade().ok_or(Error::Disconnected)?;
     let mut updates = client.file_updates(request.file_id);
@@ -382,12 +397,17 @@ impl Sender {
           progress(file_progress(&file));
           return Ok(file);
         }
-        update = updates.next() => progress(update?),
+        update = updates.next() => {
+          progress(update?);
+        }
         () = cancelled(cancel) => {
           let request = fns::cancelDownloadFile { file_id: updates.id, only_if_pending: false };
           let cancellation = client.execute_request(&request, false).await;
           return match (cancellation, response.await) {
-            (_, Ok(File::file(file))) => Ok(file),
+            (_, Ok(File::file(file))) => {
+              progress(file_progress(&file));
+              Ok(file)
+            }
             (Ok(_), Err(Error::Td(_))) => Err(Error::Cancelled),
             (Err(error), Err(_)) | (Ok(_), Err(error)) => Err(error),
           };
@@ -401,8 +421,23 @@ impl Sender {
   /// Returns the first non-active observation, including the assigned file ID and
   /// latest byte counts. `TDLib` does not complete a preliminary upload until the
   /// file is sent in a message, so this result is not standalone upload success or
-  /// failure. Cancellation awaits `cancelPreliminaryUploadFile`.
-  pub async fn upload(&self, request: &fns::preliminaryUploadFile, progress: &mut dyn FnMut(FileProgress), cancel: Option<&Cancel>) -> Result<FileProgress> {
+  /// failure. The `Send` progress callback keeps the operation future movable
+  /// between executor threads. Cancellation awaits `cancelPreliminaryUploadFile`.
+  pub async fn upload(
+    &self,
+    request: &fns::preliminaryUploadFile,
+    cancel: Option<&CancellationToken>,
+    mut progress: impl FnMut(FileProgress) + Send,
+  ) -> Result<FileProgress> {
+    self.upload_inner(request, cancel, &mut progress).await
+  }
+
+  async fn upload_inner(
+    &self,
+    request: &fns::preliminaryUploadFile,
+    cancel: Option<&CancellationToken>,
+    progress: &mut (dyn FnMut(FileProgress) + Send),
+  ) -> Result<FileProgress> {
     let client = self.0.upgrade().ok_or(Error::Disconnected)?;
     let (reply, response) = oneshot::channel();
     client.submit_request(request, false, PendingReply::Upload(reply))?;
@@ -843,7 +878,7 @@ fn is_pending(message: &types::message) -> bool {
   matches!(message.sending_state, Some(MessageSendingState::messageSendingStatePending(_)))
 }
 
-async fn cancelled(cancel: Option<&Cancel>) {
+async fn cancelled(cancel: Option<&CancellationToken>) {
   match cancel {
     Some(cancel) => cancel.cancelled().await,
     None => future::pending().await,

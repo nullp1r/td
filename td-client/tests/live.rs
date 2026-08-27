@@ -11,7 +11,7 @@ use serde::Deserialize;
 use tokio::process::Command;
 use tokio::time::timeout;
 
-use td_client::{Cancel, Client, Error, Sender};
+use td_client::{CancellationToken, Client, Error, Sender};
 use td_types::enums::{AuthorizationState, Chat, InputFile, InputMessageContent, Message, MessageContent, Update};
 use td_types::{fns, types};
 
@@ -260,7 +260,7 @@ async fn cancel_document(client: &Client, chat_id: i64, root: &Path, marker: &st
   let sender = client.sender();
   let input_message_content = MediaKind::Document.content(&path, marker);
   let request = fns::sendMessage { chat_id, input_message_content, ..Default::default() };
-  let cancel = Cancel::new();
+  let cancel = CancellationToken::new();
   cancel.cancel();
   match sender.send_message(&request, Some(&cancel)).await {
     Err(Error::Cancelled) => tracing::info!("pending document send was deleted"),

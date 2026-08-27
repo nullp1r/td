@@ -75,6 +75,17 @@ fn routed(mut value: serde_json::Value, client_id: i32, extra: Option<u64>) -> V
   serde_json::to_vec(&value).unwrap()
 }
 
+#[test]
+fn transfer_futures_are_send() {
+  fn assert_send(_: impl Send) {}
+
+  let sender = Sender(Weak::new());
+  let download = fns::downloadFile { synchronous: true, ..Default::default() };
+  let upload = fns::preliminaryUploadFile::default();
+  assert_send(sender.download(&download, None, |_: FileProgress| {}));
+  assert_send(sender.upload(&upload, None, |_: FileProgress| {}));
+}
+
 #[tokio::test]
 async fn message_responses_bind_before_terminal_updates() {
   let (client, mut updates) = client_state(1001);
@@ -162,7 +173,7 @@ async fn observed_message_success_beats_cancellation() {
     }"#,
   );
 
-  let cancel = Cancel::new();
+  let cancel = CancellationToken::new();
   cancel.cancel();
   let result = timeout(Duration::from_millis(100), send.finish(&client, Some(&cancel))).await.unwrap();
   assert_matches!(result, Ok(types::message { id: 26, .. }));
