@@ -1,0 +1,34 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Generated Rust types for `TDLib`’s JSON API."><title>td_types - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../static.files/rustdoc-1ed95124.css"><meta name="rustdoc-vars" data-root-path="../" data-static-root-path="../static.files/" data-current-crate="td_types" data-themes="" data-resource-suffix="" data-rustdoc-version="1.98.1 (48a229cea 2026-09-01)" data-channel="1.98.1" data-search-js="search-9944d736.js" data-stringdex-js="stringdex-2da4960a.js" data-settings-js="settings-170eb4bf.js" ><script src="../static.files/storage-41dd4d93.js"></script><script defer src="../crates.js"></script><script defer src="../static.files/main-417ebf0a.js"></script><noscript><link rel="stylesheet" href="../static.files/noscript-f7c3ffd8.css"></noscript><link rel="alternate icon" type="image/png" href="../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../static.files/favicon-044be391.svg"></head><body class="rustdoc mod crate"><a class="skip-main-content" href="#main-content">Skip to main content</a><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">Crate td_types</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../td_types/index.html">td_<wbr>types</a><span class="version">0.1.0</span></h2></div><div class="sidebar-elems"><ul class="block"><li><a id="all-types" href="all.html">All Items</a></li></ul><section id="rustdoc-toc"><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#wire-representation" title="Wire representation">Wire representation</a></li></ul><h3><a href="#modules">Crate Items</a></h3><ul class="block"><li><a href="#modules" title="Modules">Modules</a></li></ul></section><div id="rustdoc-modnav"></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content" tabindex="-1"><div class="main-heading"><h1>Crate <span>td_<wbr>types</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"></span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Generated Rust types for <code>TDLib</code>’s JSON API.</p>
+<p>The crate compiles the local <code>td_api.tl</code> schema at build time and preserves
+its constructor, function, and field names. The generated surface is split by
+role:</p>
+<ul>
+<li>[<code>types</code>] contains concrete constructor payload structs;</li>
+<li>[<code>enums</code>] contains <code>@type</code>-tagged unions of constructors sharing a TL result
+type, including [<code>enums::Update</code>];</li>
+<li>[<code>fns</code>] contains serializable requests, each associated with its response by
+<a href="traits/trait.Function.html" title="trait td_types::traits::Function"><code>traits::Function</code></a>.</li>
+</ul>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>td_types::{fns, traits::Function};
+
+<span class="kw">fn </span>accepts_get_me&lt;F: Function&lt;Return = td_types::enums::User&gt;&gt;(<span class="kw">_</span>: <span class="kw-2">&amp;</span>F) {}
+
+<span class="kw">let </span>request = fns::getMe {};
+accepts_get_me(<span class="kw-2">&amp;</span>request);
+<span class="macro">assert_eq!</span>(serde_json::to_value(request).unwrap(), <span class="macro">serde_json::json!</span>({ <span class="string">"@type"</span>: <span class="string">"getMe" </span>}));</code></pre></div>
+<p>Object and enum values implement both <a href="https://docs.rs/serde_core/1.0.229/serde_core/ser/trait.Serialize.html" title="trait serde_core::ser::Serialize"><code>serde::Serialize</code></a> and
+<a href="https://docs.rs/serde_core/1.0.229/serde_core/de/trait.Deserialize.html" title="trait serde_core::de::Deserialize"><code>serde::Deserialize</code></a>. Requests implement only <code>Serialize</code>, because their
+corresponding response type is the deserialization boundary. Generated
+object structs use Serde defaults for fields omitted from a response;
+generated Rust construction remains explicit through ordinary public fields
+and <code>Default</code>.</p>
+<h2 id="wire-representation"><a class="doc-anchor" href="#wire-representation">§</a>Wire representation</h2>
+<p>Generated Serde attributes follow <code>TDLib</code>’s JSON interface: <code>int64</code> values are
+decimal strings, <code>bytes</code> values are standard padded base64, polymorphic objects
+carry <code>@type</code>, and fields documented by the schema as nullable use <code>Option</code>.
+<code>int32</code>, <code>int53</code>, <code>double</code>, booleans, strings, and vectors use their natural
+JSON representations.</p>
+<p>This crate describes the protocol but does not execute it. Use <code>td-client</code>
+for correlated asynchronous requests, ordered updates, and client lifecycle.</p>
+</div></details><h2 id="modules" class="section-header">Modules<a href="#modules" class="anchor">§</a></h2><dl class="item-table"><dt><a class="mod" href="traits/index.html" title="mod td_types::traits">traits</a></dt><dd>Traits implemented by generated protocol operations.</dd></dl></section></div></main></body></html>

@@ -1,0 +1,49 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Terminal message-send results and temporary message identities."><title>td_client::message - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../static.files/rustdoc-1ed95124.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="td_client" data-themes="" data-resource-suffix="" data-rustdoc-version="1.98.1 (48a229cea 2026-09-01)" data-channel="1.98.1" data-search-js="search-9944d736.js" data-stringdex-js="stringdex-2da4960a.js" data-settings-js="settings-170eb4bf.js" ><script src="../../static.files/storage-41dd4d93.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../static.files/main-417ebf0a.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-f7c3ffd8.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><a class="skip-main-content" href="#main-content">Skip to main content</a><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">Module message</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../td_client/index.html">td_<wbr>client</a><span class="version">0.1.0</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module message</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#supported-requests" title="Supported requests">Supported requests</a></li><li><a href="#cancellation" title="Cancellation">Cancellation</a></li><li><a href="#upload-measurements" title="Upload measurements">Upload measurements</a></li></ul><h3><a href="#structs">Module Items</a></h3><ul class="block"><li><a href="#structs" title="Structs">Structs</a></li></ul></section><div id="rustdoc-modnav"><h2 class="in-crate"><a href="../index.html">In crate td_<wbr>client</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content" tabindex="-1"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../index.html">td_client</a></div><h1>Module <span>message</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../src/td_client/message.rs.html#1-216">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Terminal message-send results and temporary message identities.</p>
+<p>A direct <code>TDLib</code> send response can contain a local temporary message. Successful
+submission is not necessarily successful delivery. <a href="../client/struct.Client.html#method.track" title="method td_client::client::Client::track"><code>Client::track</code></a>
+and <a href="../client/struct.Client.html#method.track_all" title="method td_client::client::Client::track_all"><code>Client::track_all</code></a> bind pending identities before the request wakes,
+then wait for send-success, send-failure, or non-cache deletion updates.
+Every original update remains available through <a href="../session/struct.Session.html#method.recv" title="method td_client::session::Session::recv"><code>Session::recv</code></a>.</p>
+<h2 id="supported-requests"><a class="doc-anchor" href="#supported-requests">§</a>Supported requests</h2>
+<p>Use tracked methods for normal sends, such as <code>sendMessage</code>,
+<code>sendMessageAlbum</code>, and normal non-preview <code>forwardMessages</code> calls.
+Generic return-type bounds are not a promise to track every function returning
+<code>Message</code> or <code>Messages</code>. Previews, getters, and edits belong on
+<a href="../client/struct.Client.html#method.send" title="method td_client::client::Client::send"><code>Client::send</code></a>; an unsupported pending-looking response may never finish.
+Already-final direct responses return without waiting for a terminal update.</p>
+<p>Edits use their direct correlated response. An <code>updateMessageEdited</code> event
+cannot establish which edit request finished or whether another edit failed.</p>
+<h2 id="cancellation"><a class="doc-anchor" href="#cancellation">§</a>Cancellation</h2>
+<p>A borrowed <a href="../transfer/struct.CancellationToken.html" title="struct td_client::transfer::CancellationToken"><code>CancellationToken</code></a> asks the operation to delete pending temporary
+messages. It does not retract the initial request: even a pre-cancelled token
+waits for the direct response so the temporary identity can be bound.</p>
+<p>An authoritative success already observed wins and returns the final message.
+Deletion is requested only for a temporary ID still registered as pending;
+this library never explicitly deletes a successful final ID. This is <strong>not
+server-atomic</strong>: <code>TDLib</code> can itself delete a concurrently accepted message after
+removing its pending record. Do not interpret cancellation as a guarantee that
+the message was never visible or that a racing successful message remains.</p>
+<p>Dropping the future merely abandons local observation. Submitted native work
+continues; token-triggered cleanup only runs while the future is driven.
+Reusing a cancelled token asks every subsequent operation using it to cancel.</p>
+<p>If an application stop signal wins a race, cancel the token and keep awaiting
+the same send future so native cleanup can finish:</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">let </span>cancel = CancellationToken::new();
+<span class="kw">let </span>sending = client.track(request, <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>cancel), <span class="prelude-val">None</span>);
+<span class="macro">tokio::pin!</span>(sending);
+<span class="macro">tokio::select!</span> {
+  result = <span class="kw-2">&amp;mut </span>sending =&gt; result,
+  () = stop =&gt; {
+    cancel.cancel();
+    sending.<span class="kw">await
+  </span>}
+}</code></pre></div><h2 id="upload-measurements"><a class="doc-anchor" href="#upload-measurements">§</a>Upload measurements</h2>
+<p>Pass an optional borrowed callback to observe primary media files. Supported
+payloads are animations, audio, documents, photos (the last returned size),
+stickers, videos, video notes, and voice notes. Thumbnails and recursive
+attachment traversal are not tracked. There is no preliminary-upload API.</p>
+<p>Samples can coalesce across album items; neither a callback for every item nor
+a final 100% sample is guaranteed. See <a href="../transfer/struct.Progress.html" title="struct td_client::transfer::Progress"><code>Progress</code></a> and the
+<a href="../transfer/index.html" title="mod td_client::transfer">transfer guide</a> for the common measurement contract.</p>
+</div></details><h2 id="structs" class="section-header">Structs<a href="#structs" class="anchor">§</a></h2><dl class="item-table"><dt><a class="struct" href="struct.MessageKey.html" title="struct td_client::message::MessageKey">Message<wbr>Key</a></dt><dd>The chat and temporary message ID identifying a tracked send failure.</dd></dl></section></div></main></body></html>

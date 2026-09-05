@@ -1,0 +1,109 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Typed asynchronous access to `TDLib`."><title>td_client - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../static.files/rustdoc-1ed95124.css"><meta name="rustdoc-vars" data-root-path="../" data-static-root-path="../static.files/" data-current-crate="td_client" data-themes="" data-resource-suffix="" data-rustdoc-version="1.98.1 (48a229cea 2026-09-01)" data-channel="1.98.1" data-search-js="search-9944d736.js" data-stringdex-js="stringdex-2da4960a.js" data-settings-js="settings-170eb4bf.js" ><script src="../static.files/storage-41dd4d93.js"></script><script defer src="../crates.js"></script><script defer src="../static.files/main-417ebf0a.js"></script><noscript><link rel="stylesheet" href="../static.files/noscript-f7c3ffd8.css"></noscript><link rel="alternate icon" type="image/png" href="../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../static.files/favicon-044be391.svg"></head><body class="rustdoc mod crate"><a class="skip-main-content" href="#main-content">Skip to main content</a><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">Crate td_client</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../td_client/index.html">td_<wbr>client</a><span class="version">0.1.0</span></h2></div><div class="sidebar-elems"><ul class="block"><li><a id="all-types" href="all.html">All Items</a></li></ul><section id="rustdoc-toc"><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#getting-started" title="Getting started">Getting started</a><ul><li><a href="#native-linking-and-deployment" title="Native linking and deployment">Native linking and deployment</a></li></ul></li><li><a href="#a-request-and-a-clean-closure" title="A request and a clean closure">A request and a clean closure</a></li><li><a href="#choosing-an-operation" title="Choosing an operation">Choosing an operation</a></li><li><a href="#requests-updates-and-ownership" title="Requests, updates, and ownership">Requests, updates, and ownership</a></li><li><a href="#generated-api-vocabulary" title="Generated API vocabulary">Generated API vocabulary</a></li><li><a href="#errors-and-application-policy" title="Errors and application policy">Errors and application policy</a></li></ul><h3><a href="#reexports">Crate Items</a></h3><ul class="block"><li><a href="#reexports" title="Re-exports">Re-exports</a></li><li><a href="#modules" title="Modules">Modules</a></li></ul></section><div id="rustdoc-modnav"></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content" tabindex="-1"><div class="main-heading"><h1>Crate <span>td_<wbr>client</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../src/td_client/lib.rs.html#1-162">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Typed asynchronous access to <a href="https://core.telegram.org/tdlib"><code>TDLib</code></a>.</p>
+<p>This crate connects generated <code>td-types</code> requests to <code>TDLib</code>, receives ordered
+updates, and tracks message sends and downloads. It is a native Telegram client
+integration for bots and user accounts, not an HTTP Bot API wrapper.</p>
+<h2 id="getting-started"><a class="doc-anchor" href="#getting-started">§</a>Getting started</h2>
+<p>The workspace crates are not published. Use local path dependencies on
+<code>td-client</code> and <code>td-types</code>, plus Tokio with the features your application
+needs. For example, from another directory beside this checkout:</p>
+<div class="example-wrap"><pre class="language-toml"><code>[dependencies]
+td-client = { path = &quot;../td/td-client&quot; }
+td-types = { path = &quot;../td/td-types&quot; }
+tokio = { version = &quot;1&quot;, features = [&quot;macros&quot;, &quot;rt-multi-thread&quot;] }</code></pre></div>
+<p>The Rust API is generated from <code>td/td_api.tl</code> at build time. Fetch a matching
+native library and schema with <code>./td/fetch</code> from the repository root before
+building. The supplied fetch script uses Bash 4+, curl, jq, and tar; on Linux
+it also uses readelf. It selects Linux glibc or macOS packages for the host
+architecture. The workspace requires Rust 1.98 or newer. Keep the native
+library and generated schema in sync; updating only one can cause decoding
+failures or unsupported requests.</p>
+<h3 id="native-linking-and-deployment"><a class="doc-anchor" href="#native-linking-and-deployment">§</a>Native linking and deployment</h3>
+<p>The build helper searches the checkout’s <code>td/</code> directory and dynamically
+links <code>tdjson</code>. An external application must also make that shared library
+discoverable at runtime. Cargo does not propagate a dependency’s executable
+runtime-path flags into every downstream binary.</p>
+<p>For local applications, add <code>td-sys</code> as a path build-dependency and call its
+helper from <code>main</code> in your application’s <code>build.rs</code>:</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code>td_sys::build::link();</code></pre></div>
+<p>On Linux/macOS the helper adds runtime search paths for the executable’s
+directory and the local native-library directory. Deployment still requires
+shipping/installing the matching shared library (including the name expected
+by the platform loader) and its native dependencies. A loader error is not an
+authentication error; check library placement before debugging credentials.
+The fetch script is host-oriented, not a cross-compilation setup. For other
+targets, supply the appropriate native artifacts and platform linker/loader
+configuration yourself.</p>
+<p>Obtain an API ID and hash from <a href="https://my.telegram.org/apps">Telegram</a>.
+Bots additionally need a token from <a href="https://t.me/BotFather">BotFather</a>.
+Keep credentials and session directories out of version control.</p>
+<h2 id="a-request-and-a-clean-closure"><a class="doc-anchor" href="#a-request-and-a-clean-closure">§</a>A request and a clean closure</h2>
+<p>A <a href="session/struct.Session.html" title="struct td_client::session::Session"><code>Session</code></a> owns one <code>TDLib</code> instance. Obtain a
+<a href="client/struct.Client.html" title="struct td_client::client::Client"><code>Client</code></a> for requests; keep the owner until closure.
+A request’s generated type determines its response type:</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>td_client::types::{enums::User, fns};
+<span class="kw">use </span>td_client::{Session, parameters};
+<span class="kw">use </span>td_client::Result;
+
+<span class="kw">let </span><span class="kw-2">mut </span>session = Session::bot(parameters(api_id, api_hash, <span class="string">"session"</span>), token).<span class="kw">await</span><span class="question-mark">?</span>;
+<span class="kw">let </span>result = session.client().send(<span class="kw-2">&amp;</span>fns::getMe {}).<span class="kw">await</span>;
+<span class="kw">let </span>close = session.close().<span class="kw">await</span>;
+
+<span class="comment">// Attempt cleanup even when the application request fails.
+</span><span class="kw">let </span>User::user(user) = result<span class="question-mark">?</span>;
+close<span class="question-mark">?</span>;
+<span class="macro">println!</span>(<span class="string">"Signed in as {}"</span>, user.first_name);</code></pre></div>
+<p>Do not put a fallible application’s entire body before <code>close().await?</code>
+using unchecked early <code>?</code> returns: they can drop the owner without closing
+<code>TDLib</code>. Save the application result, attempt close, then choose how to
+report either or both errors. Dropping an unfinished constructor or close
+future also abandons graceful cleanup.</p>
+<h2 id="choosing-an-operation"><a class="doc-anchor" href="#choosing-an-operation">§</a>Choosing an operation</h2><div><table><thead><tr><th>Method</th><th>What its result means</th></tr></thead><tbody>
+<tr><td><a href="client/struct.Client.html#method.send" title="method td_client::client::Client::send"><code>Client::send</code></a></td><td>The function’s direct <code>TDLib</code> response</td></tr>
+<tr><td><a href="client/struct.Client.html#method.track" title="method td_client::client::Client::track"><code>Client::track</code></a></td><td>One normal send reached its terminal outcome</td></tr>
+<tr><td><a href="client/struct.Client.html#method.track_all" title="method td_client::client::Client::track_all"><code>Client::track_all</code></a></td><td>Ordered individual outcomes for a normal-send batch</td></tr>
+<tr><td><a href="client/struct.Client.html#method.download" title="method td_client::client::Client::download"><code>Client::download</code></a></td><td><code>TDLib</code> finished the synchronous download request</td></tr>
+<tr><td><a href="runtime/fn.execute.html" title="fn td_client::runtime::execute"><code>execute</code></a></td><td>A synchronously executable function returned</td></tr>
+</tbody></table>
+</div>
+<p>Use direct requests for getters, edits, previews, and other API functions.
+Only normal sends belong on tracked message methods; the <a href="message/index.html" title="mod td_client::message">message</a> module
+explains the distinction and cancellation races. The <a href="transfer/index.html" title="mod td_client::transfer">transfer</a> module
+describes measurements, download ranges, and callback requirements.</p>
+<h2 id="requests-updates-and-ownership"><a class="doc-anchor" href="#requests-updates-and-ownership">§</a>Requests, updates, and ownership</h2>
+<p>Clients are cloneable and can be moved into independent tasks. They cannot
+receive updates, close the session, or keep it operational after its owner
+drops. Requests may run concurrently; response arrival is not submission
+order. The owner alone consumes updates through
+<a href="session/struct.Session.html#method.recv" title="method td_client::session::Session::recv"><code>recv</code></a> and authorization through
+<a href="session/struct.Session.html#method.recv_auth" title="method td_client::session::Session::recv_auth"><code>recv_auth</code></a>.</p>
+<p>One process-wide native receiver routes all clients. It resolves requests and
+tracked sends independently of application polling. Original application
+updates remain ordered and unchanged; authorization updates use the separate
+auth API. The queue is unbounded, so applications must drain it to avoid
+accumulating memory. Dispatch slow work separately from the receive loop.</p>
+<p>Do not run this crate alongside another <code>TDLib</code> receiver implementation in the
+same process. Do not call raw receive functions behind its back: the
+native receive stream has one coordinated owner.</p>
+<h2 id="generated-api-vocabulary"><a class="doc-anchor" href="#generated-api-vocabulary">§</a>Generated API vocabulary</h2>
+<p><code>td-types::fns</code> contains requests, <code>td-types::types</code> concrete payloads,
+and <code>td-types::enums</code> tagged unions. Names preserve <code>TDLib</code> spelling.
+<code>td-types::traits::Function</code> associates each request with its return type.
+Defaults make wide request construction convenient, but do not guarantee that
+the resulting arguments are valid for <code>TDLib</code>.</p>
+<p>These crates are built locally; references to their items are written as code
+rather than links to an assumed hosted documentation tree.</p>
+<h2 id="errors-and-application-policy"><a class="doc-anchor" href="#errors-and-application-policy">§</a>Errors and application policy</h2>
+<p><a href="error/enum.Error.html" title="enum td_client::error::Error"><code>error::Error</code></a> distinguishes native errors, JSON failures, terminal message
+failures, cancellation, and disconnection. Unsolicited diagnostics without a
+request recipient go only to the optional <a href="runtime/fn.on_error.html" title="fn td_client::runtime::on_error"><code>on_error</code></a> callback.
+A malformed terminal update may leave a tracked send waiting indefinitely.</p>
+<p>The crate supplies no request deadlines, retries, scheduling, or rate-limit
+policy. A timeout that drops a request future does not undo its native work;
+see <a href="client/struct.Client.html#method.send" title="method td_client::client::Client::send"><code>Client::send</code></a> and the tracked methods before
+retrying an operation that might already have taken effect.</p>
+<p><code>TDLib</code> handles its own network/protocol behavior. The wrapper does not promise
+that every failure is retryable, that cancelling is server-atomic, or that a
+successful progress callback means an operation is complete.</p>
+</div></details><h2 id="reexports" class="section-header">Re-exports<a href="#reexports" class="anchor">§</a></h2><dl class="item-table reexports"><dt id="reexport.types"><code>pub use <a class="mod" href="../td_types/index.html" title="mod td_types">td_types</a> as types;</code></dt><dt><code>pub use crate::<a class="mod" href="client/index.html" title="mod td_client::client">client</a>::*;</code></dt><dt><code>pub use crate::<a class="mod" href="error/index.html" title="mod td_client::error">error</a>::*;</code></dt><dt><code>pub use crate::<a class="mod" href="message/index.html" title="mod td_client::message">message</a>::*;</code></dt><dt><code>pub use crate::<a class="mod" href="runtime/index.html" title="mod td_client::runtime">runtime</a>::*;</code></dt><dt><code>pub use crate::<a class="mod" href="session/index.html" title="mod td_client::session">session</a>::*;</code></dt><dt><code>pub use crate::<a class="mod" href="transfer/index.html" title="mod td_client::transfer">transfer</a>::*;</code></dt></dl><h2 id="modules" class="section-header">Modules<a href="#modules" class="anchor">§</a></h2><dl class="item-table"><dt><a class="mod" href="client/index.html" title="mod td_client::client">client</a></dt><dd>Detached request client for concurrent Telegram operations.</dd><dt><a class="mod" href="error/index.html" title="mod td_client::error">error</a></dt><dd>Request, transfer, authentication, and lifecycle failures.</dd><dt><a class="mod" href="message/index.html" title="mod td_client::message">message</a></dt><dd>Terminal message-send results and temporary message identities.</dd><dt><a class="mod" href="runtime/index.html" title="mod td_client::runtime">runtime</a></dt><dd>Process-wide native execution, receive tuning, and diagnostics.</dd><dt><a class="mod" href="session/index.html" title="mod td_client::session">session</a></dt><dd>Session ownership, authentication, and ordered update consumption.</dd><dt><a class="mod" href="transfer/index.html" title="mod td_client::transfer">transfer</a></dt><dd>Upload/download measurements and explicit downloads.</dd></dl></section></div></main></body></html>
