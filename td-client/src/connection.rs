@@ -1,5 +1,5 @@
 // Shared request admission and correlation. Futures may retain Connection,
-// but only Client owns update consumption and the right to keep it operational.
+// but only Session owns update consumption and the right to keep it operational.
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -13,8 +13,8 @@ use td_types::traits::Function;
 use td_types::{enums, fns, types};
 
 use crate::error::{Error, Result};
-use crate::message::Key;
-use crate::native::{self, parse_error};
+use crate::message::MessageKey;
+use crate::runtime::{self, parse_error};
 
 use self::tracking::{Observation, PendingMessages, parse_messages};
 
@@ -33,7 +33,7 @@ struct Registry {
   // admission together. Construction explicitly opens admission.
   accepting_requests: bool,
   pending_requests: HashMap<u64, PendingReply>,
-  pending_messages: HashMap<Key, oneshot::Sender<Result<types::message>>>,
+  pending_messages: HashMap<MessageKey, oneshot::Sender<Result<types::message>>>,
   file_observers: Vec<Observation>,
 }
 
@@ -58,7 +58,7 @@ impl Connection {
     let (application_updates, receiver) = mpsc::unbounded_channel();
     let registry = Mutex::new(Registry { accepting_requests: true, ..Default::default() });
     let connection = Arc::new(Self { id, registry, next_request_id: AtomicU64::new(0), application_updates });
-    native::register(id, Arc::downgrade(&connection));
+    runtime::register(id, Arc::downgrade(&connection));
     (connection, receiver)
   }
 
@@ -124,7 +124,7 @@ impl Connection {
   pub fn update(&self, raw: &[u8]) {
     let update = match serde_json::from_slice(raw) {
       Ok(update) => update,
-      Err(error) => return native::report(error),
+      Err(error) => return runtime::report(error),
     };
     {
       let mut registry = self.registry.lock().unwrap();
@@ -150,7 +150,7 @@ impl Connection {
 impl Drop for Connection {
   fn drop(&mut self) {
     // Local bookkeeping only; native close and handoff belong to shutdown.
-    native::remove(self.id);
+    runtime::remove(self.id);
   }
 }
 
@@ -184,7 +184,7 @@ mod tests {
     connection.registry.lock().unwrap().pending_requests.insert(7, PendingReply::Messages { progress: true, reply });
     let raw = br#"{"@type":"message","chat_id":9,"id":10,"sending_state":{"@type":"messageSendingStatePending"}}"#;
     connection.complete_request(7, "message", raw);
-    let key = Key { chat_id: 9, message_id: 10 };
+    let key = MessageKey { chat_id: 9, message_id: 10 };
     assert!(connection.registry.lock().unwrap().pending_messages.contains_key(&key));
     let batch = response.try_recv().unwrap().unwrap();
 

@@ -6,7 +6,7 @@
 //! when no clients remain. Do not start a competing receiver or invoke raw
 //! receive functions outside this coordination.
 //!
-//! [`execute`] is distinct from asynchronous [`Sender::send`](crate::client::Sender::send):
+//! [`execute`] is distinct from asynchronous [`Client::send`](crate::client::Client::send):
 //! only `TDLib` functions documented as synchronously executable belong here.
 //!
 //! [`on_error`] receives malformed/unroutable unsolicited output. It is not a
@@ -137,7 +137,7 @@ pub(crate) fn remove(id: i32) {
 /// Executes a supported synchronous `TDLib` function and decodes its response.
 ///
 /// Only generated functions documented by `TDLib` as synchronously executable
-/// are supported, such as `getFileMimeType`. This does not require a [`Client`](crate::client::Client).
+/// are supported, such as `getFileMimeType`. This does not require a [`Session`](crate::session::Session).
 ///
 /// This is a synchronous call directly to `td_execute`. Because `TDLib` stores
 /// output in thread-local storage, it executes immediately without acquiring locks
@@ -151,14 +151,14 @@ pub(crate) fn remove(id: i32) {
 /// # Examples
 ///
 /// ```
-/// use td_client::native;
+/// use td_client::execute;
 /// use td_types::{enums::Text, fns};
 ///
-/// let Text::text(mime) = native::execute(
+/// let Text::text(mime) = execute(
 ///   &fns::getFileMimeType { file_name: "picture.png".into() }
 /// )?;
 /// assert_eq!(mime.text, "image/png");
-/// # Ok::<(), td_client::error::Error>(())
+/// # Ok::<(), td_client::Error>(())
 /// ```
 pub fn execute<F: Function>(request: &F) -> Result<F::Return> {
   let mut bytes = serde_json::to_vec(request)?;
@@ -189,7 +189,7 @@ pub fn execute<F: Function>(request: &F) -> Result<F::Return> {
 ///
 /// ```no_run
 /// use std::time::Duration;
-/// use td_client::native::set_receive_timeout;
+/// use td_client::set_receive_timeout;
 ///
 /// set_receive_timeout(Duration::from_millis(100));
 /// ```
@@ -237,7 +237,7 @@ static ERROR_CALLBACK: Mutex<Option<ErrorCallback>> = Mutex::new(None);
 ///
 /// ```no_run
 /// use std::sync::mpsc;
-/// use td_client::native::on_error;
+/// use td_client::on_error;
 ///
 /// let (errors, receiver) = mpsc::channel();
 /// on_error(move |error| {

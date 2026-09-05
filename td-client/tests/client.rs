@@ -9,9 +9,8 @@ use serde::Serialize;
 use serde::ser::Error as _;
 use tokio::time::timeout;
 
-use td_client::client::{Client, Sender, params};
 use td_client::error::{self, Error};
-use td_client::native::{execute, set_log_level, set_receive_timeout};
+use td_client::{Client, Session, execute, parameters, set_log_level, set_receive_timeout};
 use td_types::enums::{AuthorizationState, TestInt, Text, Update};
 use td_types::traits::Function;
 use td_types::{enums, fns, types};
@@ -55,34 +54,34 @@ async fn exercise(root: &Path) {
   set_receive_timeout(Duration::from_millis(10));
 
   rejects_invalid_parameters(root).await;
-  let first = Client::new(parameters(root, "first"));
-  let second = Client::new(parameters(root, "second"));
+  let first = Session::open(test_parameters(root, "first"));
+  let second = Session::open(test_parameters(root, "second"));
   let (first, second) = tokio::join!(first, second);
   let mut first = first.expect("first client failed to start");
   let second = second.expect("second client failed to start");
-  let (first_sender, second_sender) = (first.sender(), second.sender());
+  let (first_client, second_client) = (first.client(), second.client());
 
-  requests(&first_sender, &second_sender).await;
+  requests(&first_client, &second_client).await;
   wait_for_phone_number(&mut first).await;
   let buffered = first.recv().await;
   assert_matches!(buffered, Some(Update::updateOption(_)));
 
-  first_sender.send(&fns::close {}).await.expect("close request failed");
+  first_client.send(&fns::close {}).await.expect("close request failed");
   while let Some(_) = first.recv().await {}
-  first.shutdown().await.expect("already-closed client failed to shut down");
+  first.close().await.expect("already-closed client failed to shut down");
 
-  lifecycle_races(root, second, second_sender).await;
+  lifecycle_races(root, second, second_client).await;
 }
 
 async fn rejects_invalid_parameters(root: &Path) {
-  let mut invalid = parameters(root, "invalid");
+  let mut invalid = test_parameters(root, "invalid");
   invalid.system_language_code.clear();
-  let result = Client::new(invalid).await;
+  let result = Session::open(invalid).await;
   let error = result.err();
   assert_matches!(error, Some(Error::Td(error)) if error.code == 400);
 }
 
-async fn requests(first: &Sender, second: &Sender) {
+async fn requests(first: &Client, second: &Client) {
   let result = first.send(&BadRequest).await;
   assert_matches!(result, Err(Error::Json(_)));
   let result = first.send(&WrongReturn).await;
@@ -106,42 +105,42 @@ async fn requests(first: &Sender, second: &Sender) {
   assert_matches!(result, Err(Error::Td(actual)) if actual == error);
 }
 
-async fn square(sender: &Sender, value: i32) -> error::Result<i32> {
-  let TestInt::testInt(result) = sender.send(&fns::testSquareInt { x: value }).await?;
+async fn square(client: &Client, value: i32) -> error::Result<i32> {
+  let TestInt::testInt(result) = client.send(&fns::testSquareInt { x: value }).await?;
   Ok(result.value)
 }
 
-async fn wait_for_phone_number(client: &mut Client) {
+async fn wait_for_phone_number(session: &mut Session) {
   loop {
-    if let AuthorizationState::authorizationStateWaitPhoneNumber = client.recv_auth().await {
+    if let AuthorizationState::authorizationStateWaitPhoneNumber = session.recv_auth().await {
       return;
     }
   }
 }
 
-async fn lifecycle_races(root: &Path, second: Client, stale: Sender) {
-  let third = Client::new(parameters(root, "third")).await.expect("third client failed to start");
-  let racing = Client::new(parameters(root, "racing"));
-  let (second, third, racing) = tokio::join!(second.shutdown(), third.shutdown(), racing);
+async fn lifecycle_races(root: &Path, second: Session, stale: Client) {
+  let third = Session::open(test_parameters(root, "third")).await.expect("third client failed to start");
+  let racing = Session::open(test_parameters(root, "racing"));
+  let (second, third, racing) = tokio::join!(second.close(), third.close(), racing);
   second.expect("second client failed to shut down");
   third.expect("third client failed to shut down");
-  racing.expect("racing client failed to start").shutdown().await.expect("racing client failed to shut down");
+  racing.expect("racing client failed to start").close().await.expect("racing client failed to shut down");
   let result = stale.send(&fns::testSquareInt { x: 6 }).await;
   assert_matches!(result, Err(Error::Disconnected));
 
-  let closing = Client::new(parameters(root, "closing")).await.expect("closing client failed to start");
-  let request = closing.sender();
+  let closing = Session::open(test_parameters(root, "closing")).await.expect("closing client failed to start");
+  let request = closing.client();
   let request = tokio::spawn(async move { square(&request, 6).await });
-  closing.shutdown().await.expect("closing client failed to shut down");
+  closing.close().await.expect("closing client failed to shut down");
   let result = request.await.expect("racing request task panicked");
   assert_matches!(result, Ok(36) | Err(Error::Disconnected));
 
-  let restarted = Client::new(parameters(root, "restart")).await.expect("restarted client failed to start");
-  restarted.shutdown().await.expect("restarted client failed to shut down");
+  let restarted = Session::open(test_parameters(root, "restart")).await.expect("restarted client failed to start");
+  restarted.close().await.expect("restarted client failed to shut down");
 }
 
-fn parameters(root: &Path, name: &str) -> fns::setTdlibParameters {
-  let mut params = params(API_ID, API_HASH, root.join(name));
+fn test_parameters(root: &Path, name: &str) -> fns::setTdlibParameters {
+  let mut params = parameters(API_ID, API_HASH, root.join(name));
   params.use_file_database = false;
   params.use_chat_info_database = false;
   params.use_message_database = false;

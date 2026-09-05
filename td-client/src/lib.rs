@@ -52,45 +52,45 @@
 //! Bots additionally need a token from [BotFather](https://t.me/BotFather).
 //! Keep credentials and session directories out of version control.
 //!
-//! # A request and a clean shutdown
+//! # A request and a clean closure
 //!
-//! A [`Client`](client::Client) owns one `TDLib` instance. Obtain a
-//! [`Sender`](client::Sender) for requests; keep the owner until shutdown.
+//! A [`Session`] owns one `TDLib` instance. Obtain a
+//! [`Client`] for requests; keep the owner until closure.
 //! A request's generated type determines its response type:
 //!
 //! ```no_run
-//! use td_client::client::{Client, params};
-//! use td_client::error::Result;
-//! use td_types::{enums::User, fns};
+//! use td_client::types::{enums::User, fns};
+//! use td_client::{Session, parameters};
+//! use td_client::Result;
 //!
 //! # async fn example(api_id: i32, api_hash: &str, token: &str) -> Result {
-//! let client = Client::bot(params(api_id, api_hash, "session"), token).await?;
-//! let result = client.sender().send(&fns::getMe {}).await;
-//! let shutdown = client.shutdown().await;
+//! let mut session = Session::bot(parameters(api_id, api_hash, "session"), token).await?;
+//! let result = session.client().send(&fns::getMe {}).await;
+//! let close = session.close().await;
 //!
 //! // Attempt cleanup even when the application request fails.
 //! let User::user(user) = result?;
-//! shutdown?;
+//! close?;
 //! println!("Signed in as {}", user.first_name);
 //! # Ok(())
 //! # }
 //! ```
 //!
-//! Do not put a fallible application's entire body before `shutdown().await?`
+//! Do not put a fallible application's entire body before `close().await?`
 //! using unchecked early `?` returns: they can drop the owner without closing
-//! `TDLib`. Save the application result, attempt shutdown, then choose how to
-//! report either or both errors. Dropping an unfinished constructor or shutdown
+//! `TDLib`. Save the application result, attempt close, then choose how to
+//! report either or both errors. Dropping an unfinished constructor or close
 //! future also abandons graceful cleanup.
 //!
 //! # Choosing an operation
 //!
 //! | Method | What its result means |
 //! | --- | --- |
-//! | [`Sender::send`](client::Sender::send) | The function's direct `TDLib` response |
-//! | [`Sender::send_message`](client::Sender::send_message) | One normal send reached its terminal outcome |
-//! | [`Sender::send_messages`](client::Sender::send_messages) | Ordered individual outcomes for a normal-send batch |
-//! | [`Sender::download`](client::Sender::download) | `TDLib` finished the synchronous download request |
-//! | [`native::execute`] | A synchronously executable function returned |
+//! | [`Client::send`](client::Client::send) | The function's direct `TDLib` response |
+//! | [`Client::track`](client::Client::track) | One normal send reached its terminal outcome |
+//! | [`Client::track_all`](client::Client::track_all) | Ordered individual outcomes for a normal-send batch |
+//! | [`Client::download`](client::Client::download) | `TDLib` finished the synchronous download request |
+//! | [`execute`] | A synchronously executable function returned |
 //!
 //! Use direct requests for getters, edits, previews, and other API functions.
 //! Only normal sends belong on tracked message methods; the [message] module
@@ -99,12 +99,12 @@
 //!
 //! # Requests, updates, and ownership
 //!
-//! Senders are cloneable and can be moved into independent tasks. They cannot
-//! receive updates, close the client, or keep it operational after its owner
+//! Clients are cloneable and can be moved into independent tasks. They cannot
+//! receive updates, close the session, or keep it operational after its owner
 //! drops. Requests may run concurrently; response arrival is not submission
 //! order. The owner alone consumes updates through
-//! [`recv`](client::Client::recv) and authorization through
-//! [`recv_auth`](client::Client::recv_auth).
+//! [`recv`](session::Session::recv) and authorization through
+//! [`recv_auth`](session::Session::recv_auth).
 //!
 //! One process-wide native receiver routes all clients. It resolves requests and
 //! tracked sends independently of application polling. Original application
@@ -131,12 +131,12 @@
 //!
 //! [`error::Error`] distinguishes native errors, JSON failures, terminal message
 //! failures, cancellation, and disconnection. Unsolicited diagnostics without a
-//! request recipient go only to the optional [`native::on_error`] callback.
+//! request recipient go only to the optional [`on_error`] callback.
 //! A malformed terminal update may leave a tracked send waiting indefinitely.
 //!
 //! The crate supplies no request deadlines, retries, scheduling, or rate-limit
 //! policy. A timeout that drops a request future does not undo its native work;
-//! see [`Sender::send`](client::Sender::send) and the tracked methods before
+//! see [`Client::send`](client::Client::send) and the tracked methods before
 //! retrying an operation that might already have taken effect.
 //!
 //! `TDLib` handles its own network/protocol behavior. The wrapper does not promise
@@ -146,7 +146,17 @@
 pub mod client;
 pub mod error;
 pub mod message;
-pub mod native;
+pub mod runtime;
+pub mod session;
 pub mod transfer;
 
 mod connection;
+
+pub use td_types as types;
+
+pub use crate::client::*;
+pub use crate::error::*;
+pub use crate::message::*;
+pub use crate::runtime::*;
+pub use crate::session::*;
+pub use crate::transfer::*;

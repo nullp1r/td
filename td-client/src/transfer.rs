@@ -1,7 +1,7 @@
 //! Upload/download measurements and explicit downloads.
 //!
 //! Files are uploaded through tracked [message sends](crate::message), not a
-//! preliminary-upload method. [`Sender::download`] handles a generated
+//! preliminary-upload method. [`Client::download`] handles a generated
 //! `downloadFile` request. All tracked operations accept the same optional
 //! borrowed `FnMut(usize, Progress) + Send` callback. Its index is the batch
 //! position for multiple messages, or zero for single sends and downloads.
@@ -52,7 +52,7 @@ pub use tokio_util::sync::CancellationToken;
 use td_types::enums::File;
 use td_types::{fns, types};
 
-use crate::client::Sender;
+use crate::client::Client;
 use crate::connection::tracking::{cancelled, with_progress};
 use crate::error::{Error, Result};
 
@@ -67,7 +67,7 @@ use crate::error::{Error, Result};
 /// Treat zero totals as indeterminate rather than dividing by zero:
 ///
 /// ```
-/// use td_client::transfer::Progress;
+/// use td_client::Progress;
 ///
 /// fn display(progress: Progress) -> String {
 ///   match progress.total {
@@ -85,7 +85,7 @@ pub struct Progress {
   pub total: i64,
 }
 
-impl Sender {
+impl Client {
   /// Downloads a file or byte range and returns `TDLib`'s final file state.
   ///
   /// The caller supplies the generated `downloadFile` request, including its
@@ -99,7 +99,7 @@ impl Sender {
   ///
   /// # Errors
   ///
-  /// Returns direct-request errors as described on [`Sender::send`]. When native
+  /// Returns direct-request errors as described on [`Client::send`]. When native
   /// cancellation succeeds and the download returns a `TDLib` error, that error is
   /// reported as [`Error::Cancelled`]. This is a cancellation interpretation,
   /// not proof that no other native failure raced with cancellation. A successful
@@ -120,19 +120,19 @@ impl Sender {
   /// # Examples
   ///
   /// ```no_run
-  /// # use td_client::client::Sender;
-  /// # use td_client::error::Result;
-  /// # use td_client::transfer::Progress;
+  /// # use td_client::Client;
+  /// # use td_client::Result;
+  /// # use td_client::Progress;
   /// use td_types::fns;
   ///
-  /// # async fn fetch(sender: &Sender, file_id: i32) -> Result {
+  /// # async fn fetch(client: &Client, file_id: i32) -> Result {
   /// let request = fns::downloadFile {
   ///   file_id, priority: 1, offset: 0, limit: 0, synchronous: true,
   /// };
   /// let mut observe = |_: usize, progress: Progress| {
   ///   println!("Available: {} bytes", progress.current);
   /// };
-  /// let file = sender.download(&request, None, Some(&mut observe)).await?;
+  /// let file = client.download(&request, None, Some(&mut observe)).await?;
   /// println!("Local path: {}", file.local.path);
   /// # Ok(())
   /// # }

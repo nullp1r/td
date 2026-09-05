@@ -1,10 +1,10 @@
 //! Terminal message-send results and temporary message identities.
 //!
 //! A direct `TDLib` send response can contain a local temporary message. Successful
-//! submission is not necessarily successful delivery. [`Sender::send_message`]
-//! and [`Sender::send_messages`] bind pending identities before the request wakes,
+//! submission is not necessarily successful delivery. [`Client::track`]
+//! and [`Client::track_all`] bind pending identities before the request wakes,
 //! then wait for send-success, send-failure, or non-cache deletion updates.
-//! Every original update remains available through [`Client::recv`](crate::client::Client::recv).
+//! Every original update remains available through [`Session::recv`](crate::session::Session::recv).
 //!
 //! # Supported requests
 //!
@@ -12,7 +12,7 @@
 //! `sendMessageAlbum`, and normal non-preview `forwardMessages` calls.
 //! Generic return-type bounds are not a promise to track every function returning
 //! `Message` or `Messages`. Previews, getters, and edits belong on
-//! [`Sender::send`]; an unsupported pending-looking response may never finish.
+//! [`Client::send`]; an unsupported pending-looking response may never finish.
 //! Already-final direct responses return without waiting for a terminal update.
 //!
 //! Edits use their direct correlated response. An `updateMessageEdited` event
@@ -40,15 +40,15 @@
 //!
 //! ```no_run
 //! # use std::future::Future;
-//! # use td_client::client::Sender;
-//! # use td_client::error::Result;
-//! # use td_client::transfer::CancellationToken;
+//! # use td_client::Client;
+//! # use td_client::Result;
+//! # use td_client::CancellationToken;
 //! # use td_types::{fns, types};
 //! # async fn send_until_stop(
-//! #   sender: &Sender, request: &fns::sendMessage, stop: impl Future<Output = ()>,
+//! #   client: &Client, request: &fns::sendMessage, stop: impl Future<Output = ()>,
 //! # ) -> Result<types::message> {
 //! let cancel = CancellationToken::new();
-//! let sending = sender.send_message(request, Some(&cancel), None);
+//! let sending = client.track(request, Some(&cancel), None);
 //! tokio::pin!(sending);
 //! tokio::select! {
 //!   result = &mut sending => result,
@@ -75,7 +75,7 @@ use td_types::enums::{Message, Messages};
 use td_types::traits::Function;
 use td_types::types;
 
-use crate::client::Sender;
+use crate::client::Client;
 use crate::connection::tracking::with_progress;
 use crate::error::{Error, Result};
 use crate::transfer::{CancellationToken, Progress};
@@ -86,14 +86,14 @@ use crate::transfer::{CancellationToken, Progress};
 /// by [`Error::MessageFailed`] or [`Error::MessageDeleted`] refer to the
 /// temporary send identity, not a replacement successful final message ID.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct Key {
+pub struct MessageKey {
   /// The chat containing the temporary message.
   pub chat_id: i64,
   /// The temporary message ID assigned by `TDLib`.
   pub message_id: i64,
 }
 
-impl Sender {
+impl Client {
   /// Sends one normal message and waits for its terminal result.
   ///
   /// Accepts a generated function returning `td-types::enums::Message`, subject
@@ -123,11 +123,11 @@ impl Sender {
   /// # Examples
   ///
   /// ```no_run
-  /// # use td_client::client::Sender;
-  /// # use td_client::error::Result;
+  /// # use td_client::Client;
+  /// # use td_client::Result;
   /// use td_types::{fns, types};
   ///
-  /// # async fn greet(sender: &Sender, chat_id: i64) -> Result {
+  /// # async fn greet(client: &Client, chat_id: i64) -> Result {
   /// let text = types::formattedText { text: "Hello!".into(), ..Default::default() };
   /// let content = types::inputMessageText { text, ..Default::default() };
   /// let request = fns::sendMessage {
@@ -135,12 +135,12 @@ impl Sender {
   ///   input_message_content: content.into(),
   ///   ..Default::default()
   /// };
-  /// let message = sender.send_message(&request, None, None).await?;
+  /// let message = client.track(&request, None, None).await?;
   /// println!("Sent message {}", message.id);
   /// # Ok(())
   /// # }
   /// ```
-  pub async fn send_message<F: Function<Return = Message>>(
+  pub async fn track<F: Function<Return = Message>>(
     &self,
     request: &F,
     cancel: Option<&CancellationToken>,
@@ -171,7 +171,7 @@ impl Sender {
   ///
   /// The outer result reports direct-request, decoding, and pre-binding
   /// disconnection errors. Each inner result has the terminal/cancellation errors
-  /// documented on [`send_message`](Self::send_message).
+  /// documented on [`track`](Self::track).
   ///
   /// # Cancellation
   ///
@@ -189,11 +189,11 @@ impl Sender {
   /// succeeded:
   ///
   /// ```no_run
-  /// # use td_client::client::Sender;
-  /// # use td_client::error::Result;
+  /// # use td_client::Client;
+  /// # use td_client::Result;
   /// # use td_types::fns;
-  /// # async fn album(sender: &Sender, request: &fns::sendMessageAlbum) -> Result {
-  /// let results = sender.send_messages(request, None, None).await?;
+  /// # async fn album(client: &Client, request: &fns::sendMessageAlbum) -> Result {
+  /// let results = client.track_all(request, None, None).await?;
   /// for (index, result) in results.into_iter().enumerate() {
   ///   match result {
   ///     Ok(message) => println!("Item {index}: message {}", message.id),
@@ -203,7 +203,7 @@ impl Sender {
   /// # Ok(())
   /// # }
   /// ```
-  pub async fn send_messages<F: Function<Return = Messages>>(
+  pub async fn track_all<F: Function<Return = Messages>>(
     &self,
     request: &F,
     cancel: Option<&CancellationToken>,

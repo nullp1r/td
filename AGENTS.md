@@ -2,81 +2,288 @@
 
 ## Development principles
 
-- Start from demonstrated consumer needs. Remove unsupported premises before adding machinery, and add capabilities only when a real caller requires them.
-- Choose the smallest coherent design, not merely the smallest patch. Track production line count while designing, record predecessor/draft deltas in rewrite RFCs, and make every added type, helper, state, channel, wrapper, and synchronization primitive earn its lines through correctness or clarity. Use line count as design feedback, never as a reason to obscure invariants or compress expressive control flow.
-- Backward compatibility and public-interface stability are not goals. For every engineering task, explore the full solution space, especially designs that change the public interface; prefer the cleanest end state over preserving existing callers.
-- Do not add compatibility layers, deprecated bridges, or internal complexity to retain an old API. Update affected callers, examples, and tests together.
-- Make ownership and lifecycle visible in APIs. Use Rust ownership and borrowing to prevent invalid states instead of compensating with cloneable handles or public state machines.
-- Prefer typed protocol operations and generated TDLib types over hand-built JSON. Model guaranteed wire fields as required fields rather than defensive `Option`s.
-- Preserve ordering and errors. Never silently discard updates, serialization failures, TDLib errors, or lifecycle failures.
-- Keep policy at the correct layer. The library reports errors; applications decide logging and operational policy. Do not invent generic overflow, retry, operation-deadline, or update-dropping behavior without an explicit requirement. Low-level transport tuning, such as TDLib's receive wait, is mechanism rather than application policy and should remain configurable when real deployments need it.
-- Avoid speculative extensibility: no builders, adapters, handles, wrappers, traits, or dependencies for hypothetical consumers. Standard-library and already-used primitives come first.
-- Treat efficiency as a first-class design requirement, not a cleanup pass. Evaluate memory layout, cache locality, allocations, copies, pointer indirection, traversal count, and asymptotic behavior while choosing the design.
-- Prefer data-oriented design where applicable: flat contiguous storage, compact state, dense identifiers and offsets, and predictable linear passes over pointer-rich object graphs and scattered allocations.
-- Actively look for specialized, niche algorithms and data structures that fit the domain better than the obvious general-purpose solution. Prefer compact representations and targeted algorithms when they make invariants sharper, reduce allocation or dependency cost, or improve asymptotic behavior; unfamiliarity alone is not a reason to reject them.
-- Treat language and library freshness as a goal when it produces a concrete correctness, clarity, efficiency, or line-count benefit; novelty alone does not justify machinery.
-- Keep shared dependency versions in the workspace manifest and enable only the features each crate uses. Track current releases aggressively, but do not add a dependency when the standard library provides a small direct solution.
-- Keep reusable crates policy-free and dependency-light. Use explicit library error types; reserve `anyhow`, subscriber setup, and operational logging for binaries and application layers.
+- Start from demonstrated consumer needs. Remove unsupported premises before
+  adding machinery, and add capabilities only when a real caller requires them.
+- Choose the smallest coherent design, not merely the smallest patch. Track
+  production line count while designing, record predecessor/draft deltas in
+  rewrite RFCs, and make every added type, helper, state, channel, wrapper, and
+  synchronization primitive earn its lines through correctness or clarity. Use
+  line count as design feedback, never as a reason to obscure invariants or
+  compress expressive control flow.
+- Backward compatibility and public-interface stability are not goals. For every
+  engineering task, explore the full solution space, especially designs that
+  change the public interface; prefer the cleanest end state over preserving
+  existing callers.
+- Do not add compatibility layers, deprecated bridges, or internal complexity to
+  retain an old API. Update affected callers, examples, and tests together.
+- Make ownership and lifecycle visible in APIs. Use Rust ownership and borrowing
+  to prevent invalid states instead of compensating with cloneable handles or
+  public state machines.
+- Prefer typed protocol operations and generated TDLib types over hand-built
+  JSON. Model guaranteed wire fields as required fields rather than defensive
+  `Option`s.
+- Preserve ordering and errors. Never silently discard updates, serialization
+  failures, TDLib errors, or lifecycle failures.
+- Keep policy at the correct layer. The library reports errors; applications
+  decide logging and operational policy. Do not invent generic overflow, retry,
+  operation-deadline, or update-dropping behavior without an explicit
+  requirement. Low-level transport tuning, such as TDLib's receive wait, is
+  mechanism rather than application policy and should remain configurable when
+  real deployments need it.
+- Avoid speculative extensibility: no builders, adapters, handles, wrappers,
+  traits, or dependencies for hypothetical consumers. Standard-library and
+  already-used primitives come first.
+- Treat efficiency as a first-class design requirement, not a cleanup pass.
+  Evaluate memory layout, cache locality, allocations, copies, pointer
+  indirection, traversal count, and asymptotic behavior while choosing the
+  design.
+- Prefer data-oriented design where applicable: flat contiguous storage, compact
+  state, dense identifiers and offsets, and predictable linear passes over
+  pointer-rich object graphs and scattered allocations.
+- Actively look for specialized, niche algorithms and data structures that fit
+  the domain better than the obvious general-purpose solution. Prefer compact
+  representations and targeted algorithms when they make invariants sharper,
+  reduce allocation or dependency cost, or improve asymptotic behavior;
+  unfamiliarity alone is not a reason to reject them.
+- Treat language and library freshness as a goal when it produces a concrete
+  correctness, clarity, efficiency, or line-count benefit; novelty alone does
+  not justify machinery.
+- Keep shared dependency versions in the workspace manifest and enable only the
+  features each crate uses. Track current releases aggressively, but do not add
+  a dependency when the standard library provides a small direct solution.
+- Keep reusable crates policy-free and dependency-light. Use explicit library
+  error types; reserve `anyhow`, subscriber setup, and operational logging for
+  binaries and application layers.
 
 ## Rust style
 
-- Track the newest Rust compiler and edition available, including nightly when it unlocks a concrete worthwhile feature. Bump toolchain pins and crate `rust-version` values promptly; compatibility with older compilers is not a goal.
-- Prefer the newest useful syntax, standard-library APIs, compiler capabilities, and lints. Migrate eagerly when new options become available.
-- Follow `.rustfmt.toml`: two-space indentation, 160-column width, and maximized small-item formatting.
-- Treat 160 columns as a ceiling for occasional exceptions, not a target. Prefer roughly 80-120 columns when the result reads naturally, and become increasingly skeptical as a line grows. Split dense expressions, bind meaningful intermediate values, or use a standalone `//.` in a long method chain when that keeps `rustfmt` from collapsing a clearer layout. Keep a longer line when every available split makes the local structure worse.
-- Keep the workspace's strict Clippy configuration clean. Fix the code first; when an exception is intrinsic to an external signature, generated code, or benchmark, use a narrow `#[expect(..., reason = "...")]`, never a broad `allow`.
-- Favor native pattern-driven control flow: destructuring, slice and range patterns, `@` bindings, or-patterns, irrefutable `let` patterns, `if let`, `let ... else`, let-chains, match guards, `?`, and early returns. Avoid `matches!` when native syntax expresses the control flow or preserves bindings more directly; use it only when a boolean pattern predicate is genuinely the clearest form. Prefer compact pattern composition such as `let ([foo @ .., _] | foo) = foo;` over a one-use helper that only reshapes or unwraps a value. Do not flatten an expressive structural match into combinators merely to reduce line count; prefer the form that makes the accepted shapes clearest.
-- Keep methods small and at one level of abstraction. When an operation has multiple stages, let its entry method orchestrate clearly named private steps; extract even a one-use helper when it isolates a real protocol or lifecycle responsibility. Do not split straight-line mechanics into helpers that merely move lines or force readers to jump around.
-- Generally avoid direct indexing and index-driven loops. Prefer pattern matching, slice destructuring, iterators, `get`/`get_mut`, `split_first`/`split_last`, `windows`, or `chunks`; index only when the bounds proof is local and obvious or the algorithm genuinely requires indices.
-- Prefer native async language features: async functions and closures, return-position `impl Future` in traits, and borrowed futures. Avoid `async_trait`, boxed futures, and erased dynamic dispatch unless a concrete heterogeneous use case requires them.
-- Derive `Default` and use struct-update syntax for wide generated types. Choose between destructuring and field access locally by whichever makes that code clearest; never apply either mechanically. Destructure when consuming several fields, rebuilding a value with field-init shorthand, or making the accepted structure clearer. Access fields directly when naming a struct or binding irrelevant fields would add more noise than a small number of projections, especially for a single field. When destructuring through a shared reference, generally match the leading reference (`let &Foo { copied, ref borrowed } = value`) or dereference a match scrutinee once instead of implicitly borrowing every field and repeatedly writing `*copied`; keep implicit reference bindings when they make ownership or the overall pattern clearer.
-- Initialize related default-valued locals together with tuple destructuring, such as `let (pending, queued, closed) = Default::default();`, instead of repeating individual default constructors.
-- Borrow source data through parsing and transformation where lifetimes stay simple. Accept slices, deserialize from bytes, reuse caller-provided buffers for hot paths, and avoid intermediate `String`s or collections unless ownership is required.
-- Formatting is allocation-free by default. Compose output with `format_args!`, `write!`, `fmt::Display`, and `fmt::from_fn`; do not use `format!` or `.to_string()` merely to pass formatted text onward. If a callee forces an allocation, first consider changing its interface to accept `fmt::Arguments`, `impl Display`, or a `fmt::Write` destination. Allocate only when an owned, stored string is the actual required result.
-- Choose collections for the actual access pattern: `HashMap` for dynamic keyed routing, `VecDeque` for ordered buffering, and sorted/deduplicated `Vec`s plus binary search for compact build-once/read-many tables. Use unstable sorting when equal-item order is irrelevant.
-- Keep visibility narrow and public APIs small. Give public types and operations concise, conventional names with natural pairs such as noun/verb and `send`/`recv`; do not expose transport identifiers or internal synchronization concepts as application API.
-- Prefer plain private items inside a module tree: descendant modules can already access private items from their ancestors. Generally avoid `pub(super)` and `pub(crate)`; before widening an item for sibling or cross-branch access, reconsider whether the shared item belongs in their nearest common ancestor. Public items inside a private module are acceptable when the parent must use them and the private module boundary prevents external exposure.
-- Give private types, fields, and methods descriptive role names. Prefer names that make their one responsibility apparent at the call site over comments that compensate for vague words such as `handle`, `process`, `state`, or `data`.
-- Put a precise `// SAFETY:` comment immediately before every `unsafe` block. State the actual FFI invariant, such as pointer validity, NUL termination, object lifetime, or sole-caller ownership.
-- At FFI boundaries, prefer C string literals for static inputs and explicitly NUL-terminated byte buffers for dynamic serialized inputs. Stay in bytes until text validation is actually needed.
-- Comments should explain contracts, ordering, or non-obvious tradeoffs, not restate code or substitute for precise private names.
-- Preserve upstream generated TDLib naming even when its lowercase type and variant names are not idiomatic Rust.
+- Track the newest Rust compiler and edition available, including nightly when
+  it unlocks a concrete worthwhile feature. Bump toolchain pins and crate
+  `rust-version` values promptly; compatibility with older compilers is not a
+  goal.
+- Prefer the newest useful syntax, standard-library APIs, compiler capabilities,
+  and lints. Migrate eagerly when new options become available.
+- Follow `.rustfmt.toml`: two-space indentation, 160-column width, and maximized
+  small-item formatting.
+- Treat 160 columns as a ceiling for occasional exceptions, not a target. Prefer
+  roughly 80-120 columns when the result reads naturally, and become
+  increasingly skeptical as a line grows. Split dense expressions, bind
+  meaningful intermediate values, or use a standalone `//.` in a long method
+  chain when that keeps `rustfmt` from collapsing a clearer layout. Keep a
+  longer line when every available split makes the local structure worse.
+- Keep the workspace's strict Clippy configuration clean. Fix the code first;
+  when an exception is intrinsic to an external signature, generated code, or
+  benchmark, use a narrow `#[expect(..., reason = "...")]`, never a broad
+  `allow`.
+- Favor native pattern-driven control flow: destructuring, slice and range
+  patterns, `@` bindings, or-patterns, irrefutable `let` patterns, `if let`,
+  `let ... else`, let-chains, match guards, `?`, and early returns. Avoid
+  `matches!` when native syntax expresses the control flow or preserves bindings
+  more directly; use it only when a boolean pattern predicate is genuinely the
+  clearest form. Prefer compact pattern composition such as
+  `let ([foo @ .., _] | foo) = foo;` over a one-use helper that only reshapes or
+  unwraps a value. Do not flatten an expressive structural match into
+  combinators merely to reduce line count; prefer the form that makes the
+  accepted shapes clearest.
+- Keep methods small and at one level of abstraction. When an operation has
+  multiple stages, let its entry method orchestrate clearly named private steps;
+  extract even a one-use helper when it isolates a real protocol or lifecycle
+  responsibility. Do not split straight-line mechanics into helpers that merely
+  move lines or force readers to jump around.
+- Generally avoid direct indexing and index-driven loops. Prefer pattern
+  matching, slice destructuring, iterators, `get`/`get_mut`,
+  `split_first`/`split_last`, `windows`, or `chunks`; index only when the bounds
+  proof is local and obvious or the algorithm genuinely requires indices.
+- Prefer native async language features: async functions and closures,
+  return-position `impl Future` in traits, and borrowed futures. Avoid
+  `async_trait`, boxed futures, and erased dynamic dispatch unless a concrete
+  heterogeneous use case requires them.
+- Derive `Default` and use struct-update syntax for wide generated types. Choose
+  between destructuring and field access locally by whichever makes that code
+  clearest; never apply either mechanically. Destructure when consuming several
+  fields, rebuilding a value with field-init shorthand, or making the accepted
+  structure clearer. Access fields directly when naming a struct or binding
+  irrelevant fields would add more noise than a small number of projections,
+  especially for a single field. When destructuring through a shared reference,
+  generally match the leading reference
+  (`let &Foo { copied, ref borrowed } = value`) or dereference a match scrutinee
+  once instead of implicitly borrowing every field and repeatedly writing
+  `*copied`; keep implicit reference bindings when they make ownership or the
+  overall pattern clearer.
+- Initialize related default-valued locals together with tuple destructuring,
+  such as `let (pending, queued, closed) = Default::default();`, instead of
+  repeating individual default constructors.
+- Borrow source data through parsing and transformation where lifetimes stay
+  simple. Accept slices, deserialize from bytes, reuse caller-provided buffers
+  for hot paths, and avoid intermediate `String`s or collections unless
+  ownership is required.
+- Formatting is allocation-free by default. Compose output with `format_args!`,
+  `write!`, `fmt::Display`, and `fmt::from_fn`; do not use `format!` or
+  `.to_string()` merely to pass formatted text onward. If a callee forces an
+  allocation, first consider changing its interface to accept `fmt::Arguments`,
+  `impl Display`, or a `fmt::Write` destination. Allocate only when an owned,
+  stored string is the actual required result.
+- Choose collections for the actual access pattern: `HashMap` for dynamic keyed
+  routing, `VecDeque` for ordered buffering, and sorted/deduplicated `Vec`s plus
+  binary search for compact build-once/read-many tables. Use unstable sorting
+  when equal-item order is irrelevant.
+- Keep visibility narrow and public APIs small. Give public types and operations
+  concise, conventional names with natural pairs such as noun/verb and
+  `send`/`recv`; do not expose transport identifiers or internal synchronization
+  concepts as application API.
+- Prefer plain private items inside a module tree: descendant modules can
+  already access private items from their ancestors. Generally avoid
+  `pub(super)` and `pub(crate)`; before widening an item for sibling or
+  cross-branch access, reconsider whether the shared item belongs in their
+  nearest common ancestor. Public items inside a private module are acceptable
+  when the parent must use them and the private module boundary prevents
+  external exposure.
+- Give private types, fields, and methods descriptive role names. Prefer names
+  that make their one responsibility apparent at the call site over comments
+  that compensate for vague words such as `handle`, `process`, `state`, or
+  `data`.
+- Put a precise `// SAFETY:` comment immediately before every `unsafe` block.
+  State the actual FFI invariant, such as pointer validity, NUL termination,
+  object lifetime, or sole-caller ownership.
+- At FFI boundaries, prefer C string literals for static inputs and explicitly
+  NUL-terminated byte buffers for dynamic serialized inputs. Stay in bytes until
+  text validation is actually needed.
+- Comments should explain contracts, ordering, or non-obvious tradeoffs, not
+  restate code or substitute for precise private names.
+- Preserve upstream generated TDLib naming even when its lowercase type and
+  variant names are not idiomatic Rust.
 
 ## Parsing and code generation
 
-- Treat schemas and generators as the source of generated Rust. Fix parser or generator logic rather than patching generated output.
-- Keep parsing zero-copy where practical: AST nodes borrow from the input and allocate only structural containers or recursive indirection.
-- Keep generation deterministic. Sort and deduplicate unstable input order, snapshot small exact fixtures, and syntax-parse large generated output to validate it structurally.
-- Escape Rust keywords with raw identifiers and add `Box` only where recursive layout analysis proves indirection is required.
+- Treat schemas and generators as the source of generated Rust. Fix parser or
+  generator logic rather than patching generated output.
+- Keep parsing zero-copy where practical: AST nodes borrow from the input and
+  allocate only structural containers or recursive indirection.
+- Keep generation deterministic. Sort and deduplicate unstable input order,
+  snapshot small exact fixtures, and syntax-parse large generated output to
+  validate it structurally.
+- Escape Rust keywords with raw identifiers and add `Box` only where recursive
+  layout analysis proves indirection is required.
 
 ## `td-client` invariants
 
-- Each live TDLib client has one owning, non-`Clone` `Client`. All public requests use a non-owning `Sender`; update/auth consumption borrows `&mut Client`; graceful shutdown consumes `Client`.
-- `Sender` stores `Weak<Connection>`, is cloneable but is not a lifecycle owner, and cannot receive updates or initiate shutdown. Dropping `Client` revokes new detached requests even if `Sender` values remain.
-- Keep the public vocabulary compact and paired. `Sender::send` returns a function's direct TDLib response; message and transfer entry points are direct async methods with optional borrowed `CancellationToken`s. File progress uses one synchronous operation-local `Send` callback so transfer futures remain `Send`. Do not expose operation handles, reattachment, raw channels, transport order, or `@extra` request identifiers. `message::Key` remains public only as the meaningful temporary-message identity carried by send errors.
-- Exactly one process-wide receiver thread may call `td_receive`. Route by required `@client_id`, correlate requests by `@extra`, and keep one flat per-client registry containing pending requests, message sends, and active file operations. Store router entries as `Weak<Connection>` so routing never extends client lifetime.
-- Parse and atomically bind every pending message in a tracked direct `Message` or `Messages` response before waking its request future. Match `updateMessageSendSucceeded` and `updateMessageSendFailed` through `old_message_id`, and non-cache `updateDeleteMessages` through the deleted temporary ID. TDLib's direct-response-before-terminal ordering is source-derived rather than a schema contract; re-audit it and the complete trackable-function set on every TDLib upgrade. Tracked entry points accept any function with the matching return type, but their behavior is defined only for normal sends that finish through message-send updates; callers use `Sender::send` for everything else.
-- Observe terminal message-send updates by reference and always enqueue the original update unchanged. A tracked send must complete even while the application is not polling `Client::recv`; application update consumption must never drive internal progress.
-- Message-edit functions complete their correlated direct response only after TDLib finishes upload, server, and update processing. `updateMessageEdited` is an application update, not a completion event: it has neither request correlation nor failure information. Use `Sender::send` for edits; do not route them through message-send tracking.
-- Do not expose preliminary uploads; files are uploaded through tracked message sends. Bind their primary file IDs from the direct pending `Message` or `Messages` response before waking the requester. Require explicit downloads to set `downloadFile.synchronous = true` and assert that invariant instead of rewriting the request; the native promise supplies the final exact-range state. Keep active-operation file observation sparse, coalesced, and limited to copy-only transfer progress while enqueueing every original `updateFile` unchanged for the application.
-- Match synchronization primitives to their semantics: short non-async critical sections use `std::sync::Mutex`, correlated and terminal replies use `oneshot`, coalesced file progress and receiver ownership transitions use `watch`, and ordered application updates use unbounded `mpsc`. Never hold a synchronous lock across `.await`.
-- Authentication helpers may buffer non-auth updates, but `recv()` must later return them in order. Authorization transitions do not leak through the application-update API.
-- Graceful shutdown is explicit and fallible: send the generated `fns::close {}` through the correlated request path, propagate its response, observe `authorizationStateClosed`, then wait for the receiver's safe idle/ownership transition.
-- `Drop` performs no native TDLib work and never blocks, sleeps, joins, or claims successful shutdown. Dropping without `shutdown()` is misuse.
-- Construction and bot-authorization failures attempt graceful shutdown before returning the original failure.
-- Keep TDLib receive-timeout tuning process-wide like `td_receive`, accept `Duration` rather than unchecked floating-point seconds, and retain a sensible default. The setting controls the next native receive wait; it is not a request timeout, retry policy, or license to drop updates.
-- Message cancellation deletes only a pending temporary ID and never explicitly deletes a successful final ID. Return the final message when observed authoritative success wins, return `Error::Cancelled` when deletion wins, and preserve send or deletion failures. Never describe this as server-atomic: TDLib can itself delete a concurrently accepted message after its pending record is removed.
-- Message-send and download futures retain only their own completion or copy-only progress state. Dropping one abandons local observation and performs no native cancellation; token-triggered cancellation cleanup progresses only while the operation future is driven.
-- Execute synchronous native calls directly via `td_execute` without serializing through the receiver thread; TDLib stores output strings in thread-local storage (`TD_THREAD_LOCAL`), making `td_execute` safe to call from any thread concurrently without blocking on or invalidating `td_receive`.
-- Keep the event queue unbounded unless the application supplies an explicit backpressure or spill policy; a synchronous native receiver cannot await capacity, and silently dropping updates is incorrect.
-- Report malformed or otherwise unroutable unsolicited native output only through the optional process-wide error callback; it must not poison unrelated client operations or application update queues. A malformed terminal message update may leave its tracked operation pending.
+- Each live TDLib client has one owning, non-`Clone` `Session`. All public
+  requests use a non-owning `Client`; update/auth consumption borrows
+  `&mut Session`; graceful closure consumes `Session`.
+- `Client` stores `Weak<Connection>`, is cloneable but is not a lifecycle owner,
+  and cannot receive updates or initiate closure. Dropping `Session` revokes new
+  detached requests even if `Client` values remain.
+- Keep the public vocabulary compact and paired. `Client::send` returns a
+  function's direct TDLib response; message and transfer entry points are direct
+  async methods with optional borrowed `CancellationToken`s (`Client::track`,
+  `Client::track_all`, `Client::download`). File progress uses one synchronous
+  operation-local `Send` callback so transfer futures remain `Send`. Do not
+  expose operation handles, reattachment, raw channels, transport order, or
+  `@extra` request identifiers. `MessageKey` remains public only as the
+  meaningful temporary-message identity carried by send errors.
+- Exactly one process-wide receiver thread may call `td_receive`. Route by
+  required `@client_id`, correlate requests by `@extra`, and keep one flat
+  per-client registry containing pending requests, message sends, and active
+  file operations. Store router entries as `Weak<Connection>` so routing never
+  extends client lifetime.
+- Parse and atomically bind every pending message in a tracked direct `Message`
+  or `Messages` response before waking its request future. Match
+  `updateMessageSendSucceeded` and `updateMessageSendFailed` through
+  `old_message_id`, and non-cache `updateDeleteMessages` through the deleted
+  temporary ID. TDLib's direct-response-before-terminal ordering is
+  source-derived rather than a schema contract; re-audit it and the complete
+  trackable-function set on every TDLib upgrade. Tracked entry points accept any
+  function with the matching return type, but their behavior is defined only for
+  normal sends that finish through message-send updates; callers use
+  `Client::send` for everything else.
+- Observe terminal message-send updates by reference and always enqueue the
+  original update unchanged. A tracked send must complete even while the
+  application is not polling `Session::recv`; application update consumption
+  must never drive internal progress.
+- Message-edit functions complete their correlated direct response only after
+  TDLib finishes upload, server, and update processing. `updateMessageEdited` is
+  an application update, not a completion event: it has neither request
+  correlation nor failure information. Use `Client::send` for edits; do not
+  route them through message-send tracking.
+- Do not expose preliminary uploads; files are uploaded through tracked message
+  sends. Bind their primary file IDs from the direct pending `Message` or
+  `Messages` response before waking the requester. Require explicit downloads to
+  set `downloadFile.synchronous = true` and assert that invariant instead of
+  rewriting the request; the native promise supplies the final exact-range
+  state. Keep active-operation file observation sparse, coalesced, and limited
+  to copy-only transfer progress while enqueueing every original `updateFile`
+  unchanged for the application.
+- Match synchronization primitives to their semantics: short non-async critical
+  sections use `std::sync::Mutex`, correlated and terminal replies use
+  `oneshot`, coalesced file progress and receiver ownership transitions use
+  `watch`, and ordered application updates use unbounded `mpsc`. Never hold a
+  synchronous lock across `.await`.
+- Authentication helpers may buffer non-auth updates, but `recv()` must later
+  return them in order. Authorization transitions do not leak through the
+  application-update API.
+- Graceful closure is explicit and fallible: send the generated `fns::close {}`
+  through the correlated request path, propagate its response, observe
+  `authorizationStateClosed`, then wait for the receiver's safe idle/ownership
+  transition.
+- `Drop` performs no native TDLib work and never blocks, sleeps, joins, or
+  claims successful closure. Dropping without `close()` is misuse.
+- Construction and bot-authorization failures attempt graceful closure before
+  returning the original failure.
+- Keep TDLib receive-timeout tuning process-wide like `td_receive`, accept
+  `Duration` rather than unchecked floating-point seconds, and retain a sensible
+  default. The setting controls the next native receive wait; it is not a
+  request timeout, retry policy, or license to drop updates.
+- Message cancellation deletes only a pending temporary ID and never explicitly
+  deletes a successful final ID. Return the final message when observed
+  authoritative success wins, return `Error::Cancelled` when deletion wins, and
+  preserve send or deletion failures. Never describe this as server-atomic:
+  TDLib can itself delete a concurrently accepted message after its pending
+  record is removed.
+- Message-send and download futures retain only their own completion or
+  copy-only progress state. Dropping one abandons local observation and performs
+  no native cancellation; token-triggered cancellation cleanup progresses only
+  while the operation future is driven.
+- Execute synchronous native calls directly via `td_execute` without serializing
+  through the receiver thread; TDLib stores output strings in thread-local
+  storage (`TD_THREAD_LOCAL`), making `td_execute` safe to call from any thread
+  concurrently without blocking on or invalidating `td_receive`.
+- Keep the event queue unbounded unless the application supplies an explicit
+  backpressure or spill policy; a synchronous native receiver cannot await
+  capacity, and silently dropping updates is incorrect.
+- Report malformed or otherwise unroutable unsolicited native output only
+  through the optional process-wide error callback; it must not poison unrelated
+  client operations or application update queues. A malformed terminal message
+  update may leave its tracked operation pending.
 
 ## Verification
 
-- Run `cargo fmt --all --check`, `cargo check --workspace`, `cargo test --workspace`, and `cargo clippy --workspace --all-targets` for repository-wide changes.
-- Prefer one focused integration test that proves a complete boundary over a framework of shallow unit tests. For lifecycle/concurrency changes, cover relevant failure paths, ordering, concurrent request correlation, cross-client routing, already-closed and simultaneous shutdown, shutdown/registration races, and worker restart.
-- Test protocol and serialization code with exact wire representations, invalid inputs, round trips, and pattern assertions over structured values. Bind calls, awaits, and other nontrivial expressions before passing the result to `assert_matches!`; keep the macro focused on the value and expected pattern. Prefer `assert_matches!(value, pattern)` (with a guard when useful) over `assert!(matches!(...))`; use `assert_eq!` when full equality is the contract. Use real FFI integration tests where practical instead of mocks of the boundary being tested.
-- `unwrap` and `expect` are acceptable in tests for conditions that make the test meaningless, with messages at non-obvious failure points. Production fallible boundaries return errors and use `?`.
-- Keep microbenchmarks as ignored release-mode tests using `black_box` until a dedicated benchmark harness provides clear value.
-- Put a deadline around concurrency/lifecycle tests so deadlocks fail visibly. Repeat fresh-process tests when validating native teardown or process-exit behavior.
-- Keep credentialed Telegram tests ignored and serial. Load their secrets and test chat ID from the gitignored `td-client/tests/live/config.json`, commit only its example, persist authorization in the gitignored live-test session while disabling message/chat/file databases, enforce runtime deadlines inside test code so compilation is excluded, and attempt remote cleanup plus graceful shutdown on every returned failure.
+- Run `cargo fmt --all --check`, `cargo check --workspace`,
+  `cargo test --workspace`, and `cargo clippy --workspace --all-targets` for
+  repository-wide changes.
+- Prefer one focused integration test that proves a complete boundary over a
+  framework of shallow unit tests. For lifecycle/concurrency changes, cover
+  relevant failure paths, ordering, concurrent request correlation, cross-client
+  routing, already-closed and simultaneous shutdown, shutdown/registration
+  races, and worker restart.
+- Test protocol and serialization code with exact wire representations, invalid
+  inputs, round trips, and pattern assertions over structured values. Bind
+  calls, awaits, and other nontrivial expressions before passing the result to
+  `assert_matches!`; keep the macro focused on the value and expected pattern.
+  Prefer `assert_matches!(value, pattern)` (with a guard when useful) over
+  `assert!(matches!(...))`; use `assert_eq!` when full equality is the contract.
+  Use real FFI integration tests where practical instead of mocks of the
+  boundary being tested.
+- `unwrap` and `expect` are acceptable in tests for conditions that make the
+  test meaningless, with messages at non-obvious failure points. Production
+  fallible boundaries return errors and use `?`.
+- Keep microbenchmarks as ignored release-mode tests using `black_box` until a
+  dedicated benchmark harness provides clear value.
+- Put a deadline around concurrency/lifecycle tests so deadlocks fail visibly.
+  Repeat fresh-process tests when validating native teardown or process-exit
+  behavior.
+- Keep credentialed Telegram tests ignored and serial. Load their secrets and
+  test chat ID from the gitignored `td-client/tests/live/config.json`, commit
+  only its example, persist authorization in the gitignored live-test session
+  while disabling message/chat/file databases, enforce runtime deadlines inside
+  test code so compilation is excluded, and attempt remote cleanup plus graceful
+  shutdown on every returned failure.

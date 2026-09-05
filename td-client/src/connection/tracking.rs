@@ -10,7 +10,7 @@ use td_types::traits::Function;
 use td_types::{fns, types};
 
 use crate::error::{Error, Result};
-use crate::message::Key;
+use crate::message::MessageKey;
 use crate::transfer::{CancellationToken, Progress};
 
 use super::{Connection, PendingReply, Registry};
@@ -18,7 +18,7 @@ use super::{Connection, PendingReply, Registry};
 pub type Sample = (usize, Progress);
 
 pub struct PendingMessage {
-  key: Key,
+  key: MessageKey,
   terminal: oneshot::Receiver<Result<types::message>>,
 }
 
@@ -118,7 +118,7 @@ impl Registry {
       self.prune_observers();
     }
     for (index, message) in messages.enumerate() {
-      let key = Key { chat_id: message.chat_id, message_id: message.id };
+      let key = MessageKey { chat_id: message.chat_id, message_id: message.id };
       if progress && let Some(file) = primary_file(&message) {
         let (sender, _) = samples.get_or_insert_with(|| watch::channel((0, Progress::default())));
         self.file_observers.push(Observation { file_id: file.id, scope: Scope::Upload(index), samples: sender.clone() });
@@ -160,16 +160,16 @@ impl Registry {
   pub fn observe_message(&mut self, update: &Update) {
     match update {
       Update::updateMessageSendSucceeded(update) => {
-        let key = Key { chat_id: update.message.chat_id, message_id: update.old_message_id };
+        let key = MessageKey { chat_id: update.message.chat_id, message_id: update.old_message_id };
         self.settle(key, || Ok(update.message.clone()));
       }
       Update::updateMessageSendFailed(update) => {
-        let key = Key { chat_id: update.message.chat_id, message_id: update.old_message_id };
+        let key = MessageKey { chat_id: update.message.chat_id, message_id: update.old_message_id };
         self.settle(key, || Err(Error::MessageFailed(key, update.error.clone())));
       }
       Update::updateDeleteMessages(update) if !update.from_cache => {
         for &message_id in &update.message_ids {
-          let key = Key { chat_id: update.chat_id, message_id };
+          let key = MessageKey { chat_id: update.chat_id, message_id };
           self.settle(key, || Err(Error::MessageDeleted(key)));
         }
       }
@@ -177,7 +177,7 @@ impl Registry {
     }
   }
 
-  fn settle(&mut self, key: Key, result: impl FnOnce() -> Result<types::message>) {
+  fn settle(&mut self, key: MessageKey, result: impl FnOnce() -> Result<types::message>) {
     // Clone only for live waiters: the original update goes to the application.
     if let Some(reply) = self.pending_messages.remove(&key)
       && !reply.is_closed()
@@ -334,15 +334,15 @@ mod tests {
       registry.observe_message(&types::updateMessageSendFailed { old_message_id: 10, message: pending(10), error }.into());
       let deletion = |from_cache| types::updateDeleteMessages { chat_id: 9, message_ids: vec![12], from_cache, ..Default::default() }.into();
       registry.observe_message(&deletion(true));
-      assert!(registry.pending_messages.contains_key(&Key { chat_id: 9, message_id: 12 }));
+      assert!(registry.pending_messages.contains_key(&MessageKey { chat_id: 9, message_id: 12 }));
       registry.observe_message(&deletion(false));
       batch
     };
     let results = timeout(Duration::from_secs(1), batch.finish(&connection, None, None)).await.unwrap();
     let [first, second, third]: [Result<types::message>; 3] = results.try_into().unwrap();
-    assert_matches!(first, Err(Error::MessageFailed(Key { message_id: 10, .. }, error)) if error.code == 400);
+    assert_matches!(first, Err(Error::MessageFailed(MessageKey { message_id: 10, .. }, error)) if error.code == 400);
     assert_matches!(second, Ok(types::message { id: 21, .. }));
-    assert_matches!(third, Err(Error::MessageDeleted(Key { message_id: 12, .. })));
+    assert_matches!(third, Err(Error::MessageDeleted(MessageKey { message_id: 12, .. })));
   }
 
   #[tokio::test]
