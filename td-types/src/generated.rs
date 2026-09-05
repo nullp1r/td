@@ -1,5 +1,5 @@
+#![doc(hidden)]
 #![expect(
-  missing_docs,
   non_camel_case_types,
   clippy::doc_link_with_quotes,
   clippy::doc_markdown,
