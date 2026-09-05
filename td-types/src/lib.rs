@@ -40,6 +40,7 @@
 //! This crate describes the protocol but does not execute it. Use `td-client`
 //! for correlated asynchronous requests, ordered updates, and client lifecycle.
 
+#[doc(hidden)]
 pub use generated::*;
 
 /// Traits implemented by generated protocol operations.
