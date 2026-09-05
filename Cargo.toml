@@ -16,8 +16,6 @@ syn = { version = "*", features = ["full"] }
 thiserror = "*"
 tokio = "*"
 tokio-util = "*"
-tracing = "*"
-tracing-subscriber = "*"
 
 td-client = { path = "td-client" }
 td-codegen = { path = "td-codegen" }

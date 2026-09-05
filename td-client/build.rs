@@ -1,4 +1,4 @@
-//! Links `td-client` to the native `TDLib` library.
+#![expect(missing_docs, reason = "documentation follows the rewrite")]
 
 use td_sys::build;
 

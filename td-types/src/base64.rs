@@ -92,18 +92,17 @@ pub fn decode_to(buf: &mut Vec<u8>, input: &str) -> bool {
 const ENCODE: [[u8; 2]; 0x100] = {
   let mut arr = [[0; _]; _];
   let mut i = 0;
-  while i < 62 {
-    let b = match i {
-      b @ 0..=25 => b + b'A',
-      b @ 26..=51 => b + b'a' - 26,
-      b @ 52..=61 => b + b'0' - 52,
-      _ => 0,
+  while i < 64 {
+    arr[i as usize] = match i {
+      0..=25 => [i + b'A'; 2],
+      26..=51 => [i + b'a' - 26; 2],
+      52..=61 => [i + b'0' - 52; 2],
+      62 => [b'+', b'-'],
+      63 => [b'/', b'_'],
+      _ => [0; 2],
     };
-    arr[i as usize] = [b, b];
     i += 1;
   }
-  arr[62] = [b'+', b'-'];
-  arr[63] = [b'/', b'_'];
   arr
 };
 

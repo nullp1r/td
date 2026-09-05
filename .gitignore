@@ -5,6 +5,5 @@
 /td/*
 !/td/fetch
 !/td/docs
-/td-client/examples/bot/config.json
 /td-client/tests/live/config.json
 /td-client/tests/live/session/
