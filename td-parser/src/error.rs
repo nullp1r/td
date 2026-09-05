@@ -18,9 +18,9 @@ pub enum Error<'a> {
   /// A field type was absent or malformed.
   #[error("expected type expression")]
   ExpectedTypeExpr,
-  /// The result category after `=` was absent.
-  #[error("expected enum name")]
-  ExpectedEnum,
+  /// The result type after `=` was absent.
+  #[error("expected type name")]
+  ExpectedType,
   /// A `---...---` section marker named neither types nor functions.
   #[error("expected definition kind")]
   ExpectedDefinitionKind,

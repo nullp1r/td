@@ -4,7 +4,7 @@ use std::fmt;
 use std::time::{Duration, UNIX_EPOCH};
 
 /// Formats a source header with schema provenance and generation metrics.
-pub fn header(schema: &str, [parse, codegen]: [Duration; 2]) -> impl fmt::Display + '_ {
+pub fn header(schema: &str, [parse, codegen]: [Duration; 2]) -> impl fmt::Display {
   fmt::from_fn(move |f| {
     let mut lines = schema.lines();
     let (Some(line1), Some(line2)) = (lines.next(), lines.next()) else { return Ok(()) };
@@ -12,9 +12,9 @@ pub fn header(schema: &str, [parse, codegen]: [Duration; 2]) -> impl fmt::Displa
       return Ok(());
     }
 
-    let total = fmt_dur(parse + codegen);
-    let parse = fmt_dur(parse);
-    let codegen = fmt_dur(codegen);
+    let total = fmt_duration(parse + codegen);
+    let parse = fmt_duration(parse);
+    let codegen = fmt_duration(codegen);
     let utc = fmt_utc();
 
     writeln!(f, "{line1}")?;
@@ -24,7 +24,7 @@ pub fn header(schema: &str, [parse, codegen]: [Duration; 2]) -> impl fmt::Displa
 }
 
 /// Formats an elapsed duration cleanly (e.g. `14.3ms`, `450µs`, `1.25s`).
-fn fmt_dur(d: Duration) -> impl fmt::Display {
+fn fmt_duration(d: Duration) -> impl fmt::Display {
   let nanos = d.as_nanos() as u64;
   let i = nanos.max(1).ilog10().min(9) as usize / 3;
   let unit = ["n", "µ", "m", ""][i];

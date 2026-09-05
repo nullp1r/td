@@ -6,9 +6,27 @@
 
 use std::iter;
 
-use crate::ast::{Combinator, Definition, DefinitionKind, Field, TypeExpr};
+use crate::ast::{Definition, DefinitionKind, Field, TypeExpr};
 use crate::cursor::Cursor;
 use crate::error::Error;
+
+/// Parses a `TDLib` API schema into definitions borrowing from `input`.
+///
+/// The parser recognizes type/function section markers, constructors, functions,
+/// direct and vector field types, and the documentation syntax used by
+/// `td_api.tl`. Constructor IDs and generic declarations are validated only for
+/// balanced delimiters, then omitted from the returned JSON-oriented AST.
+/// Definitions before the first section marker are treated as types.
+///
+/// # Errors
+///
+/// Returns the first malformed delimiter, missing token, invalid section marker,
+/// or unexpected input suffix.
+pub fn parse(input: &str) -> Result<Vec<Definition<'_>>, Error<'_>> {
+  let mut cur = Cursor::new(input);
+  let mut kind = DefinitionKind::Type;
+  iter::from_fn(|| cur.definition(&mut kind).transpose()).collect()
+}
 
 impl<'a> Cursor<'a> {
   /// Skips constructor IDs and TL generic/parameter declarations after a name.
@@ -98,7 +116,7 @@ impl<'a> Cursor<'a> {
 
       self.skip_ws();
       let Some(r#type) = self.ident() else {
-        return Err(Error::ExpectedEnum);
+        return Err(Error::ExpectedType);
       };
       self.skip_ws();
       while let Some(_) = self.ident() {
@@ -107,8 +125,7 @@ impl<'a> Cursor<'a> {
       self.expect(";")?;
 
       let [desc, meta] = desc_and_meta_desc(doc);
-      let comb = Combinator { r#type, name, fields, desc, meta };
-      return Ok(Some(Definition { kind: *kind, comb }));
+      return Ok(Some(Definition { kind: *kind, name, r#type, fields, desc, meta }));
     }
   }
 }
@@ -117,7 +134,6 @@ fn is_optional(desc: &str) -> bool {
   desc.contains("may be null") || desc.contains("pass null")
 }
 
-/// Separates constructor documentation from category-level `@class` metadata.
 fn desc_and_meta_desc(doc: &str) -> [Option<&str>; 2] {
   let (mut is_meta, mut meta, mut desc) = Default::default();
   for [key, value] in doc_tags(doc) {
@@ -131,32 +147,9 @@ fn desc_and_meta_desc(doc: &str) -> [Option<&str>; 2] {
   [desc, meta]
 }
 
-/// Iterates both line-leading and compact inline `@name value` documentation tags.
-///
-/// Upstream uses both `//@description ...\n//@field ...` and the compact
-/// `//@description ... @field ...` form. A space before `@` is the delimiter for
-/// an inline tag; continuation lines beginning `//-` remain part of its value.
 fn doc_tags(doc: &str) -> impl Iterator<Item = [&str; 2]> {
   doc.split("//@").skip(1).flat_map(|part| part.split(" @")).filter_map(|part| {
     let (key, value) = part.trim_ascii().split_once(char::is_whitespace)?;
     Some([key, value])
   })
-}
-
-/// Parses a `TDLib` API schema into definitions borrowing from `input`.
-///
-/// The parser recognizes type/function section markers, constructors, functions,
-/// direct and vector field types, and the documentation syntax used by
-/// `td_api.tl`. Constructor IDs and generic declarations are validated only for
-/// balanced delimiters, then omitted from the returned JSON-oriented AST.
-/// Definitions before the first section marker are treated as types.
-///
-/// # Errors
-///
-/// Returns the first malformed delimiter, missing token, invalid section marker,
-/// or unexpected input suffix.
-pub fn parse(input: &str) -> Result<Vec<Definition<'_>>, Error<'_>> {
-  let mut cur = Cursor::new(input);
-  let mut kind = DefinitionKind::Type;
-  iter::from_fn(|| cur.definition(&mut kind).transpose()).collect()
 }

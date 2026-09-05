@@ -1,14 +1,14 @@
 //! Rust source generation from a parsed `TDLib` API schema.
 //!
 //! This crate turns `td_parser::Definition` values into the three modules
-//! consumed by `td_types`: concrete object structs in `types`, tagged result
-//! enums in `enums`, and serializable requests in `fns`.
+//! consumed by `td_types`: concrete constructor payloads in `types`, tagged
+//! result-type enums in `enums`, and serializable requests in `fns`.
 //! Generated names deliberately preserve the upstream `TDLib` spelling.
 //!
 //! Generation is deterministic and writes through [`std::fmt::Display`] without
 //! first building a second source tree or intermediate `String`. Primitive wire
 //! representations receive the required Serde adapters, and direct recursive
-//! layout cycles are found with a compact dependency graph. Direct enum references
+//! layout cycles are found with a compact dependency graph. Direct type references
 //! inside a recursive component are boxed conservatively; vectors already provide
 //! indirection and remain unboxed.
 //!
@@ -20,12 +20,10 @@
 //! assert!(source.contains("pub enum User"));
 //! ```
 
-pub use self::r#gen::{compile, format};
-pub use self::header::header;
+pub use self::format::{compile, format};
 
-mod ctx;
-mod r#gen;
+mod format;
 mod graph;
 mod header;
-mod scc;
-mod util;
+mod layout;
+mod schema;

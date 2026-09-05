@@ -24,7 +24,7 @@ userGroup ids:vector<int64> matrix:vector<vector<string>> = User;
 leaf = Tree;
 node value:int32 left:Tree right:Tree = Tree;
 
-// Vector reference to self/category (breaks cycle via heap indirection -> Vec<enums::Menu>, unboxed)
+// Vector reference to recursive type (breaks cycle via heap indirection -> Vec<enums::Menu>, unboxed)
 menu id:int32 items:vector<Menu> = Menu;
 
 // Reference to enum, unresolved custom type, optional field with "pass null"

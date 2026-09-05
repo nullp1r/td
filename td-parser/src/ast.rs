@@ -11,20 +11,12 @@ pub enum DefinitionKind {
 
 /// One classified constructor or function definition.
 ///
-/// Every borrowed string in the contained combinator points into the original
-/// schema passed to [`crate::parse`].
+/// Every borrowed string points into the original schema passed to [`crate::parse`].
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Definition<'a> {
   /// Section in which the definition appeared.
   pub kind: DefinitionKind,
-  /// Shared constructor/function syntax parsed from the definition.
-  pub comb: Combinator<'a>,
-}
-
-/// The common shape of a TL object constructor or function.
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct Combinator<'a> {
-  /// Result category for a constructor, or response type for a function.
+  /// Result type for a constructor, or response type for a function.
   pub r#type: &'a str,
   /// Constructor or function name used as the JSON `@type` value.
   pub name: &'a str,
@@ -34,7 +26,7 @@ pub struct Combinator<'a> {
   pub desc: Option<&'a str>,
   /// Description from a preceding `@class` declaration, if present.
   ///
-  /// Class metadata describes the whole result category rather than this one
+  /// Class metadata describes the whole result type rather than this one
   /// constructor. The generator locates it while grouping constructors.
   pub meta: Option<&'a str>,
 }
@@ -58,7 +50,7 @@ pub struct Field<'a> {
 /// A field type relevant to generated Rust storage.
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum TypeExpr<'a> {
-  /// A primitive, constructor, or result-category name.
+  /// A primitive, constructor, or result type name.
   Bare(&'a str),
   /// A vector whose element type is another expression.
   Vector(Box<TypeExpr<'a>>),

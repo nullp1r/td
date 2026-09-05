@@ -27,7 +27,7 @@
 //! let definitions = parse(schema).expect("valid TD API schema");
 //! assert_eq!(definitions.len(), 2);
 //! assert_eq!(definitions[0].kind, DefinitionKind::Type);
-//! assert_eq!(definitions[0].comb.fields[0].r#type, TypeExpr::Bare("int64"));
+//! assert_eq!(definitions[0].fields[0].r#type, TypeExpr::Bare("int64"));
 //! assert_eq!(definitions[1].kind, DefinitionKind::Function);
 //! ```
 
