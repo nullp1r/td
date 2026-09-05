@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["compile","format","header"]};
+window.SIDEBAR_ITEMS = {"fn":["compile","format"]};
