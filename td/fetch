@@ -9,6 +9,8 @@
 
 set -euo pipefail
 
+export TZ=UTC
+
 log() { printf -- '\x1b[9%dm%s\x1b[39m %s\n' "$1" "$2" "$3"; }
 
 arch=$(uname -m)
