@@ -42,15 +42,15 @@
 //! one file can affect one another; they are not independent cancellable slices.
 //! Message-send cancellation has different native semantics; see [`crate::message`].
 
-use td_types::enums::File;
-use td_types::{fns, types};
-
 /// A cooperative cancellation signal for tracked operations.
 ///
 /// Reexported from `tokio-util`. Cancelling a token is sticky and affects every
 /// operation using that token. Dropping a token is not the same as calling
 /// `cancel()`; native cleanup still requires the operation future to be polled.
 pub use tokio_util::sync::CancellationToken;
+
+use td_types::enums::File;
+use td_types::{fns, types};
 
 use crate::client::Sender;
 use crate::connection::tracking::{cancelled, with_progress};
@@ -67,7 +67,7 @@ use crate::error::{Error, Result};
 /// Treat zero totals as indeterminate rather than dividing by zero:
 ///
 /// ```
-/// use td_client::Progress;
+/// use td_client::transfer::Progress;
 ///
 /// fn display(progress: Progress) -> String {
 ///   match progress.total {
@@ -120,7 +120,9 @@ impl Sender {
   /// # Examples
   ///
   /// ```no_run
-  /// # use td_client::{Progress, Result, Sender};
+  /// # use td_client::client::Sender;
+  /// # use td_client::error::Result;
+  /// # use td_client::transfer::Progress;
   /// use td_types::fns;
   ///
   /// # async fn fetch(sender: &Sender, file_id: i32) -> Result {

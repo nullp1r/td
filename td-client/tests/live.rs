@@ -61,15 +61,15 @@ async fn telegram_boundary() -> Result<()> {
 async fn run(config: Config, root: &Path) -> Result<()> {
   let Config { api_id, api_hash, bot_token, chat_id } = config;
   ensure!(chat_id != 0, "chat_id must identify the dedicated Telegram test chat");
-  let mut parameters = params(api_id, api_hash, SESSION);
-  parameters.files_directory = root.to_string_lossy().into_owned();
-  parameters.use_file_database = false;
-  parameters.use_chat_info_database = false;
-  parameters.use_message_database = false;
+  let mut params = params(api_id, api_hash, SESSION);
+  params.files_directory = root.to_string_lossy().into_owned();
+  params.use_file_database = false;
+  params.use_chat_info_database = false;
+  params.use_message_database = false;
 
   set_log_level(0);
   set_receive_timeout(Duration::from_millis(50));
-  let mut client = timeout(OPERATION_TIMEOUT, Client::bot(parameters, &bot_token)).await.context("bot construction timed out")??;
+  let mut client = timeout(OPERATION_TIMEOUT, Client::bot(params, &bot_token)).await.context("bot construction timed out")??;
   let sender = client.sender();
   let mut messages = Vec::new();
 

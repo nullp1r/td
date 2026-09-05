@@ -1,16 +1,19 @@
 // The receiver binds/settles; operation futures await and invoke callbacks.
 // Registry entries never contain a borrowed callback or application update cache.
+
 use std::future::{self, Future};
+
+use tokio::sync::{oneshot, watch};
 
 use td_types::enums::{Message, MessageContent, MessageSendingState, Messages, Update};
 use td_types::traits::Function;
 use td_types::{fns, types};
-use tokio::sync::{oneshot, watch};
 
-use super::{Connection, PendingReply, Registry};
 use crate::error::{Error, Result};
 use crate::message::Key;
 use crate::transfer::{CancellationToken, Progress};
+
+use super::{Connection, PendingReply, Registry};
 
 pub type Sample = (usize, Progress);
 

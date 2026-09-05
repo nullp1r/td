@@ -40,7 +40,9 @@
 //!
 //! ```no_run
 //! # use std::future::Future;
-//! # use td_client::{CancellationToken, Result, Sender};
+//! # use td_client::client::Sender;
+//! # use td_client::error::Result;
+//! # use td_client::transfer::CancellationToken;
 //! # use td_types::{fns, types};
 //! # async fn send_until_stop(
 //! #   sender: &Sender, request: &fns::sendMessage, stop: impl Future<Output = ()>,
@@ -121,7 +123,8 @@ impl Sender {
   /// # Examples
   ///
   /// ```no_run
-  /// # use td_client::{Result, Sender};
+  /// # use td_client::client::Sender;
+  /// # use td_client::error::Result;
   /// use td_types::{fns, types};
   ///
   /// # async fn greet(sender: &Sender, chat_id: i64) -> Result {
@@ -186,7 +189,8 @@ impl Sender {
   /// succeeded:
   ///
   /// ```no_run
-  /// # use td_client::{Result, Sender};
+  /// # use td_client::client::Sender;
+  /// # use td_client::error::Result;
   /// # use td_types::fns;
   /// # async fn album(sender: &Sender, request: &fns::sendMessageAlbum) -> Result {
   /// let results = sender.send_messages(request, None, None).await?;

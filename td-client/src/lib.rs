@@ -54,13 +54,13 @@
 //!
 //! # A request and a clean shutdown
 //!
-//! A [`Client`] owns one `TDLib` instance. Obtain a
-//! [`Sender`] for requests; keep the owner until shutdown.
+//! A [`Client`](client::Client) owns one `TDLib` instance. Obtain a
+//! [`Sender`](client::Sender) for requests; keep the owner until shutdown.
 //! A request's generated type determines its response type:
 //!
 //! ```no_run
-//! use td_client::{Client, params};
-//! use td_client::Result;
+//! use td_client::client::{Client, params};
+//! use td_client::error::Result;
 //! use td_types::{enums::User, fns};
 //!
 //! # async fn example(api_id: i32, api_hash: &str, token: &str) -> Result {
@@ -113,8 +113,8 @@
 //! accumulating memory. Dispatch slow work separately from the receive loop.
 //!
 //! Do not run this crate alongside another `TDLib` receiver implementation in the
-//! same process. Do not call raw receive/execute functions behind its back: the
-//! shared native response buffer and receive stream have one coordinated owner.
+//! same process. Do not call raw receive functions behind its back: the
+//! native receive stream has one coordinated owner.
 //!
 //! # Generated API vocabulary
 //!
@@ -150,7 +150,3 @@ pub mod native;
 pub mod transfer;
 
 mod connection;
-
-pub use client::{Client, Sender, params};
-pub use error::{Error, Result};
-pub use transfer::{CancellationToken, Progress};

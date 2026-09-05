@@ -18,7 +18,7 @@ This is a native client library, not an HTTP Bot API wrapper.
 With an authorized client:
 
 ```rust
-use td_client::{Client, Result};
+use td_client::{client::Client, error::Result};
 use td_types::{enums::User, fns};
 
 async fn who_am_i(client: &Client) -> Result {

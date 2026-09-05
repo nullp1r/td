@@ -141,11 +141,11 @@ async fn lifecycle_races(root: &Path, second: Client, stale: Sender) {
 }
 
 fn parameters(root: &Path, name: &str) -> fns::setTdlibParameters {
-  let mut parameters = params(API_ID, API_HASH, root.join(name));
-  parameters.use_file_database = false;
-  parameters.use_chat_info_database = false;
-  parameters.use_message_database = false;
-  parameters
+  let mut params = params(API_ID, API_HASH, root.join(name));
+  params.use_file_database = false;
+  params.use_chat_info_database = false;
+  params.use_message_database = false;
+  params
 }
 
 fn test_root() -> PathBuf {

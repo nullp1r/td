@@ -1,5 +1,6 @@
 // Shared request admission and correlation. Futures may retain Connection,
 // but only Client owns update consumption and the right to keep it operational.
+
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
@@ -14,7 +15,8 @@ use td_types::{enums, fns, types};
 use crate::error::{Error, Result};
 use crate::message::Key;
 use crate::native::{self, parse_error};
-use tracking::{Observation, PendingMessages, parse_messages};
+
+use self::tracking::{Observation, PendingMessages, parse_messages};
 
 pub mod tracking;
 

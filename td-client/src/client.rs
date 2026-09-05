@@ -94,7 +94,8 @@ impl Sender {
   /// # Examples
   ///
   /// ```no_run
-  /// # use td_client::{Result, Sender};
+  /// # use td_client::client::Sender;
+  /// # use td_client::error::Result;
   /// use td_types::{enums::User, fns};
   ///
   /// # async fn identify(sender: &Sender) -> Result {
@@ -128,11 +129,11 @@ impl Client {
   ///
   /// Drive construction to completion. Dropping this future after native creation
   /// abandons the owner without completing graceful shutdown.
-  pub async fn new(parameters: fns::setTdlibParameters) -> Result<Self> {
+  pub async fn new(params: fns::setTdlibParameters) -> Result<Self> {
     let (connection, updates) = Connection::create();
     let (buffered, closed) = Default::default();
     let client = Self { connection, updates, buffered, closed };
-    if let Err(error) = client.connection.request(&parameters).await {
+    if let Err(error) = client.connection.request(&params).await {
       // Preserve the initiating failure after attempting native cleanup.
       let _ = client.shutdown().await;
       return Err(error);
@@ -156,8 +157,8 @@ impl Client {
   /// # Cancellation
   ///
   /// Dropping the future abandons construction/authentication and graceful cleanup.
-  pub async fn bot(parameters: fns::setTdlibParameters, token: &str) -> Result<Self> {
-    let mut client = Self::new(parameters).await?;
+  pub async fn bot(params: fns::setTdlibParameters, token: &str) -> Result<Self> {
+    let mut client = Self::new(params).await?;
     if let Err(error) = client.authorize_bot(token).await {
       let _ = client.shutdown().await;
       return Err(error);
@@ -304,12 +305,10 @@ impl Client {
 /// # Examples
 ///
 /// ```
-/// use td_client::params;
-///
-/// let mut parameters = params(12345, "api hash", "session");
-/// parameters.use_message_database = false;
-/// parameters.device_model = "My application".into();
-/// assert!(!parameters.use_message_database);
+/// let mut params = td_client::client::params(12345, "api hash", "session");
+/// params.use_message_database = false;
+/// params.device_model = "My application".into();
+/// assert!(!params.use_message_database);
 /// ```
 pub fn params(api_id: i32, api_hash: impl Into<String>, directory: impl AsRef<Path>) -> fns::setTdlibParameters {
   let directory = directory.as_ref();

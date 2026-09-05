@@ -4,7 +4,7 @@
 //! application startup rather than treating them as per-client preferences.
 //! One lazily started receiver thread owns the `TDLib` receive stream and parks
 //! when no clients remain. Do not start a competing receiver or invoke raw
-//! receive/execute functions outside this coordination.
+//! receive functions outside this coordination.
 //!
 //! [`execute`] is distinct from asynchronous [`Sender::send`](crate::client::Sender::send):
 //! only `TDLib` functions documented as synchronously executable belong here.
@@ -49,13 +49,13 @@ struct Receiver {
   thread: OnceLock<thread::Thread>,
   transition: watch::Sender<()>,
   timeout: AtomicU64,
-  native_calls: Mutex<()>,
 }
 
 static RECEIVER: LazyLock<Receiver> = LazyLock::new(|| {
   let (transition, _) = watch::channel(());
-  let (clients, thread, native_calls) = Default::default();
-  Receiver { clients, thread, transition, timeout: AtomicU64::new(1f64.to_bits()), native_calls }
+  let (clients, thread) = Default::default();
+  let timeout = 1f64.to_bits().into();
+  Receiver { clients, thread, transition, timeout }
 });
 
 impl Receiver {
@@ -73,14 +73,12 @@ impl Receiver {
   }
 
   fn receive(&self) {
-    let _guard = self.native_calls.lock().unwrap();
     let timeout = f64::from_bits(self.timeout.load(Ordering::Relaxed));
-    // SAFETY: This is the sole td_receive caller. The lock excludes td_execute,
-    // which would invalidate TDLib's shared response buffer.
+    // SAFETY: This is the sole td_receive caller.
     let raw = unsafe { td_sys::td_receive(timeout) };
     if !raw.is_null() {
-      // SAFETY: TDLib returned a NUL-terminated buffer valid until the next native
-      // receive/execute call, both excluded until routing completes.
+      // SAFETY: TDLib returned a NUL-terminated buffer valid until the next
+      // receive call on this receiver thread.
       self.route(unsafe { CStr::from_ptr(raw) }.to_bytes());
     }
   }
@@ -141,11 +139,9 @@ pub(crate) fn remove(id: i32) {
 /// Only generated functions documented by `TDLib` as synchronously executable
 /// are supported, such as `getFileMimeType`. This does not require a [`Client`](crate::client::Client).
 ///
-/// This is a blocking function. It shares a process-wide native-call mutex with
-/// the receiver and parses the result before releasing that mutex, because
-/// the next native receive/execute call invalidates `TDLib`'s response buffer.
-/// It may wait for an in-progress receive call; see [`set_receive_timeout`].
-/// Do not call it from [`on_error`].
+/// This is a synchronous call directly to `td_execute`. Because `TDLib` stores
+/// output in thread-local storage, it executes immediately without acquiring locks
+/// or waiting for an in-progress [`set_receive_timeout`]. Do not call it from [`on_error`].
 ///
 /// # Errors
 ///
@@ -167,14 +163,13 @@ pub(crate) fn remove(id: i32) {
 pub fn execute<F: Function>(request: &F) -> Result<F::Return> {
   let mut bytes = serde_json::to_vec(request)?;
   bytes.push(0);
-  let _guard = RECEIVER.native_calls.lock().unwrap();
-  // SAFETY: bytes is live and NUL-terminated; the lock excludes buffer-invalidating
-  // native calls until the response has been parsed into an owned value.
+  // SAFETY: bytes is live and NUL-terminated; td_execute writes to thread-local
+  // storage and is valid on this thread until the next native call.
   let raw = unsafe { td_sys::td_execute(bytes.as_ptr().cast()) };
   if raw.is_null() {
     return Err(Error::UnexpectedResponse("synchronous request returned null"));
   }
-  // SAFETY: TDLib returned a non-null NUL-terminated buffer valid under the lock.
+  // SAFETY: TDLib returned a non-null NUL-terminated buffer valid on this thread.
   let raw = unsafe { CStr::from_ptr(raw) }.to_bytes();
   match serde_json::from_slice(raw)? {
     Response { kind: "error" } => Err(parse_error(raw)),
@@ -186,9 +181,9 @@ pub fn execute<F: Function>(request: &F) -> Result<F::Return> {
 ///
 /// The process-wide default is one second. Changing it does not interrupt a
 /// receive already in progress and does not set a request or operation deadline.
-/// Long waits can increase synchronous [`execute`] and last-client shutdown
-/// latency; very short waits increase idle polling. Zero is accepted but can
-/// busy-poll while clients are registered.
+/// Long waits can increase last-client shutdown latency; very short waits
+/// increase idle polling. Zero is accepted but can busy-poll while clients are
+/// registered.
 ///
 /// # Examples
 ///
@@ -228,8 +223,8 @@ static ERROR_CALLBACK: Mutex<Option<ErrorCallback>> = Mutex::new(None);
 /// a callback these diagnostics are unobserved; they do not enter unrelated
 /// clients' update queues.
 ///
-/// The callback is synchronous on the native receiver thread while native and
-/// callback locks are held. It must not block, panic, call `on_error` again,
+/// The callback is synchronous on the native receiver thread while the
+/// callback lock is held. It must not block, panic, call `on_error` again,
 /// invoke [`execute`], or wait for work that needs the receiver. Copy/forward
 /// the error to application-owned processing when more work is needed.
 /// A panic can terminate the receiver; there is no automatic restart or poison
@@ -282,7 +277,7 @@ mod tests {
     let (connection, mut updates) = Connection::fixture();
     let (transition, _) = watch::channel(());
     let clients = Mutex::new(HashMap::from([(7, Arc::downgrade(&connection))]));
-    let receiver = Receiver { clients, thread: OnceLock::new(), transition, timeout: AtomicU64::new(0), native_calls: Mutex::new(()) };
+    let receiver = Receiver { clients, thread: OnceLock::new(), transition, timeout: AtomicU64::new(0) };
     let errors = Arc::new(Mutex::new(Vec::new()));
     let observed = Arc::clone(&errors);
     on_error(move |error| observed.lock().unwrap().push(error));
