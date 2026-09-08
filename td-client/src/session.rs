@@ -1,7 +1,8 @@
 //! Session ownership, authentication, and ordered update consumption.
 //!
-//! Construct with [`Session::bot`] for a bot token, or [`Session::open`] to handle
-//! authorization yourself. Each owner exposes cloneable request-only [`Client`]s.
+//! Construct with [`Session::open`] and drive authorization with [`Session::recv_auth`].
+//! The companion `tdx::session` module supplies parameter defaults and bot authorization.
+//! Each owner exposes cloneable request-only [`Client`]s.
 //! Keep receiving application updates after authentication, and finish with
 //! [`Session::close`]. See the [crate guide](crate) for setup and cleanup.
 //!
@@ -28,7 +29,6 @@
 //! the generated parameters when required.
 
 use std::collections::VecDeque;
-use std::path::Path;
 use std::sync::Arc;
 
 use tokio::sync::mpsc;
@@ -38,7 +38,7 @@ use td_types::fns;
 
 use crate::client::Client;
 use crate::connection::Connection;
-use crate::error::{Error, Result};
+use crate::error::Result;
 use crate::runtime;
 
 /// The unique owner of one native `TDLib` session.
@@ -63,8 +63,8 @@ impl Session {
   /// Creates a native client session and applies the supplied `TDLib` parameters.
   ///
   /// This does not complete authorization. Use [`recv_auth`](Self::recv_auth)
-  /// and generated authentication requests, or construct with [`bot`](Self::bot).
-  /// [`parameters`] supplies editable defaults for the generated parameter struct.
+  /// and generated authentication requests, or use `tdx::session::bot`.
+  /// The companion `tdx::session::parameters` supplies editable parameter defaults.
   ///
   /// # Errors
   ///
@@ -81,31 +81,6 @@ impl Session {
     let session = Self { connection, updates, buffered, closed };
     if let Err(error) = session.connection.request(&params).await {
       // Preserve the initiating failure after attempting native cleanup.
-      let _ = session.close().await;
-      return Err(error);
-    }
-    Ok(session)
-  }
-
-  /// Creates a session and waits for bot authorization to become ready.
-  ///
-  /// Submits the token when `TDLib` requests authentication. A session that is
-  /// already ready is reused without verifying it against `token`; use a fresh
-  /// directory or explicitly log out when switching accounts.
-  ///
-  /// # Errors
-  ///
-  /// Returns construction or token-request errors, or [`Error::Auth`] for an
-  /// authorization state this narrow helper does not handle. It attempts graceful
-  /// closure on returned authorization failure, preserving the original error.
-  /// For custom flows use [`open`](Self::open) and [`recv_auth`](Self::recv_auth).
-  ///
-  /// # Cancellation
-  ///
-  /// Dropping the future abandons construction/authentication and graceful cleanup.
-  pub async fn bot(params: fns::setTdlibParameters, token: &str) -> Result<Self> {
-    let mut session = Self::open(params).await?;
-    if let Err(error) = session.authorize_bot(token).await {
       let _ = session.close().await;
       return Err(error);
     }
@@ -186,7 +161,7 @@ impl Session {
   /// Returns a close-request error while still clearing local waiters and
   /// unregistering the client. An error is not proof that native shutdown finished.
   /// Requests racing with closure may complete, receive a `TDLib` error, or
-  /// become [`Error::Disconnected`]; graceful close is not an application-task join.
+  /// become [`crate::Error::Disconnected`]; graceful close is not an application-task join.
   ///
   /// # Cancellation
   ///
@@ -211,19 +186,6 @@ impl Session {
     Ok(())
   }
 
-  async fn authorize_bot(&mut self, token: &str) -> Result {
-    loop {
-      match self.recv_auth().await {
-        AuthorizationState::authorizationStateReady => return Ok(()),
-        AuthorizationState::authorizationStateWaitTdlibParameters => {}
-        AuthorizationState::authorizationStateWaitPhoneNumber => {
-          self.connection.request(&fns::checkAuthenticationBotToken { token: token.into() }).await?;
-        }
-        state => return Err(Error::Auth(state)),
-      }
-    }
-  }
-
   async fn receive(&mut self) -> Update {
     // The owner's Arc keeps the channel sender alive even after native closure.
     // Closed is an ordered authorization event, not channel EOF.
@@ -234,42 +196,6 @@ impl Session {
       self.closed = true;
     }
     update
-  }
-}
-
-/// Builds editable `TDLib` parameters with local database and file directories.
-///
-/// Uses `directory/db` and `directory/files`; this function does not create them.
-/// Enables file, chat-info, and message databases. Language defaults to `en`,
-/// device model to `Server`, and application version to this crate's version.
-/// Other fields retain their generated defaults, including the encryption key.
-///
-/// These are conveniences, not validated configuration or a security policy.
-/// Disable databases you do not need and set application metadata/encryption
-/// explicitly where appropriate. Paths are converted with lossy UTF-8 conversion.
-///
-/// # Examples
-///
-/// ```
-/// let mut params = td_client::parameters(12345, "api hash", "session");
-/// params.use_message_database = false;
-/// params.device_model = "My application".into();
-/// assert!(!params.use_message_database);
-/// ```
-pub fn parameters(api_id: i32, api_hash: impl Into<String>, directory: impl AsRef<Path>) -> fns::setTdlibParameters {
-  let directory = directory.as_ref();
-  fns::setTdlibParameters {
-    api_id,
-    api_hash: api_hash.into(),
-    database_directory: directory.join("db").to_string_lossy().into_owned(),
-    files_directory: directory.join("files").to_string_lossy().into_owned(),
-    use_file_database: true,
-    use_chat_info_database: true,
-    use_message_database: true,
-    system_language_code: "en".into(),
-    device_model: "Server".into(),
-    application_version: env!("CARGO_PKG_VERSION").into(),
-    ..Default::default()
   }
 }
 
@@ -287,7 +213,12 @@ mod tests {
   #[tokio::test]
   async fn authentication_buffers_application_updates_in_order() {
     let (connection, updates) = Connection::fixture();
-    let mut session = Session { connection: Arc::clone(&connection), updates, buffered: VecDeque::new(), closed: false };
+    let mut session = Session {
+      connection: Arc::clone(&connection), //.
+      updates,
+      buffered: VecDeque::new(),
+      closed: false,
+    };
     connection.update(br#"{"@type":"updateOption","name":"first","value":{"@type":"optionValueEmpty"}}"#);
     connection.update(br#"{"@type":"updateOption","name":"second","value":{"@type":"optionValueEmpty"}}"#);
     let auth = br#"{"@type":"updateAuthorizationState","authorization_state":{"@type":"authorizationStateWaitPhoneNumber"}}"#;

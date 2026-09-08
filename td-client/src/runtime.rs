@@ -9,8 +9,8 @@
 //! [`execute`] is distinct from asynchronous [`Client::send`](crate::client::Client::send):
 //! only `TDLib` functions documented as synchronously executable belong here.
 //!
-//! [`on_error`] receives malformed/unroutable unsolicited output. It is not a
-//! subscription to `TDLib`'s internal logging stream; [`set_log_level`] only
+//! [`crate::set_error_callback`] receives malformed/unroutable unsolicited output. It is not a
+//! subscription to `TDLib`'s internal logging stream; [`crate::set_log_level`] only
 //! controls that stream's verbosity. Request errors still return to their caller.
 
 use std::collections::HashMap;
@@ -26,6 +26,7 @@ use tokio::sync::watch;
 use td_types::traits::Function;
 
 use crate::connection::Connection;
+use crate::diagnostics::report;
 use crate::error::{Error, Result};
 
 #[derive(Deserialize)]
@@ -141,7 +142,7 @@ pub(crate) fn remove(id: i32) {
 ///
 /// This is a synchronous call directly to `td_execute`. Because `TDLib` stores
 /// output in thread-local storage, it executes immediately without acquiring locks
-/// or waiting for an in-progress [`set_receive_timeout`]. Do not call it from [`on_error`].
+/// or waiting for an in-progress [`set_receive_timeout`]. Do not call it from [`crate::set_error_callback`].
 ///
 /// # Errors
 ///
@@ -197,66 +198,6 @@ pub fn set_receive_timeout(timeout: Duration) {
   RECEIVER.timeout.store(timeout.as_secs_f64().to_bits(), Ordering::Relaxed);
 }
 
-/// Sets `TDLib`'s process-wide native log verbosity.
-///
-/// `TDLib` documents levels 0 through 5 for progressively more verbose output,
-/// with higher levels up to 1024 enabling additional diagnostics. Its default
-/// is 5; this crate does not silently change it. Supply a level supported by
-/// the native library.
-///
-/// This controls native logging, not the optional [`on_error`] callback.
-/// Logs may contain application-sensitive information; choose verbosity and
-/// log destinations as application policy.
-pub fn set_log_level(level: i32) {
-  // SAFETY: No pointers or borrowed storage are passed.
-  unsafe { td_sys::td_set_log_verbosity_level(level) };
-}
-
-type ErrorCallback = Box<dyn Fn(Error) + Send + Sync>;
-static ERROR_CALLBACK: Mutex<Option<ErrorCallback>> = Mutex::new(None);
-
-/// Installs or replaces the process-wide unsolicited-error callback.
-///
-/// Reports malformed native output and unsolicited `TDLib` errors without a
-/// waiting request recipient, including errors with unknown client IDs.
-/// Correlated request failures are returned to their caller instead. Without
-/// a callback these diagnostics are unobserved; they do not enter unrelated
-/// clients' update queues.
-///
-/// The callback is synchronous on the native receiver thread while the
-/// callback lock is held. It must not block, panic, call `on_error` again,
-/// invoke [`execute`], or wait for work that needs the receiver. Copy/forward
-/// the error to application-owned processing when more work is needed.
-/// A panic can terminate the receiver; there is no automatic restart or poison
-/// recovery. Replacing the callback also drops the old callback under its lock.
-///
-/// This is not a native log subscription. To stop observing, replace the
-/// callback with a no-op; there is no separate unsubscribe handle.
-///
-/// # Examples
-///
-/// ```no_run
-/// use std::sync::mpsc;
-/// use td_client::on_error;
-///
-/// let (errors, receiver) = mpsc::channel();
-/// on_error(move |error| {
-///   // Unbounded send does not wait for application processing.
-///   let _ = errors.send(error);
-/// });
-/// // An application-owned worker can now consume receiver.
-/// # let _ = receiver;
-/// ```
-pub fn on_error(callback: impl Fn(Error) + Send + Sync + 'static) {
-  *ERROR_CALLBACK.lock().unwrap() = Some(Box::new(callback));
-}
-
-pub(crate) fn report(error: impl Into<Error>) {
-  if let Some(callback) = ERROR_CALLBACK.lock().unwrap().as_ref() {
-    callback(error.into());
-  }
-}
-
 pub(crate) fn parse_error(raw: &[u8]) -> Error {
   match serde_json::from_slice(raw) {
     Ok(error) => Error::Td(error),
@@ -280,13 +221,13 @@ mod tests {
     let receiver = Receiver { clients, thread: OnceLock::new(), transition, timeout: AtomicU64::new(0) };
     let errors = Arc::new(Mutex::new(Vec::new()));
     let observed = Arc::clone(&errors);
-    on_error(move |error| observed.lock().unwrap().push(error));
+    crate::set_error_callback(move |error| observed.lock().unwrap().push(error));
     receiver.route(br#"{"@type":"error","code":429,"message":"limited"}"#);
     receiver.route(br#"{"@client_id":99,"@type":"error","code":500,"message":"unroutable"}"#);
     receiver.route(br#"{"@client_id":7,"@type":"error","code":400,"message":"unsolicited"}"#);
     receiver.route(br#"{"@type":"ok"}"#);
     receiver.route(br#"{"@client_id":7,"@type":"updateMessageSendSucceeded","message":null}"#);
-    on_error(drop);
+    crate::clear_error_callback();
 
     let errors = errors.lock().unwrap().drain(..).collect::<Vec<_>>();
     let [global, unknown_client, known_client, missing_client, malformed]: [Error; 5] = errors.try_into().unwrap();

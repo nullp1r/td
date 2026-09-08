@@ -1,7 +1,7 @@
 //! Request, transfer, authentication, and lifecycle failures.
 //!
 //! Failures with a waiting caller are returned through [`Result`]. Unsolicited
-//! native diagnostics use [`on_error`](crate::runtime::on_error), not every
+//! native diagnostics use [`set_error_callback`](crate::diagnostics::set_error_callback), not every
 //! client's update queue. This crate chooses neither logging nor retry policy.
 //!
 //! A failed wait is not necessarily a failed side effect. For example, losing a
@@ -11,7 +11,6 @@
 
 use std::result;
 
-use td_types::enums::AuthorizationState;
 use td_types::types;
 
 use crate::message::MessageKey;
@@ -29,15 +28,12 @@ pub enum Error {
   /// `TDLib` reported an error, preserving its original code and message.
   ///
   /// Returned for request failures or delivered as an unsolicited diagnostic
-  /// through [`on_error`](crate::runtime::on_error).
+  /// through [`set_error_callback`](crate::diagnostics::set_error_callback).
   #[error("TDLib: {} {}", .0.code, .0.message)]
   Td(types::error),
   /// A request could not be serialized or native output could not be decoded.
   #[error("JSON: {0}")]
   Json(#[from] serde_json::Error),
-  /// The bot helper encountered an authorization state it does not handle.
-  #[error("unexpected auth state: {0:?}")]
-  Auth(AuthorizationState),
   /// Token-triggered cleanup won according to the operation's cancellation rules.
   #[error("operation cancelled")]
   Cancelled,

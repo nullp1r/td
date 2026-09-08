@@ -240,8 +240,6 @@ dependencies = [
  "thiserror",
  "tokio",
  "tokio-util",
- "tracing",
- "tracing-subscriber",
 ]
 
 [[package]]
@@ -276,6 +274,22 @@ dependencies = [
  "serde_json",
  "td-codegen",
  "td-parser",
+]
+
+[[package]]
+name = "tdx"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "serde",
+ "serde_json",
+ "td-client",
+ "td-sys",
+ "td-types",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]

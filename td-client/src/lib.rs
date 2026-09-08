@@ -60,11 +60,10 @@
 //!
 //! ```no_run
 //! use td_client::types::{enums::User, fns};
-//! use td_client::{Session, parameters};
-//! use td_client::Result;
+//! use td_client::{Session, Result};
 //!
-//! # async fn example(api_id: i32, api_hash: &str, token: &str) -> Result {
-//! let mut session = Session::bot(parameters(api_id, api_hash, "session"), token).await?;
+//! # async fn example(session: Session) -> Result {
+//! // The caller has already authorized the session.
 //! let result = session.client().send(&fns::getMe {}).await;
 //! let close = session.close().await;
 //!
@@ -131,7 +130,7 @@
 //!
 //! [`error::Error`] distinguishes native errors, JSON failures, terminal message
 //! failures, cancellation, and disconnection. Unsolicited diagnostics without a
-//! request recipient go only to the optional [`on_error`] callback.
+//! request recipient go only to the optional [`set_error_callback`] callback.
 //! A malformed terminal update may leave a tracked send waiting indefinitely.
 //!
 //! The crate supplies no request deadlines, retries, scheduling, or rate-limit
@@ -144,6 +143,7 @@
 //! successful progress callback means an operation is complete.
 
 pub mod client;
+pub mod diagnostics;
 pub mod error;
 pub mod message;
 pub mod runtime;
@@ -155,6 +155,7 @@ mod connection;
 pub use td_types as types;
 
 pub use crate::client::*;
+pub use crate::diagnostics::*;
 pub use crate::error::*;
 pub use crate::message::*;
 pub use crate::runtime::*;

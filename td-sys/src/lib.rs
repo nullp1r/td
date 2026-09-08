@@ -213,7 +213,7 @@ mod tests {
       // SAFETY: `res_ptr` is a non-null, NUL-terminated TDLib response.
       // `CALLS` keeps its buffer valid while borrowed.
       let res_str = unsafe { CStr::from_ptr(res_ptr) }.to_str().expect("valid utf-8 response");
-      assert!(!res_str.is_empty());
+      assert_ne!(res_str, "");
     }
   }
 

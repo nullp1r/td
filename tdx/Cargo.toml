@@ -1,5 +1,5 @@
 [package]
-name = "td-client"
+name = "tdx"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -8,17 +8,17 @@ rust-version.workspace = true
 workspace = true
 
 [dependencies]
-serde.workspace = true
-serde_json.workspace = true
-td-sys.workspace = true
+td-client.workspace = true
 td-types.workspace = true
 thiserror.workspace = true
-tokio = { workspace = true, features = ["macros", "sync"] }
-tokio-util.workspace = true
 
 [build-dependencies]
 td-sys.workspace = true
 
 [dev-dependencies]
 anyhow.workspace = true
-tokio = { workspace = true, features = ["macros", "process", "rt-multi-thread", "time"] }
+serde.workspace = true
+serde_json.workspace = true
+tokio = { workspace = true, features = ["macros", "process", "rt", "signal", "time"] }
+tracing.workspace = true
+tracing-subscriber.workspace = true

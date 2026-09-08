@@ -5,6 +5,6 @@
 /td/*
 !/td/fetch
 !/td/docs
-/td-client/examples/helpers/config.json
-/td-client/tests/live/config.json
-/td-client/tests/live/session/
+/tdx/examples/config.json
+/tdx/tests/live/config.json
+/tdx/tests/live/session/

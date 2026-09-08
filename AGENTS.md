@@ -68,9 +68,13 @@
 - Treat 160 columns as a ceiling for occasional exceptions, not a target. Prefer
   roughly 80-120 columns when the result reads naturally, and become
   increasingly skeptical as a line grows. Split dense expressions, bind
-  meaningful intermediate values, or use a standalone `//.` in a long method
-  chain when that keeps `rustfmt` from collapsing a clearer layout. Keep a
-  longer line when every available split makes the local structure worse.
+  meaningful intermediate values, or use a trailing `//.` to keep `rustfmt`
+  from collapsing a clearer layout. Put `//.` on the same line as the first
+  expression in a method chain, the first field in a struct, or the first
+  argument/parameter in a list; never put it on a line by itself. For example,
+  start a multiline chain with `let video = Video::new(file) //.` and place
+  subsequent method calls on following lines. Keep a longer line when every
+  available split makes the local structure worse.
 - Keep the workspace's strict Clippy configuration clean. Fix the code first;
   when an exception is intrinsic to an external signature, generated code, or
   benchmark, use a narrow `#[expect(..., reason = "...")]`, never a broad
@@ -282,7 +286,7 @@
   Repeat fresh-process tests when validating native teardown or process-exit
   behavior.
 - Keep credentialed Telegram tests ignored and serial. Load their secrets and
-  test chat ID from the gitignored `td-client/tests/live/config.json`, commit
+  test chat ID from the gitignored `tdx/tests/live/config.json`, commit
   only its example, persist authorization in the gitignored live-test session
   while disabling message/chat/file databases, enforce runtime deadlines inside
   test code so compilation is excluded, and attempt remote cleanup plus graceful
