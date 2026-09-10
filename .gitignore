@@ -8,3 +8,4 @@
 /tdx/examples/config.json
 /tdx/tests/live/config.json
 /tdx/tests/live/session/
+/diagnostics*.txt

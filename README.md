@@ -112,6 +112,10 @@ schema.
 Inspired by Lonami's [grammers](https://codeberg.org/Lonami/grammers) and
 [Telethon](https://codeberg.org/Lonami/Telethon).
 
+## Rustwater
+
+The workspace also contains [`game/`](game/README.md), **Rustwater**: the Telegram-native persistent sandbox MMO RPG that serves as a demanding real application of `tdx` and TDLib. Its durable product, game-design, UX, narrative/art, Telegram and architecture documentation starts at [`game/docs/README.md`](game/docs/README.md).
+
 ## Testing
 
 `cargo test --workspace` runs local tests, including native client routing and

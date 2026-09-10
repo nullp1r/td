@@ -12,7 +12,7 @@ Apply the engineering principles from `nullp1r/td`'s `AGENTS.md` unless a demons
 - Delayed gameplay is durable database state. Sleeping Tokio tasks are never authoritative timers.
 - Callback/timer delivery is treated as duplicate/stale-capable. Encounter `step` values guard state transitions.
 - Reaction timing starts only after the actionable Telegram state is successfully presented. Server-side output delay must not consume the player's reaction window.
-- Keep Telegram/TDLib types out of game/domain state. Render committed game state through `tdx` at the boundary.
+- Keep generated Telegram/TDLib types and transport policy out of game/domain state. Render committed game state through `tdx` at the boundary. The current fishing encounter stores raw chat/message routing IDs only because the active Telegram panel is part of that concrete interaction; treat them as narrow presentation metadata, not game truth, and extract a separate binding model only when another client/panel lifecycle proves the need.
 - Depend on `tdx` directly. If a generally useful Telegram-boundary capability is missing, improve the `td` family instead of building an application-local compatibility wrapper.
 - Content is validated at startup. Invalid cross-references or impossible ranges are startup errors, not runtime fallbacks.
 - Random procedural outcomes are seed-driven and versioned where persistence matters.
@@ -37,3 +37,10 @@ cargo clippy --all-targets
 ```
 
 Credentialed Telegram integration tests should stay isolated/ignored and must close TDLib sessions gracefully.
+
+## Documentation
+
+- `game/docs/` is the durable game knowledge base. Read `game/docs/README.md` before changing a subsystem whose product/design context is not obvious from code alone.
+- Documentation maintenance is part of the definition of done. When code changes player behavior, game rules, world/lore canon, persistence/concurrency invariants, Telegram assumptions, or settled/open design decisions, update the relevant durable doc in the same change.
+- Edit docs to describe current truth and durable intent. Do not create session logs, archive manifests, transient ZIP/hash references, or speculative “next task” predictions merely to record that work happened.
+- If docs and source disagree, investigate and reconcile them immediately: source defines what currently executes; docs preserve intent/context that code cannot express.

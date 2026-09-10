@@ -291,3 +291,9 @@
   while disabling message/chat/file databases, enforce runtime deadlines inside
   test code so compilation is excluded, and attempt remote cleanup plus graceful
   shutdown on every returned failure.
+
+## Game documentation
+
+- `game/docs/` is the canonical durable knowledge base for Rustwater product vision, game design, narrative/art direction, Telegram UX, and game-specific architecture. A developer with no chat history should be able to start from `game/docs/README.md`.
+- Any change that alters durable game behavior, design intent, world/character canon, platform assumptions, or game architecture must update the relevant `game/docs/` document as part of the same work.
+- Keep documentation high-signal: maintain current truth, decisions, invariants, and deliberate open questions. Do not accumulate chat/session history, temporary archive names/hashes, generated diagnostics, or predictions of the next task.
