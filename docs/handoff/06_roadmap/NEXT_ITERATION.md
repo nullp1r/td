@@ -1,8 +1,8 @@
 # Next Iteration — Recommended Plan
 
-> **Status:** diagnostics-fix candidate; rerun + playtest
+> **Status:** final session handoff; verify once, then resume playtesting-driven development
 
-The UX/social Telegram pass, `tdx` tuple-formatting redesign, and 2026-09-10 game maintainability pass are implemented. The first real diagnostics from the exact maintainability handoff have been repaired. The next iteration should be a **clean diagnostics rerun followed by playtesting**, not another structural rewrite.
+The restored Telegram UX, `tdx` tuple-formatting redesign, native relative-time/table fixes, and game maintainability pass are integrated. The latest real toolchain run passed all build/test configurations and exposed only rustfmt/strict-Clippy cleanup; every reported finding is repaired in the final handoff tree.
 
 ## 0. Verify this exact handoff
 
@@ -13,30 +13,28 @@ python3 tools/handoff.py verify-tree
 ./tools/collect-diagnostics.sh
 ```
 
-Do not act on compiler output unless `verify-tree` first confirms the source tree matches the embedded handoff manifest.
+Do not diagnose a different checkout. `verify-tree` must pass first. The artifact environment that produced the ZIP has no Rust compiler, so one real rerun is still required.
 
-## 1. What the first diagnostics repaired
+## 1. If diagnostics are green
 
-The exact-tree run found and this candidate fixes:
-
-- missing `Clone` alongside `Copy` on three scalar view records;
-- side-effect Telegram `match` arms accidentally returning TDLib response values;
-- a tuple-composition test borrowing and moving the same `Text`;
-- a spawned callback future made non-`Send` by formatting temporaries surviving into an awaited presenter expression;
-- the rustfmt/EOF-whitespace diff produced by the real toolchain.
-
-The user's required `Styled<T>: IntoRichText::into_rich_text` correction remains present. No gameplay/content/schema changes were made in this repair.
-
-## 2. Playtest the Telegram UX
-
-Exercise at least:
+Do **not** start another broad refactor. Continue from the user's newest playtest findings. In particular, exercise:
 
 - Home → Cast → Bite → Catch/Struggle → Cast again;
-- exploration/travel and the Rusted Key progression;
+- exploration/travel and Rusted Key → lighthouse progression;
 - Inventory, tackle stall, repairs, bait selection, crafting;
 - Mara, Harbor Board objectives/contracts, Journal, Records, Titles;
 - group `/fish`, in-message help, ephemeral catch results, Journal/Records from the group result;
 - headerless tables on current Telegram clients;
-- native relative shoal timestamp updating while the message sits idle.
+- native relative shoal timestamps while a message sits idle.
 
-Treat confusion, stale presentation, inaccessible navigation, or misleading player copy as product defects. Preserve the maintainability constraints in `05_technical/GAME_MAINTAINABILITY_PASS_2026-09-10.md`.
+Treat confusing navigation, stale presentation, inaccessible actions, awkward copy, unnecessary chat noise, and missing opportunities to use Telegram-native UI as product bugs.
+
+## 2. If diagnostics still fail
+
+Fix only the concrete failures first. Preserve the decisions in:
+
+- `00_handoff/SESSION_CLOSE_2026-09-10.md`;
+- `04_telegram/TDX_FORMATTING_COMPOSITION_2026-09-10.md`;
+- `05_technical/GAME_MAINTAINABILITY_PASS_2026-09-10.md`.
+
+Do not reintroduce removed formatting compatibility APIs (`plain`, `concat`, composition `Add`/`AddAssign`, old header-taking `table(...)`) or widen game architecture merely to silence tests/lints.

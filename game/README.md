@@ -117,7 +117,7 @@ Following the clue unlocks Old Lighthouse and then Lighthouse Cove, which now ha
 
 ### Equipment and economy
 
-- 4 rods with descriptions, control, permanent ownership, purchase prices, condition, and equipping.
+- 4 rods with distinct control, permanent ownership, purchase prices, condition, and equipping.
 - Rod condition wears slowly on successful catches; harder catches wear more.
 - Condition never destroys a rod and only reduces effective control modestly.
 - The tackle stall repairs all owned rods for a deliberately low cost.

@@ -4,10 +4,11 @@
 
 ## “I need to understand the whole product”
 
-1. `01_product/PRODUCT_VISION.md`
-2. `01_product/DECISIONS.md`
-3. `00_handoff/USER_PREFERENCES.md`
-4. `99_archive/original_design/Game Design Foundation.md`
+1. `00_handoff/SESSION_CLOSE_2026-09-10.md`
+2. `01_product/PRODUCT_VISION.md`
+3. `01_product/DECISIONS.md`
+4. `00_handoff/USER_PREFERENCES.md`
+5. `99_archive/original_design/Game Design Foundation.md`
 
 ## “I am implementing fishing”
 
@@ -37,10 +38,11 @@
 
 ## “I am picking the next task”
 
-1. `00_handoff/CURRENT_STATE.md`
-2. `06_roadmap/NEXT_ITERATION.md`
-3. `01_product/OPEN_QUESTIONS.md`
-4. `02_game_design/CONTENT_AND_FEATURE_STATUS.md`
+1. `00_handoff/SESSION_CLOSE_2026-09-10.md`
+2. `00_handoff/CURRENT_STATE.md`
+3. `06_roadmap/NEXT_ITERATION.md`
+4. `01_product/OPEN_QUESTIONS.md`
+5. `02_game_design/CONTENT_AND_FEATURE_STATUS.md`
 
 ## “I am debugging/refactoring”
 

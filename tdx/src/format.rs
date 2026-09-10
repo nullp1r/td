@@ -75,31 +75,26 @@
 
 macro_rules! tuple_impls {
   ($impl:ident) => {
-    $impl!(T0 p0);
-    $impl!(T0 p0, T1 p1);
-    $impl!(T0 p0, T1 p1, T2 p2);
-    $impl!(T0 p0, T1 p1, T2 p2, T3 p3);
-    $impl!(T0 p0, T1 p1, T2 p2, T3 p3, T4 p4);
-    $impl!(T0 p0, T1 p1, T2 p2, T3 p3, T4 p4, T5 p5);
-    $impl!(T0 p0, T1 p1, T2 p2, T3 p3, T4 p4, T5 p5, T6 p6);
-    $impl!(T0 p0, T1 p1, T2 p2, T3 p3, T4 p4, T5 p5, T6 p6, T7 p7);
-    $impl!(T0 p0, T1 p1, T2 p2, T3 p3, T4 p4, T5 p5, T6 p6, T7 p7, T8 p8);
-    $impl!(T0 p0, T1 p1, T2 p2, T3 p3, T4 p4, T5 p5, T6 p6, T7 p7, T8 p8, T9 p9);
-    $impl!(T0 p0, T1 p1, T2 p2, T3 p3, T4 p4, T5 p5, T6 p6, T7 p7, T8 p8, T9 p9, T10 p10);
-    $impl!(T0 p0, T1 p1, T2 p2, T3 p3, T4 p4, T5 p5, T6 p6, T7 p7, T8 p8, T9 p9, T10 p10, T11 p11);
-    $impl!(T0 p0, T1 p1, T2 p2, T3 p3, T4 p4, T5 p5, T6 p6, T7 p7, T8 p8, T9 p9, T10 p10, T11 p11, T12 p12);
-    $impl!(T0 p0, T1 p1, T2 p2, T3 p3, T4 p4, T5 p5, T6 p6, T7 p7, T8 p8, T9 p9, T10 p10, T11 p11, T12 p12, T13 p13);
-    $impl!(T0 p0, T1 p1, T2 p2, T3 p3, T4 p4, T5 p5, T6 p6, T7 p7, T8 p8, T9 p9, T10 p10, T11 p11, T12 p12, T13 p13, T14 p14);
-    $impl!(T0 p0, T1 p1, T2 p2, T3 p3, T4 p4, T5 p5, T6 p6, T7 p7, T8 p8, T9 p9, T10 p10, T11 p11, T12 p12, T13 p13, T14 p14, T15 p15);
-    $impl!(T0 p0, T1 p1, T2 p2, T3 p3, T4 p4, T5 p5, T6 p6, T7 p7, T8 p8, T9 p9, T10 p10, T11 p11, T12 p12, T13 p13, T14 p14, T15 p15, T16 p16);
-    $impl!(T0 p0, T1 p1, T2 p2, T3 p3, T4 p4, T5 p5, T6 p6, T7 p7, T8 p8, T9 p9, T10 p10, T11 p11, T12 p12, T13 p13, T14 p14, T15 p15, T16 p16, T17 p17);
-    $impl!(
-      T0 p0, T1 p1, T2 p2, T3 p3, T4 p4, T5 p5, T6 p6, T7 p7, T8 p8, T9 p9, T10 p10, T11 p11, T12 p12, T13 p13, T14 p14, T15 p15, T16 p16, T17 p17, T18 p18
-    );
-    $impl!(
-      T0 p0, T1 p1, T2 p2, T3 p3, T4 p4, T5 p5, T6 p6, T7 p7, T8 p8, T9 p9, T10 p10, T11 p11, T12 p12, T13 p13, T14 p14, T15 p15, T16 p16, T17 p17, T18 p18,
-      T19 p19
-    );
+    $impl!(A a);
+    $impl!(A a, B b);
+    $impl!(A a, B b, C c);
+    $impl!(A a, B b, C c, D d);
+    $impl!(A a, B b, C c, D d, E e);
+    $impl!(A a, B b, C c, D d, E e, F f);
+    $impl!(A a, B b, C c, D d, E e, F f, G g);
+    $impl!(A a, B b, C c, D d, E e, F f, G g, H h);
+    $impl!(A a, B b, C c, D d, E e, F f, G g, H h, I i);
+    $impl!(A a, B b, C c, D d, E e, F f, G g, H h, I i, J j);
+    $impl!(A a, B b, C c, D d, E e, F f, G g, H h, I i, J j, K k);
+    $impl!(A a, B b, C c, D d, E e, F f, G g, H h, I i, J j, K k, L l);
+    $impl!(A a, B b, C c, D d, E e, F f, G g, H h, I i, J j, K k, L l, M m);
+    $impl!(A a, B b, C c, D d, E e, F f, G g, H h, I i, J j, K k, L l, M m, N n);
+    $impl!(A a, B b, C c, D d, E e, F f, G g, H h, I i, J j, K k, L l, M m, N n, O o);
+    $impl!(A a, B b, C c, D d, E e, F f, G g, H h, I i, J j, K k, L l, M m, N n, O o, P p);
+    $impl!(A a, B b, C c, D d, E e, F f, G g, H h, I i, J j, K k, L l, M m, N n, O o, P p, Q q);
+    $impl!(A a, B b, C c, D d, E e, F f, G g, H h, I i, J j, K k, L l, M m, N n, O o, P p, Q q, R r);
+    $impl!(A a, B b, C c, D d, E e, F f, G g, H h, I i, J j, K k, L l, M m, N n, O o, P p, Q q, R r, S s);
+    $impl!(A a, B b, C c, D d, E e, F f, G g, H h, I i, J j, K k, L l, M m, N n, O o, P p, Q q, R r, S s, T t);
   };
 }
 

@@ -39,16 +39,12 @@ pub fn ordered_list(items: impl IntoIterator<Item = ListItem>) -> InputPageBlock
 /// Applies native numbering: `1`, `a`, `A`, `i`, `I`, or empty for bullets.
 /// Replaces each item's numbering fields; other schemes are left to `TDLib`.
 pub fn ordered_list_styled(numbering_type: &str, items: impl IntoIterator<Item = ListItem>) -> InputPageBlock {
-  let items = items
-    .into_iter()
-    .enumerate()
-    .map(|(index, mut item)| {
-      item.value = if numbering_type.is_empty() { 0 } else { (index + 1) as i32 };
-      item.r#type = numbering_type.into();
-      item
-    })
-    .collect();
-  types::inputPageBlockList { items }.into()
+  let map = items.into_iter().enumerate().map(|(index, mut item)| {
+    item.value = if numbering_type.is_empty() { 0 } else { (index + 1) as i32 };
+    item.r#type = numbering_type.into();
+    item
+  });
+  types::inputPageBlockList { items: map.collect() }.into()
 }
 
 /// Builds unnumbered paragraph items with checkboxes.

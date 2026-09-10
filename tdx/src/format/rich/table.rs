@@ -16,14 +16,11 @@ pub use types::pageBlockTableCell as Cell;
 
 /// Creates a visible 1×1 cell, aligned left and vertically centered.
 pub fn cell(text: impl IntoRichText) -> Cell {
-  Cell {
-    text: Some(text.into_rich_text()), //.
-    colspan: 1,
-    rowspan: 1,
-    align: PageBlockHorizontalAlignment::pageBlockHorizontalAlignmentLeft,
-    valign: PageBlockVerticalAlignment::pageBlockVerticalAlignmentMiddle,
-    ..Default::default()
-  }
+  let text = Some(text.into_rich_text());
+  let [colspan, rowspan] = [1; 2];
+  let align = PageBlockHorizontalAlignment::pageBlockHorizontalAlignmentLeft;
+  let valign = PageBlockVerticalAlignment::pageBlockVerticalAlignmentMiddle;
+  Cell { text, colspan, rowspan, align, valign, ..Default::default() }
 }
 
 fluent! {
@@ -129,7 +126,7 @@ tuple_impls!(row_tuple);
 /// Starts a headerless table with an empty text caption.
 #[must_use]
 pub fn table() -> Table {
-  Table { caption: "".into_rich_text(), ..Default::default() }
+  Default::default()
 }
 
 fn push_nonempty_row(table: &mut Table, row: impl IntoRow) {

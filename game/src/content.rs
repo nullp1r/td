@@ -42,7 +42,6 @@ pub struct Bait {
 pub struct Rod {
   pub id: RodId,
   pub name: String,
-  pub description: String,
   pub control: u32,
   pub buy_price: u32,
 }

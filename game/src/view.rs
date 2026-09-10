@@ -274,11 +274,6 @@ pub struct SaleView {
   pub coins: u64,
 }
 
-#[derive(Clone, Copy, Debug)]
-pub struct CastStarted {
-  pub due_at_ms: i64,
-}
-
 #[derive(Debug)]
 pub struct BiteView {
   pub encounter_id: EncounterId,

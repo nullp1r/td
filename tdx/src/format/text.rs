@@ -216,19 +216,17 @@ impl Part for Arguments<'_> {
   }
 }
 
-macro_rules! display_parts {
-  ($($ty:ty),+ $(,)?) => {
-    $(
-      impl Part for $ty {
-        fn write_to(self, text: &mut Text) {
-          write!(text, "{self}").expect("Display returned an error although the Text writer cannot fail");
-        }
+macro_rules! display_parts(($($ty:ty),+) => {
+  $(
+    impl Part for $ty {
+      fn write_to(self, text: &mut Text) {
+        write!(text, "{self}").expect("Display returned an error although the Text writer cannot fail");
       }
-    )+
-  };
-}
+    }
+  )+
+});
 
-display_parts!(bool, i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize, f32, f64,);
+display_parts!(bool, i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize, f32, f64);
 
 impl<T: Part, const N: usize> Part for [T; N] {
   fn write_to(self, text: &mut Text) {

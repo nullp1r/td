@@ -4,7 +4,7 @@
 >
 > **Audience:** future human developers and AI coding agents.
 >
-> **Placement:** this archive is designed to be extracted into `game/docs/`.
+> **Placement:** canonical handoff documentation lives in `docs/handoff/` inside the project root.
 
 ## Read this first
 
@@ -13,14 +13,15 @@ The repository root `AGENTS.md` remains the highest-priority engineering guidanc
 For a new developer or AI agent, read in this order:
 
 1. `00_handoff/START_HERE.md`
-2. `00_handoff/CURRENT_STATE.md`
-3. `00_handoff/USER_PREFERENCES.md`
-4. `01_product/PRODUCT_VISION.md`
-5. `01_product/DECISIONS.md`
-6. `03_ux/UX_PRINCIPLES.md`
-7. `05_technical/ARCHITECTURE.md`
-8. The subsystem document relevant to the task.
-9. `99_archive/` only when deeper historical rationale is useful.
+2. `00_handoff/SESSION_CLOSE_2026-09-10.md`
+3. `00_handoff/CURRENT_STATE.md`
+4. `00_handoff/USER_PREFERENCES.md`
+5. `01_product/PRODUCT_VISION.md`
+6. `01_product/DECISIONS.md`
+7. `03_ux/UX_PRINCIPLES.md`
+8. `05_technical/ARCHITECTURE.md`
+9. The subsystem document relevant to the task.
+10. `99_archive/` only when deeper historical rationale is useful.
 
 ## Status vocabulary
 
@@ -31,7 +32,7 @@ Documents use four kinds of status:
 - **Open** — deliberately undecided; do not invent permanence prematurely.
 - **Historical** — records what happened, including implementations that may no longer exist in the current checkout.
 
-A major lesson from this session is that **code state and design state must not be conflated**. Several good UX changes were implemented in a working tree that was never packaged before the chat was rewound. Those changes are documented here as reimplementation targets, not as assumptions about the current repository.
+A major lesson from this session is that **code state and design state must not be conflated**. Earlier in the project, a working UX tree was lost during a rewind; those changes were subsequently reconstructed, audited against the original request, and incorporated into the current handoff. Historical documents preserve that incident for provenance, but `00_handoff/SESSION_CLOSE_2026-09-10.md` and the current source tree are authoritative.
 
 ## Package map
 

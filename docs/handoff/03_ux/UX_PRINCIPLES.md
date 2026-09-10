@@ -11,8 +11,8 @@ The developer is also a player. Normal UI must not contain implementation commen
 Avoid player-facing phrases such as:
 
 - “this build”;
-- “MVP”; 
-- “generic crafting engine”; 
+- “MVP”;
+- “generic crafting engine”;
 - internal provenance/schema explanations;
 - implementation guarantees;
 - debug/world telemetry unless the player has a reason to care.

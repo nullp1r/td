@@ -10,6 +10,6 @@ mod timer;
 mod view;
 mod world;
 
-#[cfg(feature = "telegram")]
 /// Telegram bot presentation, interaction, and background drivers.
+#[cfg(feature = "telegram")]
 pub mod telegram;

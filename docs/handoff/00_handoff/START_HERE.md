@@ -5,7 +5,7 @@
 
 ## Latest implementation note
 
-The supplied 2026-09-09 checkout has had the lost Telegram UX pass reimplemented in source and then audited against the user’s original UX message. On 2026-09-10, `tdx` formatting was also redesigned around tuple/array/`Vec` composition, headerless-by-default tables, and native relative timestamps. Read `ORIGINAL_UX_REQUEST_AND_AUDIT_2026-09-09.md`, `RESTORED_UX_2026-09-09.md`, and `../04_telegram/TDX_FORMATTING_COMPOSITION_2026-09-10.md` before relying on older historical implementation-status notes.
+The 2026-09-10 session is closed with the restored/audited Telegram UX, `tdx` tuple-formatting redesign, native relative timestamps, and the game maintainability pass integrated. **Read `SESSION_CLOSE_2026-09-10.md` immediately after this file.** It records the final real compiler diagnostics, the fixes applied afterward, and the exact next-session procedure. The original UX request remains preserved verbatim in `ORIGINAL_UX_REQUEST_AND_AUDIT_2026-09-09.md`.
 
 ## The most important context
 

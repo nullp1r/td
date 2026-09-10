@@ -51,11 +51,8 @@ pub async fn reward(client: &Client, chat_id: i64, message_id: i64, view: &Rewar
 }
 
 pub async fn npc(client: &Client, chat_id: i64, message_id: i64, view: &NpcView) -> client::Result<()> {
-  let content = rich([
-    heading(format_args!("💬 {} · {}", view.name, view.title), 1),
-    paragraph(view.text.as_str()),
-    block_quote([paragraph(view.hint.as_str())]),
-  ]);
+  let content =
+    rich([heading(format_args!("💬 {} · {}", view.name, view.title), 1), paragraph(view.text.as_str()), block_quote([paragraph(view.hint.as_str())])]);
   let reply_markup = markup::inline(vec![
     vec![markup::callback("📋 Harbor board", Callback::Tasks.encode()), markup::callback("🏪 Tackle stall", Callback::Shop.encode())],
     vec![markup::callback("🌦 Conditions", Callback::Conditions.encode()), markup::callback("🏠 Home", Callback::Home.encode())],

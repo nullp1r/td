@@ -52,11 +52,11 @@ fn append_node(texts: &mut Vec<RichText>, text: RichText) {
   }
 }
 
-fn finish(mut texts: Vec<RichText>) -> RichText {
-  match texts.len() {
-    0 => types::richTextPlain { text: String::new() }.into(),
-    1 => texts.pop().expect("length checked"),
-    _ => types::richTexts { texts }.into(),
+fn finish(texts: Vec<RichText>) -> RichText {
+  match <[_; 1]>::try_from(texts) {
+    Ok([text]) => text,
+    Err(texts) if texts.is_empty() => types::richTextPlain { text: String::new() }.into(),
+    Err(texts) => types::richTexts { texts }.into(),
   }
 }
 
@@ -96,19 +96,17 @@ impl IntoRichText for Arguments<'_> {
   }
 }
 
-macro_rules! display_rich_parts {
-  ($($ty:ty),+ $(,)?) => {
-    $(
-      impl IntoRichText for $ty {
-        fn into_rich_text(self) -> RichText {
-          self.to_string().into_rich_text()
-        }
+macro_rules! display_rich_parts(($($ty:ty),+) => {
+  $(
+    impl IntoRichText for $ty {
+      fn into_rich_text(self) -> RichText {
+        self.to_string().into_rich_text()
       }
-    )+
-  };
-}
+    }
+  )+
+});
 
-display_rich_parts!(bool, i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize, f32, f64,);
+display_rich_parts!(bool, i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize, f32, f64);
 
 impl<T: IntoRichText, const N: usize> IntoRichText for [T; N] {
   fn into_rich_text(self) -> RichText {
@@ -138,22 +136,20 @@ impl<T: IntoRichText> IntoRichText for Vec<T> {
   }
 }
 
-macro_rules! rich_tuple {
-  ($($ty:ident $value:ident),+ $(,)?) => {
-    impl<$($ty: IntoRichText),+> IntoRichText for ($($ty,)+) {
-      fn into_rich_text(self) -> RichText {
-        let mut texts = Vec::new();
-        self.append_to(&mut texts);
-        finish(texts)
-      }
-
-      fn append_to(self, texts: &mut Vec<RichText>) {
-        let ($($value,)+) = self;
-        $($value.append_to(texts);)+
-      }
+macro_rules! rich_tuple(($($ty:ident $value:ident),+) => {
+  impl<$($ty: IntoRichText),+> IntoRichText for ($($ty,)+) {
+    fn into_rich_text(self) -> RichText {
+      let mut texts = Vec::new();
+      self.append_to(&mut texts);
+      finish(texts)
     }
-  };
-}
+
+    fn append_to(self, texts: &mut Vec<RichText>) {
+      let ($($value,)+) = self;
+      $($value.append_to(texts);)+
+    }
+  }
+});
 
 tuple_impls!(rich_tuple);
 

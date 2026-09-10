@@ -10,8 +10,8 @@ use crate::{
   content::{Content, Species},
   fishing::{self, Reaction},
   ids::{BaitId, EncounterId, LocationId, RodId, SpeciesId},
-  view::{BiteView, CastStarted, CatchView, CharacterView, EscapeView, ReelOutcome, RelicView, StruggleView, TimerOutcome},
-  world::environment_at,
+  view::{BiteView, CatchView, CharacterView, EscapeView, ReelOutcome, RelicView, StruggleView, TimerOutcome},
+  world::{Environment, environment_at},
 };
 
 // Persisted fishing-encounter state and timer tags.
@@ -38,7 +38,7 @@ impl App {
       .await
   }
 
-  pub async fn cast(&self, telegram_user_id: i64, chat_id: i64, message_id: i64, seed: u64, now_ms: i64) -> Result<CastStarted> {
+  pub async fn cast(&self, telegram_user_id: i64, chat_id: i64, message_id: i64, seed: u64, now_ms: i64) -> Result<()> {
     let content = self.content.clone();
     self
       .run_db(move |connection| -> Result<_> {
@@ -102,7 +102,7 @@ impl App {
         let encounter_id = tx.last_insert_rowid();
         tx.execute("INSERT INTO timers (due_at_ms, kind, entity_id, step) VALUES (?1, ?2, ?3, 0)", params![due_at_ms, TIMER_BITE, encounter_id])?;
         tx.commit()?;
-        Ok(CastStarted { due_at_ms })
+        Ok(())
       })
       .await
   }
@@ -226,7 +226,7 @@ impl App {
           tx.commit()?;
           return Ok(TimerOutcome::Stale);
         }
-        let outcome = advance_timer(&tx, &content, timer_id, timer, encounter)?;
+        let outcome = advance_timer(&tx, &content, timer_id, &timer, &encounter)?;
         tx.commit()?;
         Ok(outcome)
       })
@@ -274,8 +274,8 @@ fn advance_timer(
   tx: &rusqlite::Transaction<'_>,
   content: &Content,
   timer_id: i64,
-  timer: DueTimer,
-  encounter: TimerEncounter,
+  timer: &DueTimer,
+  encounter: &TimerEncounter,
 ) -> rusqlite::Result<TimerOutcome> {
   match timer.kind {
     TIMER_BITE if encounter.phase == PHASE_WAITING => {
@@ -325,7 +325,7 @@ fn cast_target(
   character_id: i64,
   location: LocationId,
   bait: BaitId,
-  environment: crate::world::Environment,
+  environment: Environment,
   seed: u64,
 ) -> rusqlite::Result<(SpeciesId, i64)> {
   if location == LocationId(2) && !owns_item(tx, character_id, ITEM_RUSTED_KEY)? {

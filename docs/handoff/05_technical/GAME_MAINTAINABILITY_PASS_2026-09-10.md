@@ -14,7 +14,7 @@ Production Rust here means `game/src/**/*.rs` excluding `app/tests.rs`.
 
 | Metric | Before | After | Delta |
 |---|---:|---:|---:|
-| Production lines | 5,285 | 5,166 | **-119** |
+| Production lines | 5,285 | 5,157 | **-128** |
 | Comment/doc-comment lines | 7 | 74 | **+67** |
 
 The crate therefore became smaller despite adding substantially more documentation. LOC was used as design feedback, not as a target for dense one-liners: `angling.rs` and `social.rs` intentionally grew where named state/transaction boundaries made persisted behavior easier to audit, while larger reductions came from duplicated database/application/presenter mechanics.
@@ -147,3 +147,15 @@ No gameplay rules, schema, migrations, content, or player-facing behavior were c
 The artifact environment has no Rust compiler, Cargo, rustfmt, or Clippy. The first real diagnostics identified the issues above, and this tree repairs them by source inspection, but a **fresh clean diagnostic rerun is still required** because compiler blockers can mask later Clippy/test failures. Static source scans, TDLib schema checks, SQLite integrity checks, handoff tooling, and runtime-state hash checks are performed before packaging.
 
 After that rerun, further work should be driven by playtesting rather than another speculative structural rewrite.
+
+## Final stabilization after the second real diagnostics run
+
+The next exact-tree diagnostics established that all build and test configurations were green before strict linting. The final cleanup therefore stayed intentionally narrow:
+
+- removed the unused `Rod.description` model field and unused rod-description JSON payload;
+- removed `CastStarted`, whose deadline existed only to make tests convenient; `App::cast` now returns `Result<()>` and tests observe the authoritative durable timer through `next_timer_due_at`;
+- borrowed the small timer/encounter snapshots in `advance_timer` instead of pretending to consume them;
+- fixed the reported strict-Clippy path/style assertions directly rather than adding lint exceptions;
+- applied the last rustfmt hunk.
+
+This leaves the final measured production tree at **5,157 lines**, 128 below the 5,285-line baseline, with 74 comment/doc-comment lines. The packaging environment cannot run Rust, so the next developer must rerun the matrix once; a green result should close this refactor/diagnostics thread.

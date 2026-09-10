@@ -9,7 +9,7 @@ mod social;
 #[cfg(test)]
 mod tests;
 
-use std::sync::Arc;
+use std::{result::Result as StdResult, sync::Arc};
 
 use rusqlite::{Connection, OptionalExtension as _, params};
 use thiserror::Error;
@@ -106,7 +106,7 @@ pub enum Error {
   GroupEventClaimed,
 }
 
-type Result<T> = std::result::Result<T, Error>;
+type Result<T> = StdResult<T, Error>;
 
 impl From<rusqlite::Error> for Error {
   fn from(error: rusqlite::Error) -> Self {

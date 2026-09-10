@@ -59,14 +59,8 @@ pub async fn caught(client: &Client, catch: &CatchView) -> client::Result<()> {
   }
   blocks.push(button_row([success_callback_button("🎣 Cast again", Callback::Cast.encode())]));
 
-  edit_panel(
-    client,
-    catch.chat_id,
-    catch.message_id,
-    rich(blocks),
-    markup::inline([[markup::callback("← Journal", Callback::Journal.encode()), markup::callback("🏠 Home", Callback::Home.encode())]]),
-  )
-  .await
+  let markup = markup::inline([[markup::callback("← Journal", Callback::Journal.encode()), markup::callback("🏠 Home", Callback::Home.encode())]]);
+  edit_panel(client, catch.chat_id, catch.message_id, rich(blocks), markup).await
 }
 
 pub async fn struggle(client: &Client, struggle: &StruggleView) -> client::Result<()> {
@@ -103,14 +97,8 @@ pub async fn relic(client: &Client, relic: &RelicView) -> client::Result<()> {
     blocks.push(paragraph(format_args!("⭐ Level {} reached.", relic.level)));
   }
   blocks.push(button_row([primary_callback_button("🔎 Follow the clue", Callback::Explore.encode())]));
-  edit_panel(
-    client,
-    relic.chat_id,
-    relic.message_id,
-    rich(blocks),
-    markup::inline([[markup::callback("← Locations", Callback::Locations.encode()), markup::callback("🏠 Home", Callback::Home.encode())]]),
-  )
-  .await
+  let markup = markup::inline([[markup::callback("← Locations", Callback::Locations.encode()), markup::callback("🏠 Home", Callback::Home.encode())]]);
+  edit_panel(client, relic.chat_id, relic.message_id, rich(blocks), markup).await
 }
 
 pub async fn explored(client: &Client, chat_id: i64, message_id: i64, view: &ExploreView) -> client::Result<()> {
@@ -123,23 +111,12 @@ pub async fn explored(client: &Client, chat_id: i64, message_id: i64, view: &Exp
     blocks.push(paragraph(format_args!("✨ +{} XP", view.xp_gained)));
   }
   blocks.push(button_row([primary_callback_button("🔎 Explore again", Callback::Explore.encode())]));
-  edit_panel(
-    client,
-    chat_id,
-    message_id,
-    rich(blocks),
-    markup::inline([[markup::callback("← Locations", Callback::Locations.encode()), markup::callback("🏠 Home", Callback::Home.encode())]]),
-  )
-  .await
+  let markup = markup::inline([[markup::callback("← Locations", Callback::Locations.encode()), markup::callback("🏠 Home", Callback::Home.encode())]]);
+  edit_panel(client, chat_id, message_id, rich(blocks), markup).await
 }
 
 pub async fn escaped(client: &Client, escape: &EscapeView) -> client::Result<()> {
-  edit_panel(
-    client,
-    escape.chat_id,
-    escape.message_id,
-    rich([heading("🌫 It got away", 1), paragraph(escape.reason), button_row([success_callback_button("🎣 Cast again", Callback::Cast.encode())])]),
-    markup::inline([[markup::callback("🎒 Inventory", Callback::Inventory.encode()), markup::callback("🏠 Home", Callback::Home.encode())]]),
-  )
-  .await
+  let content = rich([heading("🌫 It got away", 1), paragraph(escape.reason), button_row([success_callback_button("🎣 Cast again", Callback::Cast.encode())])]);
+  let markup = markup::inline([[markup::callback("🎒 Inventory", Callback::Inventory.encode()), markup::callback("🏠 Home", Callback::Home.encode())]]);
+  edit_panel(client, escape.chat_id, escape.message_id, content, markup).await
 }

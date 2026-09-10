@@ -57,28 +57,24 @@
       "id": 1,
       "name": "Old Wooden Rod",
       "control": 10,
-      "description": "A warped starter rod. Forgiving, ordinary, and yours.",
       "buy_price": 0
     },
     {
       "id": 2,
       "name": "Reinforced Rod",
       "control": 14,
-      "description": "A heavier frame that keeps powerful fish under control.",
       "buy_price": 45
     },
     {
       "id": 3,
       "name": "Light Rod",
       "control": 11,
-      "description": "A responsive rod built for quick bites and lighter catches.",
       "buy_price": 35
     },
     {
       "id": 4,
       "name": "Breakwater Rod",
       "control": 18,
-      "description": "A brutal saltwater rod designed for the deep water beyond the breakwater.",
       "buy_price": 95
     }
   ],

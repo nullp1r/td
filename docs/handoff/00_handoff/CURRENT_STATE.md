@@ -104,12 +104,12 @@ The user later found one concrete formatting-trait integration error while playt
 
 ## Maintainability pass — 2026-09-10
 
-The current tree also contains a crate-wide readability/maintainability pass over `game`. It reduced production `game/src` from 5,285 to 5,166 lines while increasing comment/doc-comment lines from 7 to 74. The pass removed redundant database/application plumbing, moved persisted values toward typed IDs at SQL boundaries, consolidated repeated bait/economy behavior, made small gameplay tables declarative, clarified durable timer/angling invariants, reduced presenter boilerplate, and added responsibility-level docs to every source module.
+The current tree also contains a crate-wide readability/maintainability pass over `game`. It reduced production `game/src` from 5,285 to 5,157 lines while increasing comment/doc-comment lines from 7 to 74. The pass removed redundant database/application plumbing, moved persisted values toward typed IDs at SQL boundaries, consolidated repeated bait/economy behavior, made small gameplay tables declarative, clarified durable timer/angling invariants, reduced presenter boilerplate, and added responsibility-level docs to every source module.
 
 See `05_technical/GAME_MAINTAINABILITY_PASS_2026-09-10.md` for exact decisions and rejected abstractions.
 
-The first real diagnostic run against the packaged maintainability tree passed `verify-tree`, then exposed a small compiler/rustfmt integration set: three `Copy` views missing `Clone`, side-effect dispatcher matches retaining TDLib response values, one tuple-composition test borrowing and moving the same binding, and a spawned callback future retaining formatting temporaries across `.await`. Those source issues and the emitted rustfmt diff are repaired in the current tree. A fresh diagnostics rerun is still required because the artifact environment itself has no Rust toolchain.
+Two real diagnostic cycles were then run from exact verified handoff trees. The latest run passed all default/all-feature/no-default **build and test** gates; the remaining failures were rustfmt plus strict Clippy style/dead-state findings. The current tree applies every actionable finding from that report, including removing the unused `CastStarted` projection and unused rod-description payload rather than suppressing warnings. See `SESSION_CLOSE_2026-09-10.md` for the authoritative final status.
 
 ## Immediate rule for the next developer
 
-Run `python3 tools/handoff.py verify-tree` and `tools/collect-diagnostics.sh` on the packaged diagnostics-fix tree. If the matrix is green, continue playtesting. Do **not** re-do the UX, `tdx` composition redesign, or maintainability pass unless diagnostics or playtesting expose a real regression.
+Run `python3 tools/handoff.py verify-tree` and `tools/collect-diagnostics.sh` on this final packaged tree. If the matrix is green, continue from new playtest evidence. Do **not** re-do the UX, `tdx` composition redesign, or maintainability pass unless diagnostics or playtesting expose a real regression.

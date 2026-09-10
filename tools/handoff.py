@@ -166,17 +166,24 @@ def verify_tree(_: argparse.Namespace) -> int:
         print(f"missing {manifest_path}; unpack a handoff archive before verifying the tree", file=sys.stderr)
         return 2
 
-    mismatches = []
-    checked = 0
-    for item in manifest["files"]:
-        relative = item["path"]
-        if tree_path_is_mutable(relative):
-            continue
+    expected = {item["path"]: item for item in manifest["files"] if not tree_path_is_mutable(item["path"])}
+    actual = {
+        path.relative_to(ROOT).as_posix()
+        for path in ROOT.rglob("*")
+        if should_include(
+            path,
+            include_session=manifest.get("include_session", False),
+            include_secrets=manifest.get("include_secrets", False),
+            output=None,
+        )
+        and not tree_path_is_mutable(path.relative_to(ROOT).as_posix())
+    }
+
+    mismatches = [f"missing: {relative}" for relative in sorted(set(expected) - actual)]
+    mismatches.extend(f"extra: {relative}" for relative in sorted(actual - set(expected)))
+    for relative in sorted(set(expected) & actual):
+        item = expected[relative]
         path = ROOT / relative
-        checked += 1
-        if not path.is_file():
-            mismatches.append(f"missing: {relative}")
-            continue
         if path.stat().st_size != item["size"] or sha256_file(path) != item["sha256"]:
             mismatches.append(f"mismatch: {relative}")
 
@@ -186,8 +193,9 @@ def verify_tree(_: argparse.Namespace) -> int:
             print(mismatch, file=sys.stderr)
         return 1
 
-    print(f"OK tree matches {MANIFEST} for {checked} immutable files")
+    print(f"OK tree matches {MANIFEST} for {len(expected)} immutable files")
     return 0
+
 
 def selftest(_: argparse.Namespace) -> int:
     with tempfile.TemporaryDirectory() as tmp:

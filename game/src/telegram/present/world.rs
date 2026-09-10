@@ -10,17 +10,11 @@ use crate::{
 use super::{edit_panel, format_duration, format_game_time, format_weight, format_weight_u64};
 
 pub async fn journal(client: &Client, chat_id: i64, message_id: i64, view: &JournalView) -> client::Result<()> {
-  edit_panel(
-    client,
-    chat_id,
-    message_id,
-    journal_content(view),
-    markup::inline(vec![
-      vec![markup::callback("🏆 Records", Callback::Records.encode()), markup::callback("🏷 Titles", Callback::Titles.encode())],
-      vec![markup::callback("🏠 Home", Callback::Home.encode())],
-    ]),
-  )
-  .await
+  let markup = markup::inline(vec![
+    vec![markup::callback("🏆 Records", Callback::Records.encode()), markup::callback("🏷 Titles", Callback::Titles.encode())],
+    vec![markup::callback("🏠 Home", Callback::Home.encode())],
+  ]);
+  edit_panel(client, chat_id, message_id, journal_content(view), markup).await
 }
 
 pub async fn locations(client: &Client, chat_id: i64, message_id: i64, view: &LocationsView) -> client::Result<()> {
@@ -28,31 +22,19 @@ pub async fn locations(client: &Client, chat_id: i64, message_id: i64, view: &Lo
 }
 
 pub async fn conditions(client: &Client, chat_id: i64, message_id: i64, view: &ConditionsView) -> client::Result<()> {
-  edit_panel(
-    client,
-    chat_id,
-    message_id,
-    conditions_content(view),
-    markup::inline(vec![
-      vec![markup::callback("← Locations", Callback::Locations.encode()), markup::callback("📖 Journal", Callback::Journal.encode())],
-      vec![markup::callback("🏠 Home", Callback::Home.encode())],
-    ]),
-  )
-  .await
+  let markup = markup::inline(vec![
+    vec![markup::callback("← Locations", Callback::Locations.encode()), markup::callback("📖 Journal", Callback::Journal.encode())],
+    vec![markup::callback("🏠 Home", Callback::Home.encode())],
+  ]);
+  edit_panel(client, chat_id, message_id, conditions_content(view), markup).await
 }
 
 pub async fn records(client: &Client, chat_id: i64, message_id: i64, view: &RecordsView) -> client::Result<()> {
-  edit_panel(
-    client,
-    chat_id,
-    message_id,
-    records_content(view),
-    markup::inline(vec![
-      vec![markup::callback("← Journal", Callback::Journal.encode()), markup::callback("🏷 Titles", Callback::Titles.encode())],
-      vec![markup::callback("🏠 Home", Callback::Home.encode())],
-    ]),
-  )
-  .await
+  let markup = markup::inline(vec![
+    vec![markup::callback("← Journal", Callback::Journal.encode()), markup::callback("🏷 Titles", Callback::Titles.encode())],
+    vec![markup::callback("🏠 Home", Callback::Home.encode())],
+  ]);
+  edit_panel(client, chat_id, message_id, records_content(view), markup).await
 }
 
 pub(super) fn journal_content(view: &JournalView) -> types::inputMessageRichMessage {
@@ -64,7 +46,7 @@ pub(super) fn journal_content(view: &JournalView) -> types::inputMessageRichMess
         if species.clue.is_empty() { "No useful notes yet." } else { species.clue.as_str() },
       )
     } else {
-      ("???", "".to_owned(), "Undiscovered")
+      ("???", String::new(), "Undiscovered")
     }
   }));
   let relic = if view.rusted_key_discovered { "Rusted Key ✓" } else { "No relics recorded yet." };

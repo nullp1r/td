@@ -68,7 +68,7 @@ pub async fn callback(app: &App, client: &Client, update: &types::updateNewCallb
 
   match callback {
     Callback::Cast | Callback::Reel { .. } | Callback::CancelFishing | Callback::Pull { .. } | Callback::GiveLine { .. } => {
-      fishing_callback(app, client, update, wake, callback).await?
+      fishing_callback(app, client, update, wake, callback).await?;
     }
     Callback::BuyBait { .. }
     | Callback::SelectBait { .. }
@@ -112,7 +112,7 @@ async fn fishing_callback(
     Callback::Cast => {
       let seed = getrandom::u64().map_err(|error| anyhow::anyhow!("failed to obtain cast entropy: {error}"))?;
       match app.cast(update.sender_user_id, update.chat_id, update.message_id, seed, now).await {
-        Ok(_) => {
+        Ok(()) => {
           wake_timer(wake);
           present::casting(client, update.chat_id, update.message_id, &app.character(update.sender_user_id, now).await?).await?;
         }

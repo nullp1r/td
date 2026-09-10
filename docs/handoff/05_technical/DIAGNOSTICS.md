@@ -85,3 +85,5 @@ run git status --short --branch
 The real refactor diagnostic supplied during the session ran on `rustc 1.100.0-nightly` dated 2026-09-03.
 
 After fixing early compiler errors, always run the full matrix again because later Clippy/type failures may have been masked.
+
+Handoff identity is intentionally bidirectional: extracting a new handoff over an older checkout must not silently leave extra stale source/config/doc files that `verify-tree` would overlook. Mutable diagnostics, TDLib session state, and game SQLite runtime files are excluded from this identity check.

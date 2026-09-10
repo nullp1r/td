@@ -64,7 +64,7 @@ fn group_content(event: &GroupEventView, world_first: bool) -> types::inputMessa
 fn group_result_content(catch: &GroupCatchView) -> types::inputMessageRichMessage {
   let mut blocks = vec![
     heading("🎉 Your catch", 1),
-    paragraph(bold(format_args!("{} · {} · {:.1} cm", catch.species_name, format_weight(catch.weight_g), f64::from(catch.length_mm) / 10.0,))),
+    paragraph(bold(format_args!("{} · {} · {:.1} cm", catch.species_name, format_weight(catch.weight_g), f64::from(catch.length_mm) / 10.0))),
     table().row(("✨ XP", format_args!("+{}", catch.xp_gained))).row(("⭐ Level", catch.level)).compact().into(),
   ];
   if catch.new_species {

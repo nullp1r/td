@@ -52,6 +52,11 @@ async fn next_timer_id(app: &App) -> i64 {
   app.due_timer_ids(due_at, 1).await.expect("due timer query").into_iter().next().expect("due timer")
 }
 
+async fn cast_due_at(app: &App, telegram_user_id: i64, chat_id: i64, message_id: i64, seed: u64, now_ms: i64) -> i64 {
+  app.cast(telegram_user_id, chat_id, message_id, seed, now_ms).await.expect("cast");
+  app.next_timer_due_at().await.expect("timer query").expect("timer")
+}
+
 #[test]
 fn level_curve_matches_expected_boundaries() {
   assert_eq!(level_for_xp(0), 1);
@@ -67,15 +72,15 @@ async fn catch_is_persisted_and_duplicate_step_is_stale() {
   let app = app().await;
   let now = 1_000_000_000_i64;
   app.ensure_character(42, now).await.expect("character");
-  let cast = app.cast(42, 42, 100, 123, now).await.expect("cast");
+  let due_at = cast_due_at(&app, 42, 42, 100, 123, now).await;
   let timer_id = next_timer_id(&app).await;
-  let outcome = app.fire_timer(timer_id, cast.due_at_ms).await.expect("bite");
+  let outcome = app.fire_timer(timer_id, due_at).await.expect("bite");
   assert_matches!(outcome, TimerOutcome::Bite(_));
   let TimerOutcome::Bite(bite) = outcome else { unreachable!() };
-  app.mark_presented(bite.encounter_id, bite.step, cast.due_at_ms).await.expect("presented");
-  let outcome = app.reel(42, bite.encounter_id, bite.step, cast.due_at_ms + 2_000).await.expect("reel");
+  app.mark_presented(bite.encounter_id, bite.step, due_at).await.expect("presented");
+  let outcome = app.reel(42, bite.encounter_id, bite.step, due_at + 2_000).await.expect("reel");
   assert_matches!(outcome, ReelOutcome::Caught(_));
-  let duplicate = app.reel(42, bite.encounter_id, bite.step, cast.due_at_ms + 2_100).await;
+  let duplicate = app.reel(42, bite.encounter_id, bite.step, due_at + 2_100).await;
   assert_matches!(duplicate, Err(Error::StaleEncounter));
 }
 
@@ -177,13 +182,13 @@ async fn selling_a_catch_preserves_its_personal_record() {
   let app = app().await;
   let now = 1_000_000_000_i64;
   app.ensure_character(49, now).await.expect("character");
-  let cast = app.cast(49, 49, 104, 123, now).await.expect("cast");
+  let due_at = cast_due_at(&app, 49, 49, 104, 123, now).await;
   let timer_id = next_timer_id(&app).await;
-  let outcome = app.fire_timer(timer_id, cast.due_at_ms).await.expect("bite");
+  let outcome = app.fire_timer(timer_id, due_at).await.expect("bite");
   assert_matches!(outcome, TimerOutcome::Bite(_));
   let TimerOutcome::Bite(bite) = outcome else { unreachable!() };
-  app.mark_presented(bite.encounter_id, bite.step, cast.due_at_ms).await.expect("presented");
-  let caught = app.reel(49, bite.encounter_id, bite.step, cast.due_at_ms + 2_000).await.expect("reel");
+  app.mark_presented(bite.encounter_id, bite.step, due_at).await.expect("presented");
+  let caught = app.reel(49, bite.encounter_id, bite.step, due_at + 2_000).await.expect("reel");
   assert_matches!(caught, ReelOutcome::Caught(_));
 
   let before = app.inventory(49).await.expect("inventory");
@@ -201,13 +206,13 @@ async fn rusted_key_opens_the_lighthouse_progression() {
   app.ensure_character(47, now).await.expect("character");
   app.explore(47, now).await.expect("discover breakwater");
   app.travel(47, LocationId(2), now).await.expect("travel");
-  let cast = app.cast(47, 47, 103, 320, now).await.expect("special cast");
+  let due_at = cast_due_at(&app, 47, 47, 103, 320, now).await;
   let timer_id = next_timer_id(&app).await;
-  let outcome = app.fire_timer(timer_id, cast.due_at_ms).await.expect("bite");
+  let outcome = app.fire_timer(timer_id, due_at).await.expect("bite");
   assert_matches!(outcome, TimerOutcome::Bite(_));
   let TimerOutcome::Bite(bite) = outcome else { unreachable!() };
-  app.mark_presented(bite.encounter_id, bite.step, cast.due_at_ms).await.expect("presented");
-  let outcome = app.reel(47, bite.encounter_id, bite.step, cast.due_at_ms + 1_000).await.expect("reel");
+  app.mark_presented(bite.encounter_id, bite.step, due_at).await.expect("presented");
+  let outcome = app.reel(47, bite.encounter_id, bite.step, due_at + 1_000).await.expect("reel");
   assert_matches!(outcome, ReelOutcome::Relic(_));
 
   let clue = app.explore(47, now + 2_000).await.expect("follow key clue");
@@ -292,12 +297,12 @@ async fn catches_wear_rods_and_shop_repairs_them() {
   let app = app().await;
   let now = 1_000_000_000_i64;
   app.ensure_character(52, now).await.expect("character");
-  let cast = app.cast(52, 52, 105, 123, now).await.expect("cast");
+  let due_at = cast_due_at(&app, 52, 52, 105, 123, now).await;
   let timer_id = next_timer_id(&app).await;
-  let outcome = app.fire_timer(timer_id, cast.due_at_ms).await.expect("bite");
+  let outcome = app.fire_timer(timer_id, due_at).await.expect("bite");
   let TimerOutcome::Bite(bite) = outcome else { unreachable!("expected bite") };
-  app.mark_presented(bite.encounter_id, bite.step, cast.due_at_ms).await.expect("presented");
-  let outcome = app.reel(52, bite.encounter_id, bite.step, cast.due_at_ms + 2_000).await.expect("reel");
+  app.mark_presented(bite.encounter_id, bite.step, due_at).await.expect("presented");
+  let outcome = app.reel(52, bite.encounter_id, bite.step, due_at + 2_000).await.expect("reel");
   assert_matches!(outcome, ReelOutcome::Caught(_));
 
   let before = app.inventory(52).await.expect("inventory");

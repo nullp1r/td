@@ -27,7 +27,7 @@ fn home_content(character: &CharacterView) -> types::inputMessageRichMessage {
   let mut blocks = vec![
     heading(format!("🌊 {}", character.location.name), 1),
     paragraph(character.location.description.as_str()),
-    block_quote([paragraph(format_args!("{} · {}", character.environment.day_part.label(), character.environment.weather.label(),))]),
+    block_quote([paragraph(format_args!("{} · {}", character.environment.day_part.label(), character.environment.weather.label()))]),
     table()
       .row(("👤 Angler", character.name.as_str()))
       .row(("⭐ Level", character.level))

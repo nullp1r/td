@@ -133,7 +133,7 @@ fn native_tables_support_optional_headers_and_heterogeneous_rows() -> Result<()>
 
   let spanning = cell("Summary").span(2, 3);
   assert_eq!((spanning.colspan, spanning.rowspan), (2, 3));
-  assert!(table().cells.is_empty());
+  assert_eq!(table().cells, Vec::<Vec<_>>::new());
   let headerless = table().row(("🐟 Catches", 3_u32));
   let [row] = headerless.cells.as_slice() else { bail!("expected one row") };
   assert!(row.iter().all(|cell| !cell.is_header));
