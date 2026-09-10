@@ -1,14 +1,15 @@
 //! Generated table values with fluent layout helpers.
 //!
-//! Start with [`cell`] and [`table`] for message-friendly defaults. All native
+//! Start with [`table`] and add an optional header plus rows. Tuples compose
+//! heterogeneous cells; arrays and vectors compose homogeneous cells. All native
 //! fields remain editable, including invisible cells, spans and presentation flags.
 
 use td_types::enums::{PageBlockHorizontalAlignment, PageBlockVerticalAlignment};
 use td_types::types;
 
-use super::{IntoRichText, plain};
+use super::IntoRichText;
 
-/// A native table block. Use [`table`] for headers and an empty text caption.
+/// A native table block. Use [`table`] for an empty text caption and no rows.
 pub use types::inputPageBlockTable as Table;
 /// A native table cell. Use [`cell`] for visible text and 1×1 spans.
 pub use types::pageBlockTableCell as Cell;
@@ -72,7 +73,7 @@ fluent! {
   }
 }
 
-/// Accepts explicit cells or inline text with default layout.
+/// Accepts an explicit native cell or inline content with default layout.
 pub trait IntoCell {
   /// Converts the value without changing an explicit cell's layout.
   fn into_cell(self) -> Cell;
@@ -90,26 +91,75 @@ impl<T: IntoRichText> IntoCell for T {
   }
 }
 
-/// Starts a table with emphasized headers; empty input omits the header row.
-/// Borders, stripes and compact padding are initially disabled.
-pub fn table(headers: impl IntoIterator<Item = impl IntoCell>) -> Table {
-  let headers: Vec<_> = headers.into_iter().map(|cell| cell.into_cell().header()).collect();
-  let cells = if headers.is_empty() { Default::default() } else { vec![headers] };
-  Table { cells, caption: plain(""), ..Default::default() }
+/// A table row composed from explicit cells or inline content.
+///
+/// Tuples support heterogeneous cells; arrays and vectors support homogeneous
+/// cells. Telegram currently supports at most 20 columns, mirrored by tuple
+/// implementations through arity 20.
+pub trait IntoRow {
+  /// Converts the row while preserving explicit cell layout.
+  fn into_row(self) -> Vec<Cell>;
+}
+
+impl<T: IntoCell, const N: usize> IntoRow for [T; N] {
+  fn into_row(self) -> Vec<Cell> {
+    self.into_iter().map(IntoCell::into_cell).collect()
+  }
+}
+
+impl<T: IntoCell> IntoRow for Vec<T> {
+  fn into_row(self) -> Vec<Cell> {
+    self.into_iter().map(IntoCell::into_cell).collect()
+  }
+}
+
+macro_rules! row_tuple {
+  ($($ty:ident $value:ident),+ $(,)?) => {
+    impl<$($ty: IntoCell),+> IntoRow for ($($ty,)+) {
+      fn into_row(self) -> Vec<Cell> {
+        let ($($value,)+) = self;
+        vec![$($value.into_cell()),+]
+      }
+    }
+  };
+}
+
+tuple_impls!(row_tuple);
+
+/// Starts a headerless table with an empty text caption.
+#[must_use]
+pub fn table() -> Table {
+  Table { caption: "".into_rich_text(), ..Default::default() }
+}
+
+fn push_nonempty_row(table: &mut Table, row: impl IntoRow) {
+  let row = row.into_row();
+  if !row.is_empty() {
+    table.cells.push(row);
+  }
 }
 
 fluent! {
   /// Fluent composition methods for native tables.
   TableExt for Table {
-    /// Appends one row, retaining explicit cell layout.
-    fn row(mut self, cells: impl IntoIterator<Item = impl IntoCell>) {
-      self.cells.push(cells.into_iter().map(IntoCell::into_cell).collect());
+    /// Appends one emphasized header row. Empty input is ignored.
+    fn header(mut self, cells: impl IntoRow) {
+      let cells = cells.into_row().into_iter().map(CellExt::header).collect::<Vec<_>>();
+      if !cells.is_empty() {
+        self.cells.push(cells);
+      }
       self
     }
-    /// Appends rows in iteration order, including empty rows.
-    fn rows(mut self, rows: impl IntoIterator<Item = impl IntoIterator<Item = impl IntoCell>>) {
-      let rows = rows.into_iter().map(|row| row.into_iter().map(IntoCell::into_cell).collect());
-      self.cells.extend(rows);
+    /// Appends one row, retaining explicit cell layout. Empty input is ignored.
+    fn row(mut self, cells: impl IntoRow) {
+      push_nonempty_row(&mut self, cells);
+      self
+    }
+    /// Appends nonempty rows in iteration order.
+    fn rows(mut self, rows: impl IntoIterator<Item = impl IntoRow>) {
+      for row in rows {
+        push_nonempty_row(&mut self, row);
+      }
       self
     }
     /// Replaces the table caption.

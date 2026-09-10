@@ -20,7 +20,7 @@ pub async fn on_update(client: &Client, update: Update) -> Result<()> {
       if let Some(msg) = upd.message.text() {
         tracing::info!(message_id = upd.message.id, sender_id, text = %msg.text, "new message");
 
-        let text = line("Echo: ") + bold(&msg.text);
+        let text = line(("Echo: ", bold(&msg.text)));
         let req = send::reply(&upd.message, text);
         client.track(&req, None, None).await?;
       }

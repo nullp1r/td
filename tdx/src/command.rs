@@ -1,11 +1,32 @@
-//! Entity-aware parsing for Telegram bot commands.
+//! Bot-command registration helpers and entity-aware parsing.
 
-use td_types::enums::MessageContent;
 use td_types::enums::TextEntityType::textEntityTypeBotCommand as EntityCommand;
+use td_types::enums::{BotCommandScope, MessageContent};
+use td_types::fns;
 use td_types::types;
 
 use crate::ext::ContentExt as _;
 use crate::util::Utf16 as _;
+
+/// Builds a regular bot-command definition for registration with Telegram.
+pub fn definition(name: impl Into<String>, description: impl Into<String>) -> types::botCommand {
+  types::botCommand { command: name.into(), description: description.into(), ..Default::default() }
+}
+
+/// Builds an ephemeral bot-command definition for group registration.
+///
+/// Telegram keeps the command invocation private; answer it with an ephemeral send as well.
+pub fn ephemeral_definition(name: impl Into<String>, description: impl Into<String>) -> types::botCommand {
+  types::botCommand { command: name.into(), description: description.into(), is_ephemeral: true }
+}
+
+/// Builds a command-registration request for `scope`.
+///
+/// The returned generated request remains editable, for example to set a
+/// language code before sending it through [`crate::Client`].
+pub fn set(scope: BotCommandScope, commands: impl IntoIterator<Item = types::botCommand>) -> fns::setCommands {
+  fns::setCommands { scope: Some(scope), language_code: String::new(), commands: commands.into_iter().collect() }
+}
 
 /// A parsed bot command.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

@@ -29,13 +29,35 @@ pub use list::*;
 pub use media::*;
 pub use table::*;
 
-/// Converts inline content into a generated rich-text tree.
+/// Inline content that can be converted into a generated rich-text tree.
 ///
-/// Accepts strings, `format_args!`, styled content, generated [`RichText`], and
-/// arrays or vectors of these. Use [`concat()`] with [`plain`] to mix element types.
-pub trait IntoRichText {
-  /// Consumes the inline content, retaining owned strings and generated nodes.
+/// Tuples concatenate heterogeneous parts; arrays and vectors concatenate
+/// homogeneous parts. Nested compositions are flattened into one `richTexts`
+/// node where possible. Styled values remain explicit tree nodes.
+pub trait IntoRichText: Sized {
+  /// Consumes the content, retaining owned strings and generated nodes.
   fn into_rich_text(self) -> RichText;
+
+  /// Appends this value's top-level nodes to a composition buffer.
+  #[doc(hidden)]
+  fn append_to(self, texts: &mut Vec<RichText>) {
+    append_node(texts, self.into_rich_text());
+  }
+}
+
+fn append_node(texts: &mut Vec<RichText>, text: RichText) {
+  match text {
+    RichText::richTexts(group) => texts.extend(group.texts),
+    text => texts.push(text),
+  }
+}
+
+fn finish(mut texts: Vec<RichText>) -> RichText {
+  match texts.len() {
+    0 => types::richTextPlain { text: String::new() }.into(),
+    1 => texts.pop().expect("length checked"),
+    _ => types::richTexts { texts }.into(),
+  }
 }
 
 impl IntoRichText for RichText {
@@ -44,21 +66,9 @@ impl IntoRichText for RichText {
   }
 }
 
-impl<T: IntoRichText, const N: usize> IntoRichText for [T; N] {
-  fn into_rich_text(self) -> RichText {
-    concat(self)
-  }
-}
-
-impl<T: IntoRichText> IntoRichText for Vec<T> {
-  fn into_rich_text(self) -> RichText {
-    concat(self)
-  }
-}
-
 impl IntoRichText for &str {
   fn into_rich_text(self) -> RichText {
-    self.to_owned().into_rich_text()
+    types::richTextPlain { text: self.into() }.into()
   }
 }
 
@@ -68,26 +78,86 @@ impl IntoRichText for String {
   }
 }
 
+impl IntoRichText for &String {
+  fn into_rich_text(self) -> RichText {
+    self.as_str().into_rich_text()
+  }
+}
+
+impl IntoRichText for char {
+  fn into_rich_text(self) -> RichText {
+    self.to_string().into_rich_text()
+  }
+}
+
 impl IntoRichText for Arguments<'_> {
   fn into_rich_text(self) -> RichText {
     self.to_string().into_rich_text()
   }
 }
 
-/// Converts inline content to the common [`RichText`] type, preserving styles.
-pub fn plain(text: impl IntoRichText) -> RichText {
-  text.into_rich_text()
+macro_rules! display_rich_parts {
+  ($($ty:ty),+ $(,)?) => {
+    $(
+      impl IntoRichText for $ty {
+        fn into_rich_text(self) -> RichText {
+          self.to_string().into_rich_text()
+        }
+      }
+    )+
+  };
 }
 
-/// Joins inline trees without separators.
-///
-/// Empty input becomes empty plain text; a single item is returned directly.
-pub fn concat(items: impl IntoIterator<Item = impl IntoRichText>) -> RichText {
-  let mut items = items.into_iter().map(IntoRichText::into_rich_text);
-  let Some(first) = items.next() else { return plain("") };
-  let Some(second) = items.next() else { return first };
-  types::richTexts { texts: [first, second].into_iter().chain(items).collect() }.into()
+display_rich_parts!(
+  bool, i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize, f32, f64,
+);
+
+impl<T: IntoRichText, const N: usize> IntoRichText for [T; N] {
+  fn into_rich_text(self) -> RichText {
+    let mut texts = Vec::with_capacity(N);
+    self.append_to(&mut texts);
+    finish(texts)
+  }
+
+  fn append_to(self, texts: &mut Vec<RichText>) {
+    for text in self {
+      text.append_to(texts);
+    }
+  }
 }
+
+impl<T: IntoRichText> IntoRichText for Vec<T> {
+  fn into_rich_text(self) -> RichText {
+    let mut texts = Vec::with_capacity(self.len());
+    self.append_to(&mut texts);
+    finish(texts)
+  }
+
+  fn append_to(self, texts: &mut Vec<RichText>) {
+    for text in self {
+      text.append_to(texts);
+    }
+  }
+}
+
+macro_rules! rich_tuple {
+  ($($ty:ident $value:ident),+ $(,)?) => {
+    impl<$($ty: IntoRichText),+> IntoRichText for ($($ty,)+) {
+      fn into_rich_text(self) -> RichText {
+        let mut texts = Vec::new();
+        self.append_to(&mut texts);
+        finish(texts)
+      }
+
+      fn append_to(self, texts: &mut Vec<RichText>) {
+        let ($($value,)+) = self;
+        $($value.append_to(texts);)+
+      }
+    }
+  };
+}
+
+tuple_impls!(rich_tuple);
 
 /// Collects blocks into a native rich message, ready for editing or sending.
 /// Use a `Vec<InputPageBlock>` when accumulating a document incrementally.

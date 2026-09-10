@@ -55,7 +55,7 @@ fn uniform_content_constructors_with_captions() {
   assert!(document.document.disable_content_type_detection);
 
   // Captions use the same rich text as ordinary messages.
-  let caption = line("Watch this: ") + bold("cool clip");
+  let caption = line(("Watch this: ", bold("cool clip")));
   let video_with_caption = content::video(file::local("clip.mp4"), None, 60, [1920, 1080], Some(caption.into()));
   assert_eq!(video_with_caption.caption.unwrap().text, "Watch this: cool clip");
 
@@ -156,4 +156,31 @@ fn rich_message_request_construction() {
       ..
     }) if text.contains("<blockquote>")
   );
+}
+
+#[test]
+fn styled_callbacks_and_ephemeral_requests_keep_native_fields() {
+  let primary = markup::primary("Open", b"open");
+  let success = markup::success("Keep", b"keep");
+  let danger = markup::danger("Delete", b"delete");
+  assert_eq!(primary.style, enums::ButtonStyle::buttonStylePrimary);
+  assert_eq!(success.style, enums::ButtonStyle::buttonStyleSuccess);
+  assert_eq!(danger.style, enums::ButtonStyle::buttonStyleDanger);
+
+  let query = types::updateNewCallbackQuery { id: 700, sender_user_id: 800, chat_id: -900, ..Default::default() };
+  let request = send::ephemeral(&query, rich([paragraph("Private result")]));
+  assert_eq!(request.chat_id, -900);
+  assert_eq!(request.receiver_user_id, 800);
+  assert_eq!(request.callback_query_id, 700);
+  assert!(!request.replace_callback_query_message);
+  assert!(request.topic_id.is_none());
+  assert_matches!(request.input_message_content, enums::InputMessageContent::inputMessageRichMessage(_));
+
+  let command_message = types::message { id: 901, chat_id: -900, ..Default::default() };
+  let reply = send::ephemeral_reply(&command_message, 800, rich([paragraph("Private help")]));
+  assert_eq!(reply.chat_id, -900);
+  assert_eq!(reply.receiver_user_id, 800);
+  assert_eq!(reply.callback_query_id, 0);
+  assert_matches!(reply.reply_to, Some(enums::InputMessageReplyTo::inputMessageReplyToMessage(types::inputMessageReplyToMessage { message_id: 901, .. })));
+  assert_matches!(reply.input_message_content, enums::InputMessageContent::inputMessageRichMessage(_));
 }

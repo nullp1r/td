@@ -1,15 +1,17 @@
 [workspace]
 resolver = "3"
-members = ["td-*", "tdx"]
+members = ["td-*", "tdx", "game"]
 
 [workspace.package]
 version = "0.1.0"
 edition = "2024"
-rust-version = "1.98"
+rust-version = "1.98.1"
 
 [workspace.dependencies]
 anyhow = "*"
+getrandom = "*"
 pretty_assertions = "*"
+rusqlite = { version = "*", features = ["bundled"] }
 serde = { version = "*", features = ["derive"] }
 serde_json = "*"
 syn = { version = "*", features = ["full"] }
@@ -24,6 +26,7 @@ td-codegen = { path = "td-codegen" }
 td-parser = { path = "td-parser" }
 td-sys = { path = "td-sys" }
 td-types = { path = "td-types" }
+tdx = { path = "tdx" }
 
 [workspace.lints.rust]
 missing_docs = "deny"

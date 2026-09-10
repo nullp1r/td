@@ -1,7 +1,7 @@
 //! Ordinary Telegram messages: a UTF-8 buffer with UTF-16 entity ranges.
 
-use std::fmt::{Display, Result as FmtResult, Write};
-use std::ops::{Add, AddAssign, Deref};
+use std::fmt::{Arguments, Result as FmtResult, Write};
+use std::ops::Deref;
 
 use td_types::enums::{InputMessageContent, TextEntityType};
 use td_types::types;
@@ -15,8 +15,9 @@ use crate::util::Utf16 as _;
 /// must fit in `i32`. Entity validity and permitted nesting are checked by `TDLib`.
 /// Borrow the plain string through `Deref` or `AsRef<str>`.
 ///
-/// Strings, display values and nested styles stream into this buffer. A broken
-/// `Display` implementation that returns an error causes a panic; writing into
+/// Parts stream directly into this buffer. Tuples compose heterogeneous parts;
+/// arrays and vectors compose homogeneous parts. A broken `Display`
+/// implementation used by a supported scalar causes a panic because writing into
 /// the buffer itself is infallible.
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct Text {
@@ -43,12 +44,12 @@ impl Text {
     self.utf16_len += text.len_utf16();
   }
 
-  /// Appends display content, a styled span, or another text buffer.
+  /// Appends a scalar, styled span, tuple/collection, or another text buffer.
   pub fn push(&mut self, part: impl Part) {
     part.write_to(self);
   }
 
-  /// Records a nonempty entity around the callback’s appended content.
+  /// Records a nonempty entity around the callback's appended content.
   ///
   /// The callback must only append; replacing or clearing the buffer invalidates
   /// the starting offset. Nested calls are supported.
@@ -90,37 +91,6 @@ impl Write for Text {
     self.buffer.push(c);
     self.utf16_len += c.len_utf16() as i32;
     Ok(())
-  }
-}
-
-impl<T: Part> Add<T> for Text {
-  type Output = Text;
-
-  fn add(mut self, rhs: T) -> Text {
-    self.push(rhs);
-    self
-  }
-}
-
-impl<T: Part> AddAssign<T> for Text {
-  fn add_assign(&mut self, rhs: T) {
-    self.push(rhs);
-  }
-}
-
-impl<T: Part> Extend<T> for Text {
-  fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
-    for item in iter {
-      self.push(item);
-    }
-  }
-}
-
-impl<T: Part> FromIterator<T> for Text {
-  fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
-    let mut text = Self::default();
-    text.extend(iter);
-    text
   }
 }
 
@@ -180,9 +150,12 @@ pub trait TextExt: Into<Text> {
 
 impl<T: Into<Text>> TextExt for T {}
 
-/// Content appended by value, preserving entities when the source is [`Text`].
+/// Content that can stream into one ordinary Telegram text buffer.
+///
+/// Tuples concatenate heterogeneous parts without intermediate [`Text`] values.
+/// Arrays and vectors do the same for homogeneous parts.
 pub trait Part: Sized {
-  /// Writes content and any entity spans at the destination’s current offset.
+  /// Writes content and any entity spans at the destination's current offset.
   fn write_to(self, text: &mut Text);
 
   /// Starts a buffer, reusing owned text when available.
@@ -190,12 +163,6 @@ pub trait Part: Sized {
     let mut text = Default::default();
     self.write_to(&mut text);
     text
-  }
-}
-
-impl<T: Display> Part for T {
-  fn write_to(self, text: &mut Text) {
-    write!(text, "{self}").expect("Display returned an error although the Text writer cannot fail");
   }
 }
 
@@ -215,27 +182,143 @@ impl Part for &Text {
   }
 }
 
-/// Starts a text expression with one part; appends no newline.
+impl Part for &str {
+  fn write_to(self, text: &mut Text) {
+    text.push_str(self);
+  }
+}
+
+impl Part for String {
+  fn into_text(self) -> Text {
+    self.into()
+  }
+
+  fn write_to(self, text: &mut Text) {
+    text.push_str(&self);
+  }
+}
+
+impl Part for &String {
+  fn write_to(self, text: &mut Text) {
+    text.push_str(self);
+  }
+}
+
+impl Part for char {
+  fn write_to(self, text: &mut Text) {
+    text.write_char(self).expect("writing a char into Text cannot fail");
+  }
+}
+
+impl Part for Arguments<'_> {
+  fn write_to(self, text: &mut Text) {
+    text.write_fmt(self).expect("formatting into Text cannot fail");
+  }
+}
+
+macro_rules! display_parts {
+  ($($ty:ty),+ $(,)?) => {
+    $(
+      impl Part for $ty {
+        fn write_to(self, text: &mut Text) {
+          write!(text, "{self}").expect("Display returned an error although the Text writer cannot fail");
+        }
+      }
+    )+
+  };
+}
+
+display_parts!(
+  bool, i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize, f32, f64,
+);
+
+impl<T: Part, const N: usize> Part for [T; N] {
+  fn write_to(self, text: &mut Text) {
+    for part in self {
+      part.write_to(text);
+    }
+  }
+}
+
+impl<T: Part> Part for Vec<T> {
+  fn write_to(self, text: &mut Text) {
+    for part in self {
+      part.write_to(text);
+    }
+  }
+}
+
+/// A fixed or dynamic sequence of lines that can stream into one [`Text`] buffer.
+pub trait Lines: Sized {
+  /// Writes each line with exactly one newline between adjacent entries.
+  fn write_lines_to(self, text: &mut Text);
+
+  /// Creates one buffer for the complete multiline result.
+  fn into_lines(self) -> Text {
+    let mut text = Text::new();
+    self.write_lines_to(&mut text);
+    text
+  }
+}
+
+fn write_line(text: &mut Text, first: &mut bool, line: impl Part) {
+  if *first {
+    *first = false;
+  } else {
+    text.push_str("\n");
+  }
+  line.write_to(text);
+}
+
+impl<T: Part, const N: usize> Lines for [T; N] {
+  fn write_lines_to(self, text: &mut Text) {
+    let mut first = true;
+    for line in self {
+      write_line(text, &mut first, line);
+    }
+  }
+}
+
+impl<T: Part> Lines for Vec<T> {
+  fn write_lines_to(self, text: &mut Text) {
+    let mut first = true;
+    for line in self {
+      write_line(text, &mut first, line);
+    }
+  }
+}
+
+macro_rules! tuple_composition {
+  ($($ty:ident $value:ident),+ $(,)?) => {
+    impl<$($ty: Part),+> Part for ($($ty,)+) {
+      fn write_to(self, text: &mut Text) {
+        let ($($value,)+) = self;
+        $($value.write_to(text);)+
+      }
+    }
+
+    impl<$($ty: Part),+> Lines for ($($ty,)+) {
+      fn write_lines_to(self, text: &mut Text) {
+        let ($($value,)+) = self;
+        let mut first = true;
+        $(write_line(text, &mut first, $value);)+
+      }
+    }
+  };
+}
+
+tuple_impls!(tuple_composition);
+
+/// Composes one line directly into a single buffer; appends no newline.
 pub fn line(part: impl Part) -> Text {
   part.into_text()
 }
 
-/// Supplies a blank entry for [`lines`], or an empty starting buffer.
-#[must_use]
-pub const fn empty() -> Text {
-  Text::new()
-}
-
-/// Joins parts with exactly one newline between entries, writing directly into one buffer.
+/// Joins fixed or dynamic lines with exactly one newline between entries.
 ///
-/// Empty entries are retained; an empty iterator produces empty text. The first
-/// buffer is reused and subsequent entity offsets include the separators.
-pub fn lines(items: impl IntoIterator<Item = impl Part>) -> Text {
-  let mut iter = items.into_iter();
-  let Some(mut first) = iter.next().map(line) else { return Default::default() };
-  for next in iter {
-    first.push_str("\n");
-    first.push(next);
-  }
-  first
+/// Tuples permit heterogeneous line expressions such as
+/// `lines((bold("Title"), ("Count: ", 3)))`; arrays and vectors cover homogeneous
+/// collections. All lines stream directly into one destination buffer.
+pub fn lines(items: impl Lines) -> Text {
+  items.into_lines()
 }

@@ -15,7 +15,7 @@
 //! use tdx::prelude::*;
 //!
 //! async fn greet(client: &Client, incoming: &types::message) -> tdx::client::Result<()> {
-//!   let request = send::reply(incoming, line("Hello, ") + bold("world") + "!");
+//!   let request = send::reply(incoming, line(("Hello, ", bold("world"), "!")));
 //!   let sent = client.track(&request, None, None).await?;
 //!   client.send(&edit::text(&sent, "Welcome back.")).await?;
 //!   Ok(())
@@ -37,7 +37,7 @@
 //! ```
 //! use tdx::prelude::*;
 //!
-//! let caption = bold("Lake report") + " — " + italic("three catches");
+//! let caption = line((bold("Lake report"), " — ", italic("three catches")));
 //! let photo = content::photo(file::local("lake.jpg"), [800, 600], caption.into());
 //! let mut request = send::message(123, photo);
 //! request.reply_markup = Some(markup::inline([
@@ -46,7 +46,7 @@
 //!
 //! let report = rich([
 //!   heading("Catch log", 1),
-//!   table(["Species", "Weight"]).row(["Trout", "1.5 kg"]).into(),
+//!   table().header(("Species", "Weight")).row(("Trout", "1.5 kg")).into(),
 //! ]);
 //! let _request = send::message(123, report);
 //! ```

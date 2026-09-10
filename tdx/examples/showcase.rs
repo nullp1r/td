@@ -62,7 +62,7 @@ pub async fn on_update(client: &Client, update: &Update, me: &types::user) -> Re
       send_document(client, source).await?;
     }
     "say" => {
-      let response = line("You said: ") + code(cmd.args);
+      let response = line(("You said: ", code(cmd.args)));
       let req = send::reply(source, response);
       client.track(&req, None, None).await?;
     }
@@ -77,21 +77,21 @@ pub async fn on_update(client: &Client, update: &Update, me: &types::user) -> Re
 
 /// Demonstrates single-buffer multi-argument formatting and array-friendly keyboards.
 async fn show_help(client: &Client, source: &types::message) -> Result<()> {
-  // Direct multi-argument nesting in a single buffer with zero temporary allocations
-  let mut text = lines([
-    line(bold("tdx Feature Tour")), //.
-    empty(),
-    line("Available commands:"),
-  ]);
+  let mut text = lines((bold("tdx Feature Tour"), "", "Available commands:"));
 
   for &[cmd, desc] in &COMMANDS {
-    text += line(format_args!("/{cmd} — {desc}"));
+    text.push(("\n", format_args!("/{cmd} — {desc}")));
   }
 
-  text += empty();
-  text += line(link("TDLib", "https://core.telegram.org/tdlib")) + " supplies the generated API.";
-  text += line(bold("Formatting can include ") + italic("nested entities") + " directly without macros.");
-  text += line(italic(underline("Styles compose naturally without intermediate allocations.")));
+  text.push((
+    "\n\n",
+    link("TDLib", "https://core.telegram.org/tdlib"),
+    " supplies the generated API.\n",
+    bold("Formatting can include "),
+    italic("nested entities"),
+    " directly without macros.\n",
+    italic(underline("Styles compose naturally without intermediate text buffers.")),
+  ));
 
   // Keyboards accept fixed-size arrays directly — zero `vec![vec![...]]` boilerplate:
   let keyboard = markup::inline([
@@ -111,30 +111,27 @@ async fn show_info(client: &Client, source: &types::message) -> Result<()> {
   let req = fns::getChat { chat_id: source.chat_id };
   let enums::Chat::chat(chat) = client.send(&req).await?;
 
-  let mut text = lines([
-    line(bold(chat.title)), //.
-    empty(),
-    line("Chat ID: ") + code(source.chat_id),
-    line("Message ID: ") + code(source.id),
-  ]);
+  let mut text = lines((
+    bold(chat.title),
+    "",
+    ("Chat ID: ", code(source.chat_id)),
+    ("Message ID: ", code(source.id)),
+  ));
 
   if let MessageSender::messageSenderUser(sender) = &source.sender_id {
     let req = fns::getUser { user_id: sender.user_id };
     let User::user(user) = client.send(&req).await?;
 
-    let mut sender_line = line("Sender: ") + mention(&*user.first_name, user.id);
+    text.push(("\nSender: ", mention(&*user.first_name, user.id)));
     if let Some(username) = user.username() {
-      sender_line += format_args!(" (@{username})");
+      text.push(format_args!(" (@{username})"));
     }
-    text += sender_line;
   }
 
-  // Programmatic entity building via the single DRY Text::entity method
   if let Some(original) = source.text() {
     for entity in &original.entities {
       if let enums::TextEntityType::textEntityTypeTextUrl(url) = &entity.r#type {
-        text += empty();
-        text += line(italic("Found URL: ") + code(&url.url));
+        text.push(("\n\n", italic("Found URL: "), code(&url.url)));
       }
     }
   }
@@ -170,11 +167,11 @@ pub async fn send_video(client: &Client, source: &types::message) -> Result<type
   let thumbnail = file::thumbnail("preview.jpg");
 
   // Standard Option<formattedText> caption constructor
-  let caption = bold("A short clip") + " — with a thumbnail.";
+  let caption = line((bold("A short clip"), " — with a thumbnail."));
   let video = content::video(file::local("clip.mp4"), Some(thumbnail), 12, [1280, 720], Some(caption.into()));
 
   // Edit message using &types::message as target
-  let edit_req = edit::text(&status, line("Uploading ") + code("clip.mp4") + "…");
+  let edit_req = edit::text(&status, line(("Uploading ", code("clip.mp4"), "…")));
   client.send(&edit_req).await?;
 
   let req = send::respond(source, video);
@@ -192,7 +189,7 @@ pub async fn send_document(client: &Client, source: &types::message) -> Result<t
   let req = send::respond(source, doc);
   let sent = client.track(&req, None, None).await?;
 
-  let new_caption = line("The ") + bold("reference notes") + ", updated.";
+  let new_caption = line(("The ", bold("reference notes"), ", updated."));
   let edit_req = edit::caption(&sent, new_caption);
   let enums::Message::message(updated) = client.send(&edit_req).await?;
 

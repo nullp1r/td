@@ -73,11 +73,11 @@ async fn on_update(client: &Client, update: Update) -> anyhow::Result<()> {
   let Some(msg) = u.message.text() else { return Ok(()) };
   tracing::info!(chat_id = u.message.chat_id, message_id = u.message.id, text = %msg.text, "received message");
 
-  let reply = send::reply(&u.message, line("Received: ") + bold(&msg.text));
+  let reply = send::reply(&u.message, line(("Received: ", bold(&msg.text))));
   let sent = client.track(&reply, None, None).await?;
   tracing::info!(chat_id = sent.chat_id, message_id = sent.id, "sent initial reply");
 
-  let edit = edit::text(&sent, line("Processed ") + code("successfully"));
+  let edit = edit::text(&sent, line(("Processed ", code("successfully"))));
   client.send(&edit).await?;
   tracing::info!(chat_id = sent.chat_id, message_id = sent.id, "edited reply");
 

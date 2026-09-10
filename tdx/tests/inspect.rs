@@ -2,7 +2,7 @@
 
 use std::assert_matches;
 
-use tdx::enums::TextEntityType;
+use tdx::{command, enums::TextEntityType};
 use tdx::prelude::*;
 
 #[test]
@@ -25,6 +25,21 @@ fn commands_agree_across_text_content_and_message() {
   assert!(!command.is_for(Some("otherbot")));
   assert_eq!(message.command_for(Some("mybot")), expected);
   assert_eq!(message.command_for(Some("otherbot")), None);
+}
+
+#[test]
+fn command_registration_builders_keep_generated_requests_editable() {
+  let mut request = command::set(
+    enums::BotCommandScope::botCommandScopeAllPrivateChats,
+    [command::definition("start", "Open the game"), command::ephemeral_definition("help", "Private help in groups")],
+  );
+  request.language_code = "en".into();
+
+  assert_matches!(request.scope, Some(enums::BotCommandScope::botCommandScopeAllPrivateChats));
+  assert_eq!(request.language_code, "en");
+  let [start, help] = request.commands.as_slice() else { unreachable!("expected two commands") };
+  assert_eq!((&*start.command, &*start.description, start.is_ephemeral), ("start", "Open the game", false));
+  assert_eq!((&*help.command, &*help.description, help.is_ephemeral), ("help", "Private help in groups", true));
 }
 
 #[test]

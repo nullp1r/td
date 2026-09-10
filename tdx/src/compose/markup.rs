@@ -79,8 +79,26 @@ pub fn url(text: impl Display, url: impl Into<String>) -> types::inlineKeyboardB
 
 /// Constructs an inline button that sends callback data.
 pub fn callback(text: impl Display, data: impl IntoCallbackData) -> types::inlineKeyboardButton {
+  callback_with_style(text, data, ButtonStyle::buttonStyleDefault)
+}
+
+/// Constructs a dark-blue callback button for a primary action.
+pub fn primary(text: impl Display, data: impl IntoCallbackData) -> types::inlineKeyboardButton {
+  callback_with_style(text, data, ButtonStyle::buttonStylePrimary)
+}
+
+/// Constructs a green callback button for a successful or affirmative action.
+pub fn success(text: impl Display, data: impl IntoCallbackData) -> types::inlineKeyboardButton {
+  callback_with_style(text, data, ButtonStyle::buttonStyleSuccess)
+}
+
+/// Constructs a red callback button for a destructive or abort action.
+pub fn danger(text: impl Display, data: impl IntoCallbackData) -> types::inlineKeyboardButton {
+  callback_with_style(text, data, ButtonStyle::buttonStyleDanger)
+}
+
+fn callback_with_style(text: impl Display, data: impl IntoCallbackData, style: ButtonStyle) -> types::inlineKeyboardButton {
   let (text, data) = (text.to_string(), data.into_callback_data());
-  let style = ButtonStyle::buttonStyleDefault;
   let r#type = types::inlineKeyboardButtonTypeCallback { data }.into();
   types::inlineKeyboardButton { text, style, r#type, ..Default::default() }
 }

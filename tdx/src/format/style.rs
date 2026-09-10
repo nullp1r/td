@@ -1,11 +1,10 @@
 //! Inline styles shared by entity text and rich text trees.
 //!
 //! A [`Styled`] value keeps its content until consumed. Nest styles directly;
-//! use `+` to join ordinary text, or [`super::concat`] to join rich text.
+//! tuples compose heterogeneous styled and unstyled fragments in both ordinary
+//! and rich text.
 //! URL, language and command arguments stay borrowed until rendering.
 //! Ordinary text allocates only the metadata its entities actually use.
-
-use std::ops::Add;
 
 use td_types::enums::{DateTimeFormattingType, RichText, TextEntityType};
 use td_types::types;
@@ -129,6 +128,16 @@ pub const fn bot_command(command: &str) -> Styled<'_, &str> {
   bot_command_target(command, command)
 }
 
+/// Marks a timestamp for Telegram's client-updated relative rendering.
+///
+/// The visible content is the fallback text clients can show while resolving the
+/// date entity. Supporting clients update relative values in place without bot
+/// message edits.
+#[must_use]
+pub const fn relative_time<T>(content: T, unix_time: i32) -> Styled<'static, T> {
+  time(content, unix_time, Some(DateTimeFormattingType::dateTimeFormattingTypeRelative))
+}
+
 /// Borrows the custom emoji fallback until either output is rendered.
 #[must_use]
 pub const fn custom_emoji(content: &str, custom_emoji_id: i64) -> Styled<'_, &str> {
@@ -155,13 +164,9 @@ impl<T: IntoRichText> IntoRichText for Styled<'_, T> {
   fn into_rich_text(self) -> RichText {
     self.kind.into_rich_text(self.content)
   }
-}
 
-impl<T: Part, Rhs: Part> Add<Rhs> for Styled<'_, T> {
-  type Output = Text;
-
-  fn add(self, rhs: Rhs) -> Text {
-    line(self) + rhs
+  fn append_to(self, texts: &mut Vec<RichText>) {
+    texts.push(self.into_rich_text());
   }
 }
 

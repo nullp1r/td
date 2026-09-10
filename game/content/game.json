@@ -1,0 +1,1043 @@
+{
+  "baits": [
+    {
+      "id": 1,
+      "name": "Worm",
+      "fishing_power": 10,
+      "buy_price": 5,
+      "pack_size": 5
+    },
+    {
+      "id": 2,
+      "name": "Bread",
+      "fishing_power": 7,
+      "buy_price": 4,
+      "pack_size": 5
+    },
+    {
+      "id": 3,
+      "name": "Glow Larva",
+      "fishing_power": 13,
+      "buy_price": 9,
+      "pack_size": 3
+    },
+    {
+      "id": 4,
+      "name": "Rotten Meat",
+      "fishing_power": 5,
+      "buy_price": 3,
+      "pack_size": 5
+    },
+    {
+      "id": 5,
+      "name": "Silver Spoon",
+      "fishing_power": 11,
+      "buy_price": 8,
+      "pack_size": 3
+    },
+    {
+      "id": 6,
+      "name": "Fish Chunks",
+      "fishing_power": 15,
+      "buy_price": 0,
+      "pack_size": 4,
+      "buyable": false
+    },
+    {
+      "id": 7,
+      "name": "Crab Paste",
+      "fishing_power": 18,
+      "buy_price": 0,
+      "pack_size": 3,
+      "buyable": false
+    }
+  ],
+  "rods": [
+    {
+      "id": 1,
+      "name": "Old Wooden Rod",
+      "control": 10,
+      "description": "A warped starter rod. Forgiving, ordinary, and yours.",
+      "buy_price": 0
+    },
+    {
+      "id": 2,
+      "name": "Reinforced Rod",
+      "control": 14,
+      "description": "A heavier frame that keeps powerful fish under control.",
+      "buy_price": 45
+    },
+    {
+      "id": 3,
+      "name": "Light Rod",
+      "control": 11,
+      "description": "A responsive rod built for quick bites and lighter catches.",
+      "buy_price": 35
+    },
+    {
+      "id": 4,
+      "name": "Breakwater Rod",
+      "control": 18,
+      "description": "A brutal saltwater rod designed for the deep water beyond the breakwater.",
+      "buy_price": 95
+    }
+  ],
+  "locations": [
+    {
+      "id": 1,
+      "name": "Old Harbor",
+      "description": "Weathered piers surround calm, dark water.",
+      "encounters": [
+        {
+          "species_id": 1,
+          "weight": 120
+        },
+        {
+          "species_id": 2,
+          "weight": 100
+        },
+        {
+          "species_id": 3,
+          "weight": 60
+        },
+        {
+          "species_id": 4,
+          "weight": 25
+        },
+        {
+          "species_id": 5,
+          "weight": 3
+        },
+        {
+          "species_id": 6,
+          "weight": 2
+        },
+        {
+          "species_id": 19,
+          "weight": 4
+        }
+      ],
+      "fishable": true
+    },
+    {
+      "id": 2,
+      "name": "Broken Breakwater",
+      "description": "Black water drops sharply beyond the collapsed stones.",
+      "encounters": [
+        {
+          "species_id": 1,
+          "weight": 50
+        },
+        {
+          "species_id": 4,
+          "weight": 80
+        },
+        {
+          "species_id": 6,
+          "weight": 14
+        },
+        {
+          "species_id": 7,
+          "weight": 45
+        },
+        {
+          "species_id": 8,
+          "weight": 12
+        },
+        {
+          "species_id": 9,
+          "weight": 2
+        },
+        {
+          "species_id": 10,
+          "weight": 1
+        },
+        {
+          "species_id": 20,
+          "weight": 18
+        }
+      ],
+      "fishable": true
+    },
+    {
+      "id": 3,
+      "name": "Reed Pond",
+      "description": "A shallow freshwater pond hidden behind tall reeds.",
+      "encounters": [
+        {
+          "species_id": 11,
+          "weight": 110
+        },
+        {
+          "species_id": 12,
+          "weight": 90
+        },
+        {
+          "species_id": 13,
+          "weight": 35
+        },
+        {
+          "species_id": 14,
+          "weight": 8
+        },
+        {
+          "species_id": 15,
+          "weight": 2
+        },
+        {
+          "species_id": 21,
+          "weight": 14
+        }
+      ],
+      "fishable": true
+    },
+    {
+      "id": 4,
+      "name": "Old Lighthouse",
+      "description": "The lighthouse has been dark for years. Salt has fused the iron door almost shut.",
+      "fishable": false,
+      "encounters": []
+    },
+    {
+      "id": 5,
+      "name": "Lighthouse Cove",
+      "description": "A narrow cove hidden beneath the lighthouse cliffs. Pale water glows between black rocks.",
+      "fishable": true,
+      "encounters": [
+        {
+          "species_id": 4,
+          "weight": 45
+        },
+        {
+          "species_id": 8,
+          "weight": 28
+        },
+        {
+          "species_id": 16,
+          "weight": 70
+        },
+        {
+          "species_id": 17,
+          "weight": 16
+        },
+        {
+          "species_id": 18,
+          "weight": 3
+        },
+        {
+          "species_id": 22,
+          "weight": 5
+        },
+        {
+          "species_id": 23,
+          "weight": 7
+        },
+        {
+          "species_id": 24,
+          "weight": 85
+        }
+      ]
+    }
+  ],
+  "species": [
+    {
+      "id": 1,
+      "name": "Harbor Perch",
+      "min_length_mm": 180,
+      "typical_length_mm": 280,
+      "max_length_mm": 460,
+      "typical_weight_g": 420,
+      "difficulty": 7,
+      "xp": 6,
+      "base_value": 4,
+      "bite_min_ms": 2500,
+      "bite_max_ms": 6500,
+      "reaction_ms": [
+        1600,
+        3600,
+        6500
+      ],
+      "required_weather": [],
+      "required_day_parts": [],
+      "bait_modifiers": [
+        {
+          "bait_id": 1,
+          "multiplier_bp": 12500
+        }
+      ],
+      "clue": "Common around old timber and pilings; worms reliably get their attention."
+    },
+    {
+      "id": 2,
+      "name": "Silver Minnow",
+      "min_length_mm": 70,
+      "typical_length_mm": 110,
+      "max_length_mm": 180,
+      "typical_weight_g": 22,
+      "difficulty": 5,
+      "xp": 4,
+      "base_value": 2,
+      "bite_min_ms": 1800,
+      "bite_max_ms": 5000,
+      "reaction_ms": [
+        1200,
+        2800,
+        5200
+      ],
+      "required_weather": [],
+      "required_day_parts": [],
+      "bait_modifiers": [
+        {
+          "bait_id": 2,
+          "multiplier_bp": 18000
+        }
+      ],
+      "clue": "Small, nervous schools readily take bread."
+    },
+    {
+      "id": 3,
+      "name": "Mud Crab",
+      "min_length_mm": 80,
+      "typical_length_mm": 130,
+      "max_length_mm": 210,
+      "typical_weight_g": 310,
+      "difficulty": 6,
+      "xp": 5,
+      "base_value": 3,
+      "bite_min_ms": 3500,
+      "bite_max_ms": 8500,
+      "reaction_ms": [
+        2000,
+        4500,
+        7500
+      ],
+      "required_weather": [],
+      "required_day_parts": [],
+      "bait_modifiers": [
+        {
+          "bait_id": 4,
+          "multiplier_bp": 22000
+        }
+      ],
+      "clue": "Scavenges close to the bottom and has very questionable taste in bait."
+    },
+    {
+      "id": 4,
+      "name": "Harbor Mackerel",
+      "min_length_mm": 210,
+      "typical_length_mm": 340,
+      "max_length_mm": 560,
+      "typical_weight_g": 510,
+      "difficulty": 9,
+      "xp": 8,
+      "base_value": 6,
+      "bite_min_ms": 1800,
+      "bite_max_ms": 5400,
+      "reaction_ms": [
+        1200,
+        3000,
+        5500
+      ],
+      "required_weather": [],
+      "required_day_parts": [
+        1,
+        2
+      ],
+      "bait_modifiers": [
+        {
+          "bait_id": 5,
+          "multiplier_bp": 15000
+        }
+      ],
+      "clue": "More active from daytime into evening; shiny lures help."
+    },
+    {
+      "id": 5,
+      "name": "Glass Minnow",
+      "min_length_mm": 60,
+      "typical_length_mm": 95,
+      "max_length_mm": 145,
+      "typical_weight_g": 14,
+      "difficulty": 8,
+      "xp": 18,
+      "base_value": 20,
+      "bite_min_ms": 4200,
+      "bite_max_ms": 9000,
+      "reaction_ms": [
+        1400,
+        3200,
+        5600
+      ],
+      "required_weather": [
+        2
+      ],
+      "required_day_parts": [
+        2,
+        3
+      ],
+      "bait_modifiers": [
+        {
+          "bait_id": 3,
+          "multiplier_bp": 40000
+        }
+      ],
+      "clue": "Reports cluster around foggy nights and luminous bait."
+    },
+    {
+      "id": 6,
+      "name": "Old Harbor Sturgeon",
+      "min_length_mm": 750,
+      "typical_length_mm": 1300,
+      "max_length_mm": 2600,
+      "typical_weight_g": 17000,
+      "difficulty": 18,
+      "xp": 35,
+      "base_value": 40,
+      "bite_min_ms": 6000,
+      "bite_max_ms": 12000,
+      "reaction_ms": [
+        2400,
+        5200,
+        9000
+      ],
+      "required_weather": [],
+      "required_day_parts": [],
+      "bait_modifiers": [
+        {
+          "bait_id": 4,
+          "multiplier_bp": 17500
+        },
+        {
+          "bait_id": 6,
+          "multiplier_bp": 23000
+        }
+      ],
+      "clue": "The harbor's old giant. Timing helps, but weak equipment simply cannot control it."
+    },
+    {
+      "id": 7,
+      "name": "Breakwater Grouper",
+      "min_length_mm": 300,
+      "typical_length_mm": 520,
+      "max_length_mm": 900,
+      "typical_weight_g": 2800,
+      "difficulty": 11,
+      "xp": 12,
+      "base_value": 11,
+      "bite_min_ms": 3000,
+      "bite_max_ms": 7500,
+      "reaction_ms": [
+        1800,
+        4000,
+        7000
+      ],
+      "required_weather": [],
+      "required_day_parts": [],
+      "bait_modifiers": [
+        {
+          "bait_id": 1,
+          "multiplier_bp": 14000
+        },
+        {
+          "bait_id": 6,
+          "multiplier_bp": 18000
+        }
+      ],
+      "clue": "Likes the deep broken stones where the harbor floor drops away."
+    },
+    {
+      "id": 8,
+      "name": "Rain Eel",
+      "min_length_mm": 260,
+      "typical_length_mm": 480,
+      "max_length_mm": 850,
+      "typical_weight_g": 820,
+      "difficulty": 12,
+      "xp": 15,
+      "base_value": 15,
+      "bite_min_ms": 2500,
+      "bite_max_ms": 7000,
+      "reaction_ms": [
+        1600,
+        3600,
+        6200
+      ],
+      "required_weather": [
+        1
+      ],
+      "required_day_parts": [],
+      "bait_modifiers": [
+        {
+          "bait_id": 1,
+          "multiplier_bp": 16000
+        },
+        {
+          "bait_id": 3,
+          "multiplier_bp": 15000
+        },
+        {
+          "bait_id": 7,
+          "multiplier_bp": 22000
+        }
+      ],
+      "clue": "Appears with rain; several baits work, but it favors living light."
+    },
+    {
+      "id": 9,
+      "name": "Blackwater Skate",
+      "min_length_mm": 450,
+      "typical_length_mm": 780,
+      "max_length_mm": 1400,
+      "typical_weight_g": 5600,
+      "difficulty": 15,
+      "xp": 24,
+      "base_value": 28,
+      "bite_min_ms": 5000,
+      "bite_max_ms": 11000,
+      "reaction_ms": [
+        2300,
+        5000,
+        8500
+      ],
+      "required_weather": [],
+      "required_day_parts": [
+        3
+      ],
+      "bait_modifiers": [
+        {
+          "bait_id": 4,
+          "multiplier_bp": 25000
+        },
+        {
+          "bait_id": 6,
+          "multiplier_bp": 18000
+        }
+      ],
+      "clue": "A creature of deep night and rotten bait."
+    },
+    {
+      "id": 10,
+      "name": "Storm Eel",
+      "min_length_mm": 400,
+      "typical_length_mm": 700,
+      "max_length_mm": 1300,
+      "typical_weight_g": 2400,
+      "difficulty": 17,
+      "xp": 32,
+      "base_value": 38,
+      "bite_min_ms": 4500,
+      "bite_max_ms": 10000,
+      "reaction_ms": [
+        1800,
+        4200,
+        7200
+      ],
+      "required_weather": [
+        1
+      ],
+      "required_day_parts": [
+        2,
+        3
+      ],
+      "bait_modifiers": [
+        {
+          "bait_id": 3,
+          "multiplier_bp": 35000
+        },
+        {
+          "bait_id": 7,
+          "multiplier_bp": 22000
+        }
+      ],
+      "clue": "Storm weather, darkness, and glow larvae produce the strongest reports."
+    },
+    {
+      "id": 11,
+      "name": "Reed Carp",
+      "min_length_mm": 180,
+      "typical_length_mm": 330,
+      "max_length_mm": 620,
+      "typical_weight_g": 900,
+      "difficulty": 7,
+      "xp": 6,
+      "base_value": 5,
+      "bite_min_ms": 3000,
+      "bite_max_ms": 8000,
+      "reaction_ms": [
+        1900,
+        4200,
+        7200
+      ],
+      "required_weather": [],
+      "required_day_parts": [],
+      "bait_modifiers": [
+        {
+          "bait_id": 2,
+          "multiplier_bp": 20000
+        }
+      ],
+      "clue": "Bread works unusually well in the reed pond."
+    },
+    {
+      "id": 12,
+      "name": "Worm Goby",
+      "min_length_mm": 90,
+      "typical_length_mm": 140,
+      "max_length_mm": 220,
+      "typical_weight_g": 80,
+      "difficulty": 5,
+      "xp": 5,
+      "base_value": 3,
+      "bite_min_ms": 1600,
+      "bite_max_ms": 4500,
+      "reaction_ms": [
+        1100,
+        2600,
+        4800
+      ],
+      "required_weather": [],
+      "required_day_parts": [],
+      "bait_modifiers": [
+        {
+          "bait_id": 1,
+          "multiplier_bp": 30000
+        }
+      ],
+      "clue": "Its name is not subtle: worms are extremely effective."
+    },
+    {
+      "id": 13,
+      "name": "Reed Pike",
+      "min_length_mm": 300,
+      "typical_length_mm": 550,
+      "max_length_mm": 1000,
+      "typical_weight_g": 1900,
+      "difficulty": 13,
+      "xp": 16,
+      "base_value": 16,
+      "bite_min_ms": 2200,
+      "bite_max_ms": 6200,
+      "reaction_ms": [
+        1200,
+        3000,
+        5500
+      ],
+      "required_weather": [],
+      "required_day_parts": [
+        0,
+        1
+      ],
+      "bait_modifiers": [
+        {
+          "bait_id": 5,
+          "multiplier_bp": 19000
+        },
+        {
+          "bait_id": 6,
+          "multiplier_bp": 18000
+        }
+      ],
+      "clue": "Most reports come from morning and daytime; metal flashes attract it."
+    },
+    {
+      "id": 14,
+      "name": "Fog Loach",
+      "min_length_mm": 120,
+      "typical_length_mm": 210,
+      "max_length_mm": 330,
+      "typical_weight_g": 180,
+      "difficulty": 9,
+      "xp": 14,
+      "base_value": 13,
+      "bite_min_ms": 4000,
+      "bite_max_ms": 9000,
+      "reaction_ms": [
+        1900,
+        4000,
+        6800
+      ],
+      "required_weather": [
+        2
+      ],
+      "required_day_parts": [],
+      "bait_modifiers": [
+        {
+          "bait_id": 3,
+          "multiplier_bp": 22000
+        },
+        {
+          "bait_id": 7,
+          "multiplier_bp": 22000
+        }
+      ],
+      "clue": "Fog changes the pond. Glow larvae make the change easier to notice."
+    },
+    {
+      "id": 15,
+      "name": "Pale Crown Carp",
+      "min_length_mm": 350,
+      "typical_length_mm": 600,
+      "max_length_mm": 1150,
+      "typical_weight_g": 3100,
+      "difficulty": 16,
+      "xp": 28,
+      "base_value": 32,
+      "bite_min_ms": 5500,
+      "bite_max_ms": 12000,
+      "reaction_ms": [
+        2200,
+        4800,
+        8000
+      ],
+      "required_weather": [
+        2
+      ],
+      "required_day_parts": [
+        0
+      ],
+      "bait_modifiers": [
+        {
+          "bait_id": 2,
+          "multiplier_bp": 24000
+        }
+      ],
+      "clue": "A pale dawn fish that seems almost ceremonial about bread."
+    },
+    {
+      "id": 16,
+      "name": "Lighthouse Angler",
+      "min_length_mm": 220,
+      "typical_length_mm": 380,
+      "max_length_mm": 720,
+      "typical_weight_g": 950,
+      "difficulty": 11,
+      "xp": 14,
+      "base_value": 14,
+      "clue": "Lives in the pale cove below the lighthouse and bites most often after sunset.",
+      "bite_min_ms": 2800,
+      "bite_max_ms": 7600,
+      "reaction_ms": [
+        1700,
+        3900,
+        6800
+      ],
+      "required_weather": [],
+      "required_day_parts": [
+        2,
+        3
+      ],
+      "bait_modifiers": [
+        {
+          "bait_id": 1,
+          "multiplier_bp": 15000
+        },
+        {
+          "bait_id": 3,
+          "multiplier_bp": 17000
+        }
+      ]
+    },
+    {
+      "id": 17,
+      "name": "Signal Eel",
+      "min_length_mm": 300,
+      "typical_length_mm": 540,
+      "max_length_mm": 980,
+      "typical_weight_g": 1400,
+      "difficulty": 14,
+      "xp": 22,
+      "base_value": 24,
+      "clue": "Seems to approach luminous bait during rain as if following a signal.",
+      "bite_min_ms": 3600,
+      "bite_max_ms": 9000,
+      "reaction_ms": [
+        1800,
+        4200,
+        7400
+      ],
+      "required_weather": [
+        1
+      ],
+      "required_day_parts": [],
+      "bait_modifiers": [
+        {
+          "bait_id": 3,
+          "multiplier_bp": 32000
+        },
+        {
+          "bait_id": 7,
+          "multiplier_bp": 22000
+        }
+      ]
+    },
+    {
+      "id": 18,
+      "name": "Bellglass Ray",
+      "min_length_mm": 500,
+      "typical_length_mm": 900,
+      "max_length_mm": 1700,
+      "typical_weight_g": 7200,
+      "difficulty": 18,
+      "xp": 40,
+      "base_value": 55,
+      "clue": "Almost nobody agrees what attracts it. Every confirmed specimen came from the hidden cove at night.",
+      "bite_min_ms": 6500,
+      "bite_max_ms": 13000,
+      "reaction_ms": [
+        2300,
+        5200,
+        9000
+      ],
+      "required_weather": [],
+      "required_day_parts": [
+        3
+      ],
+      "bait_modifiers": [
+        {
+          "bait_id": 5,
+          "multiplier_bp": 21000
+        },
+        {
+          "bait_id": 3,
+          "multiplier_bp": 18000
+        },
+        {
+          "bait_id": 6,
+          "multiplier_bp": 18000
+        }
+      ]
+    },
+    {
+      "id": 19,
+      "name": "Dock Lanternfish",
+      "min_length_mm": 80,
+      "typical_length_mm": 130,
+      "max_length_mm": 240,
+      "typical_weight_g": 95,
+      "difficulty": 9,
+      "xp": 16,
+      "base_value": 15,
+      "clue": "A faint harbor light that seems to appear only when fog settles over the piers after dark.",
+      "bite_min_ms": 3600,
+      "bite_max_ms": 8500,
+      "reaction_ms": [
+        1600,
+        3600,
+        6200
+      ],
+      "required_weather": [
+        2
+      ],
+      "required_day_parts": [
+        3
+      ],
+      "bait_modifiers": [
+        {
+          "bait_id": 3,
+          "multiplier_bp": 28000
+        }
+      ]
+    },
+    {
+      "id": 20,
+      "name": "Rustscale Sole",
+      "min_length_mm": 190,
+      "typical_length_mm": 340,
+      "max_length_mm": 650,
+      "typical_weight_g": 780,
+      "difficulty": 10,
+      "xp": 12,
+      "base_value": 12,
+      "clue": "Hugs the breakwater floor and noses around anything that smells old, dead, or metallic.",
+      "bite_min_ms": 3200,
+      "bite_max_ms": 7800,
+      "reaction_ms": [
+        1800,
+        3900,
+        6800
+      ],
+      "required_weather": [],
+      "required_day_parts": [],
+      "bait_modifiers": [
+        {
+          "bait_id": 4,
+          "multiplier_bp": 24000
+        },
+        {
+          "bait_id": 5,
+          "multiplier_bp": 15000
+        }
+      ]
+    },
+    {
+      "id": 21,
+      "name": "Dawn Reedling",
+      "min_length_mm": 100,
+      "typical_length_mm": 175,
+      "max_length_mm": 300,
+      "typical_weight_g": 130,
+      "difficulty": 8,
+      "xp": 11,
+      "base_value": 10,
+      "clue": "Feeds close to the surface during the first bright hours of the game day.",
+      "bite_min_ms": 2500,
+      "bite_max_ms": 6500,
+      "reaction_ms": [
+        1500,
+        3400,
+        6000
+      ],
+      "required_weather": [],
+      "required_day_parts": [
+        0
+      ],
+      "bait_modifiers": [
+        {
+          "bait_id": 2,
+          "multiplier_bp": 26000
+        }
+      ]
+    },
+    {
+      "id": 22,
+      "name": "Keeper's Koi",
+      "min_length_mm": 280,
+      "typical_length_mm": 480,
+      "max_length_mm": 900,
+      "typical_weight_g": 1700,
+      "difficulty": 13,
+      "xp": 24,
+      "base_value": 26,
+      "clue": "An impossible ornamental fish below an abandoned lighthouse. Bright metal seems to draw it closer at dawn.",
+      "bite_min_ms": 4300,
+      "bite_max_ms": 9800,
+      "reaction_ms": [
+        2000,
+        4400,
+        7600
+      ],
+      "required_weather": [
+        0
+      ],
+      "required_day_parts": [
+        0
+      ],
+      "bait_modifiers": [
+        {
+          "bait_id": 5,
+          "multiplier_bp": 30000
+        }
+      ]
+    },
+    {
+      "id": 23,
+      "name": "Pale Threadfin",
+      "min_length_mm": 160,
+      "typical_length_mm": 290,
+      "max_length_mm": 520,
+      "typical_weight_g": 460,
+      "difficulty": 12,
+      "xp": 20,
+      "base_value": 21,
+      "clue": "Its fins disappear against fog. Luminous bait makes the body briefly visible during evening water.",
+      "bite_min_ms": 3800,
+      "bite_max_ms": 9000,
+      "reaction_ms": [
+        1800,
+        4100,
+        7100
+      ],
+      "required_weather": [
+        2
+      ],
+      "required_day_parts": [
+        2
+      ],
+      "bait_modifiers": [
+        {
+          "bait_id": 3,
+          "multiplier_bp": 31000
+        },
+        {
+          "bait_id": 7,
+          "multiplier_bp": 22000
+        }
+      ]
+    },
+    {
+      "id": 24,
+      "name": "Cove Goby",
+      "min_length_mm": 85,
+      "typical_length_mm": 145,
+      "max_length_mm": 260,
+      "typical_weight_g": 90,
+      "difficulty": 7,
+      "xp": 8,
+      "base_value": 7,
+      "clue": "A stubborn little resident of the lighthouse cove. It seems to be there regardless of weather or hour.",
+      "bite_min_ms": 2200,
+      "bite_max_ms": 6200,
+      "reaction_ms": [
+        1500,
+        3400,
+        6000
+      ],
+      "required_weather": [],
+      "required_day_parts": [],
+      "bait_modifiers": [
+        {
+          "bait_id": 1,
+          "multiplier_bp": 18000
+        },
+        {
+          "bait_id": 6,
+          "multiplier_bp": 18000
+        }
+      ]
+    },
+    {
+      "id": 25,
+      "name": "Echo Herring",
+      "min_length_mm": 180,
+      "typical_length_mm": 310,
+      "max_length_mm": 620,
+      "typical_weight_g": 740,
+      "difficulty": 9,
+      "xp": 14,
+      "base_value": 18,
+      "clue": "It is only recorded when several anglers share the same stretch of conversation.",
+      "bite_min_ms": 2500,
+      "bite_max_ms": 5500,
+      "reaction_ms": [
+        1800,
+        3600,
+        6500
+      ],
+      "required_weather": [],
+      "required_day_parts": [],
+      "bait_modifiers": []
+    },
+    {
+      "id": 26,
+      "name": "Rumor Carp",
+      "min_length_mm": 240,
+      "typical_length_mm": 430,
+      "max_length_mm": 880,
+      "typical_weight_g": 1900,
+      "difficulty": 12,
+      "xp": 20,
+      "base_value": 29,
+      "clue": "Its scales seem to carry scraps of messages that nobody remembers sending.",
+      "bite_min_ms": 3000,
+      "bite_max_ms": 7000,
+      "reaction_ms": [
+        1700,
+        3400,
+        6200
+      ],
+      "required_weather": [],
+      "required_day_parts": [],
+      "bait_modifiers": []
+    }
+  ]
+}

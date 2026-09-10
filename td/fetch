@@ -25,6 +25,35 @@ esac
 
 cd "${0%/*}"
 
+schema_tmp=$(mktemp ./td_api.tl.XXXXXX)
+lib_tmp_dir=$(mktemp -d ./tdlib.XXXXXX)
+trap 'rm -f "$schema_tmp"; rm -rf "$lib_tmp_dir"' EXIT
+required_schema_constructors=(
+  buttonStylePrimary
+  buttonStyleDanger
+  buttonStyleSuccess
+  inlineButton
+  inputPageBlockButtonRow
+  inputMessageRichMessage
+  sendEphemeralMessage
+  editEphemeralMessage
+  deleteEphemeralMessage
+)
+
+verify_schema() {
+  local constructor
+  for constructor in "${required_schema_constructors[@]}"; do
+    if ! grep -Eq "^${constructor}( | =|$)" "$1"; then
+      log 1 "error" "td_api.tl is missing required constructor: $constructor" >&2
+      return 1
+    fi
+  done
+  if ! grep -Eq '^botCommand .*is_ephemeral:Bool' "$1"; then
+    log 1 "error" "td_api.tl botCommand is missing ephemeral-command support" >&2
+    return 1
+  fi
+}
+
 log 6 "resolve" "@prebuilt-tdlib/$pkg"
 pkg_json=$(curl -fsSL "https://registry.npmjs.org/@prebuilt-tdlib/$pkg/latest")
 IFS=$'\t' read -r commit version pkg_version tarball < <(
@@ -40,10 +69,16 @@ log 2 "fetch" "td_api.tl (TDLib $version)"
   printf '// TDLib %s (%s, %s) · @prebuilt-tdlib %s\n' "$version" "$commit" "$commit_date" "$pkg_version"
   printf '// fetched %(%Y-%m-%d %H:%M:%S UTC)T\n\n' -1
   curl -fsSL "https://raw.githubusercontent.com/tdlib/td/$commit/td/generate/scheme/td_api.tl"
-} > td_api.tl
+} > "$schema_tmp"
+verify_schema "$schema_tmp"
 
 log 2 "fetch" "$lib ($pkg)"
-curl -fsSL "$tarball" | tar -xz --strip-components=1 "package/$lib"
+curl -fsSL "$tarball" | tar -xz -C "$lib_tmp_dir" --strip-components=1 "package/$lib"
+[[ -s "$lib_tmp_dir/$lib" ]] || { log 1 "error" "downloaded TDLib package did not contain $lib" >&2; exit 1; }
+
+# Install the matching native library and schema only after both downloads have succeeded.
+mv "$lib_tmp_dir/$lib" "$lib"
+mv "$schema_tmp" td_api.tl
 
 if [[ $lib == *.so && $(readelf -d "$lib") =~ libtdjson\.so\.[0-9.]+ ]]; then
   log 6 "symlink" "${BASH_REMATCH[0]} -> $lib"

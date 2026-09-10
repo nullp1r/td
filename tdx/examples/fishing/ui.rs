@@ -55,12 +55,18 @@ pub fn cast_missed(user_id: i64, reason: &str) -> (types::inputMessageRichMessag
 
 /// View displaying a successfully caught fish with stats and folklore lore formatted in a rich table.
 pub fn cast_success(user_id: i64, user_name: &str, record: &CatchRecord, lore: &str) -> (types::inputMessageRichMessage, enums::ReplyMarkup) {
-  let catch_table = table(["Species", "Rarity", "Weight", "Value"]).bordered().striped().compact().caption(bold(record.species_name)).row([
-    cell(bold(record.species_name)),
-    cell(record.rarity.badge()),
-    cell(code(format_args!("{:.2} kg", record.weight))).center(),
-    cell(bold(format_args!("{} 🪙", record.price))).right(),
-  ]);
+  let catch_table = table()
+    .header(("Species", "Rarity", "Weight", "Value"))
+    .bordered()
+    .striped()
+    .compact()
+    .caption(bold(record.species_name))
+    .row((
+      bold(record.species_name),
+      record.rarity.badge(),
+      cell(code(format_args!("{:.2} kg", record.weight))).center(),
+      cell(bold(format_args!("{} 🪙", record.price))).right(),
+    ));
 
   let content = rich([
     heading(bold(format_args!("🎉 {user_name} hooked a catch!")), 1), //.
@@ -80,12 +86,16 @@ pub fn bag_view(user_id: i64, player: &Player) -> (types::inputMessageRichMessag
   let rod = RODS.get(player.rod_id).unwrap_or(&RODS[0]);
   let total_val: u32 = player.bag.iter().map(|c| c.price).sum();
 
-  let overview_table = table(["🪙 Balance", "🎣 Rod", "🗺 Water", "🐟 Caught"]).bordered().compact().row([
-    cell(bold(format_args!("{} 🪙", player.coins))).center(),
-    cell(bold(rod.name)),
-    cell(italic(spot.name)),
-    cell(code(player.total_caught.to_string())).center(),
-  ]);
+  let overview_table = table()
+    .header(("🪙 Balance", "🎣 Rod", "🗺 Water", "🐟 Caught"))
+    .bordered()
+    .compact()
+    .row((
+      cell(bold(format_args!("{} 🪙", player.coins))).center(),
+      bold(rod.name),
+      italic(spot.name),
+      cell(code(player.total_caught)).center(),
+    ));
 
   let mut blocks = vec![
     heading(bold(format_args!("🎒 {}'s Angler Bag", player.display_name())), 1), //.
@@ -99,28 +109,28 @@ pub fn bag_view(user_id: i64, player: &Player) -> (types::inputMessageRichMessag
   if player.bag.is_empty() {
     blocks.push(paragraph(italic("Your bag is empty. Use /fish to cast a line!")));
   } else {
-    let mut catch_table = table(["#", "Fish", "Weight", "Value"]).bordered().striped().compact();
+    let mut catch_table = table().header(("#", "Fish", "Weight", "Value")).bordered().striped().compact();
     for (i, c) in player.bag.iter().rev().take(5).enumerate() {
-      catch_table = catch_table.row([
-        cell((i + 1).to_string()).center(),
-        cell(bold(c.species_name)),
+      catch_table = catch_table.row((
+        cell(i + 1).center(),
+        bold(c.species_name),
         cell(code(format_args!("{:.2} kg", c.weight))).center(),
         cell(bold(format_args!("{} 🪙", c.price))).right(),
-      ]);
+      ));
     }
 
     blocks.push(paragraph(bold(format_args!("📦 Recent Catches ({} items, {} 🪙 total):", player.bag.len(), total_val))));
     blocks.push(catch_table.into());
 
     if player.bag.len() > 5 {
-      let mut archive_table = table(["#", "Fish", "Weight", "Value"]).bordered().compact();
+      let mut archive_table = table().header(("#", "Fish", "Weight", "Value")).bordered().compact();
       for (i, c) in player.bag.iter().rev().skip(5).enumerate() {
-        archive_table = archive_table.row([
-          cell((i + 6).to_string()).center(),
-          cell(bold(c.species_name)),
+        archive_table = archive_table.row((
+          cell(i + 6).center(),
+          bold(c.species_name),
           cell(code(format_args!("{:.2} kg", c.weight))).center(),
           cell(bold(format_args!("{} 🪙", c.price))).right(),
-        ]);
+        ));
       }
       blocks.push(details(bold(format_args!("📜 Older Catch Archive ({} catches)", player.bag.len() - 5)), [archive_table]));
     }
@@ -137,7 +147,7 @@ pub fn bag_view(user_id: i64, player: &Player) -> (types::inputMessageRichMessag
 
 /// View showing the tackle shop for rod upgrades in a structured table.
 pub fn shop_view(user_id: i64, player: &Player) -> (types::inputMessageRichMessage, enums::ReplyMarkup) {
-  let mut shop_table = table(["Rod", "Price", "Luck", "Status"]) //.
+  let mut shop_table = table().header(("Rod", "Price", "Luck", "Status")) //.
     .bordered()
     .striped()
     .compact()
@@ -156,12 +166,12 @@ pub fn shop_view(user_id: i64, player: &Player) -> (types::inputMessageRichMessa
       bold("Available")
     };
 
-    shop_table = shop_table.row([
-      cell(bold(rod.name)), //.
+    shop_table = shop_table.row((
+      bold(rod.name), //.
       cell(format_args!("{} 🪙", rod.price)).right(),
       cell(format_args!("+{}", rod.luck_bonus)).center(),
-      cell(status),
-    ]);
+      status,
+    ));
 
     let btn = if is_equipped {
       markup::callback(format_args!("✓ {}", rod.name), format_args!("{user_id}:shop:info:{}", rod.id))
@@ -190,7 +200,7 @@ pub fn shop_view(user_id: i64, player: &Player) -> (types::inputMessageRichMessa
 
 /// View showing fishing spots and requirements in a structured table.
 pub fn spots_view(user_id: i64, player: &Player) -> (types::inputMessageRichMessage, enums::ReplyMarkup) {
-  let mut spots_table = table(["Location", "Required Tackle", "Status"]) //.
+  let mut spots_table = table().header(("Location", "Required Tackle", "Status")) //.
     .bordered()
     .striped()
     .compact()
@@ -210,7 +220,7 @@ pub fn spots_view(user_id: i64, player: &Player) -> (types::inputMessageRichMess
       strike("Locked")
     };
 
-    spots_table = spots_table.row([cell(format_args!("{} - {}", spot.name, spot.description)), cell(code(req_rod)), cell(status)]);
+    spots_table = spots_table.row((format_args!("{} - {}", spot.name, spot.description), code(req_rod), status));
 
     let btn = if is_current {
       markup::callback(format_args!("📍 {}", spot.name), format_args!("{user_id}:spot:info:{}", spot.id))
@@ -245,17 +255,17 @@ pub fn brag_view(player: &Player) -> types::inputMessageRichMessage {
 
   rich([
     heading(bold(format_args!("🏆 {name}'s Greatest Trophy!")), 1),
-    table(["Species", "Rarity", "Weight", "Appraised Value"])
+    table().header(("Species", "Rarity", "Weight", "Appraised Value"))
       .bordered()
       .striped()
       .compact()
       .caption(bold(record.species_name))
-      .row([
-        cell(format_args!("🐟 {}", record.species_name)),
-        cell(record.rarity.badge()),
+      .row((
+        format_args!("🐟 {}", record.species_name),
+        record.rarity.badge(),
         cell(code(format_args!("{:.2} kg", record.weight))).center(),
         cell(bold(format_args!("{} 🪙", record.price))).right(),
-      ])
+      ))
       .into(),
     block_quote_expandable(italic("A truly magnificent catch from deep waters!")),
   ])
@@ -263,23 +273,23 @@ pub fn brag_view(player: &Player) -> types::inputMessageRichMessage {
 
 /// General help tour and bot description with clickable commands.
 pub fn help_view() -> Text {
-  lines([
-    line(bold("📖 Fishing Bot Manual & Guide")),
-    empty(),
-    line("Welcome to the waters! Cast your line, catch rare and mythical fish, upgrade your rods in the tackle shop, and travel to deep trenches."),
-    empty(),
-    line(bold("Command Index:")),
-    line(bot_command("/fish")) + " — Cast your line into the water",
-    line(bot_command("/cast")) + " — Alias to cast your line",
-    line(bot_command("/bag")) + " — View inventory table & sell catches",
-    line(bot_command("/shop")) + " — Upgrade rods for better luck and bites",
-    line(bot_command("/spots")) + " — Travel between lakes, rivers, and trenches",
-    line(bot_command("/brag")) + " — Boast your greatest trophy catch",
-    line(bot_command("/help")) + " — Show this command guide",
-    empty(),
-    line(bold("💡 Angler Tips & Secrets:")),
-    line("• Better rods unlock deeper waters with legendary sea monsters."),
-    line("• Rarity scale: Common → Uncommon → Rare → Epic → Legendary → Mythic."),
-    line("• You can sell your catches at the Tackle Shop or boast your all-time record using /brag."),
-  ])
+  lines((
+    bold("📖 Fishing Bot Manual & Guide"),
+    "",
+    "Welcome to the waters! Cast your line, catch rare and mythical fish, upgrade your rods in the tackle shop, and travel to deep trenches.",
+    "",
+    bold("Command Index:"),
+    (bot_command("/fish"), " — Cast your line into the water"),
+    (bot_command("/cast"), " — Alias to cast your line"),
+    (bot_command("/bag"), " — View inventory table & sell catches"),
+    (bot_command("/shop"), " — Upgrade rods for better luck and bites"),
+    (bot_command("/spots"), " — Travel between lakes, rivers, and trenches"),
+    (bot_command("/brag"), " — Boast your greatest trophy catch"),
+    (bot_command("/help"), " — Show this command guide"),
+    "",
+    bold("💡 Angler Tips & Secrets:"),
+    "• Better rods unlock deeper waters with legendary sea monsters.",
+    "• Rarity scale: Common → Uncommon → Rare → Epic → Legendary → Mythic.",
+    "• You can sell your catches at the Tackle Shop or boast your all-time record using /brag.",
+  ))
 }

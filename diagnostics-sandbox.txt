@@ -1,0 +1,76 @@
+=== ENVIRONMENT ===
+2026-09-09T23:40:57+00:00
+Linux localhost 6.18.35 #1 SMP Mon Aug 31 18:10:37 UTC 2026 x86_64 GNU/Linux
+root=/mnt/data/_maintainability_prelim_unpack
+CARGO_NET_OFFLINE=true
+
+=== GIT ===
+No .git checkout available.
+
+=== REQUIRED TD SCHEMA SURFACE ===
+OK   buttonStylePrimary
+OK   buttonStyleDanger
+OK   buttonStyleSuccess
+OK   inlineButton
+OK   inputPageBlockButtonRow
+OK   inputMessageRichMessage
+OK   sendEphemeralMessage
+OK   editEphemeralMessage
+OK   deleteEphemeralMessage
+OK   dateTimeFormattingTypeRelative
+OK   richTextDateTime
+OK   textEntityTypeDateTime
+OK   botCommand.is_ephemeral
+
+=== HANDOFF TREE IDENTITY ===
+
+
+================================================================
+>>> python3 tools/handoff.py verify-tree
+================================================================
+OK tree matches _handoff_manifest.json for 203 immutable files
+
+>>> EXIT STATUS: 0
+
+=== SOURCE REGRESSION SCANS ===
+OK   no legacy /game/group_hub/world_status references in active Rust sources
+OK   no known developer/prototype wording in player-facing Telegram sources
+OK   group /help uses the ephemeral-command path
+OK   group help is discoverable from the shared Rich Message
+OK   removed plain/concat/empty formatting helpers stay absent
+OK   table() is headerless-by-default at active call sites
+OK   formatting composition operators stay removed
+OK   group shoal uses Telegram client-updated relative time
+
+
+================================================================
+>>> bash syntax: td/fetch
+================================================================
+
+>>> EXIT STATUS: 0
+
+
+================================================================
+>>> bash syntax: tools/collect-diagnostics.sh
+================================================================
+
+>>> EXIT STATUS: 0
+
+
+================================================================
+>>> SQLite quick_check + schema version (Python, temporary copy)
+================================================================
+quick_check=ok
+user_version=4
+
+>>> EXIT STATUS: 0
+
+=== RUST TOOLCHAIN ===
+MISSING rustup
+MISSING rustc
+MISSING cargo
+MISSING rustfmt
+
+=== SUMMARY ===
+Recorded failing/missing checks: 4
+Return this entire file with the next project handoff.

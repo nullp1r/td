@@ -1,0 +1,28 @@
+[package]
+name = "game"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+
+[features]
+default = ["telegram"]
+telegram = ["dep:anyhow", "dep:getrandom", "dep:tracing-subscriber", "dep:tdx"]
+
+[dependencies]
+anyhow = { workspace = true, optional = true }
+getrandom = { workspace = true, optional = true }
+rusqlite.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "signal", "sync", "time"] }
+tracing.workspace = true
+tracing-subscriber = { workspace = true, optional = true }
+tdx = { workspace = true, optional = true }
+
+[build-dependencies]
+td-sys.workspace = true
+
+[lints]
+workspace = true

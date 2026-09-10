@@ -1,7 +1,9 @@
 //! Text and layout blocks. Nest blocks explicitly with arrays or iterators.
 
-use td_types::enums::InputPageBlock;
+use td_types::enums::{ButtonStyle, InputPageBlock};
 use td_types::types;
+
+use crate::compose::markup::IntoCallbackData;
 
 use super::IntoRichText;
 
@@ -9,6 +11,37 @@ use super::IntoRichText;
 pub fn paragraph(text: impl IntoRichText) -> InputPageBlock {
   let text = text.into_rich_text();
   types::inputPageBlockParagraph { text }.into()
+}
+
+/// Creates a full-width row of native rich-message buttons.
+pub fn button_row(buttons: impl IntoIterator<Item = types::inlineButton>) -> InputPageBlock {
+  types::inputPageBlockButtonRow { buttons: buttons.into_iter().collect(), ..Default::default() }.into()
+}
+
+/// Constructs a default-style callback button inside a rich message.
+pub fn callback_button(text: impl IntoRichText, data: impl IntoCallbackData) -> types::inlineButton {
+  callback_button_with_style(text, data, ButtonStyle::buttonStyleDefault)
+}
+
+/// Constructs a dark-blue callback button inside a rich message.
+pub fn primary_callback_button(text: impl IntoRichText, data: impl IntoCallbackData) -> types::inlineButton {
+  callback_button_with_style(text, data, ButtonStyle::buttonStylePrimary)
+}
+
+/// Constructs a green callback button inside a rich message.
+pub fn success_callback_button(text: impl IntoRichText, data: impl IntoCallbackData) -> types::inlineButton {
+  callback_button_with_style(text, data, ButtonStyle::buttonStyleSuccess)
+}
+
+/// Constructs a red callback button inside a rich message.
+pub fn danger_callback_button(text: impl IntoRichText, data: impl IntoCallbackData) -> types::inlineButton {
+  callback_button_with_style(text, data, ButtonStyle::buttonStyleDanger)
+}
+
+fn callback_button_with_style(text: impl IntoRichText, data: impl IntoCallbackData, style: ButtonStyle) -> types::inlineButton {
+  let text = Box::new(text.into_rich_text());
+  let r#type = types::inlineKeyboardButtonTypeCallback { data: data.into_callback_data() }.into();
+  types::inlineButton { text, style, r#type }
 }
 
 /// Places inline content in the document footer.

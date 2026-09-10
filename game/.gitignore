@@ -1,0 +1,5 @@
+/target/
+/.tdx-session/
+/game.sqlite3
+/game.sqlite3-*
+.env

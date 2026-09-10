@@ -45,7 +45,7 @@ single Telegram dependency. Its helpers return editable TDLib request values:
 use tdx::prelude::*;
 
 async fn greet(client: &Client, chat_id: i64) -> tdx::client::Result<()> {
-  let request = send::message(chat_id, text! { "Hello, ", bold("world"), "!" });
+  let request = send::message(chat_id, line(("Hello, ", bold("world"), "!")));
   let sent = client.track(&request, None, None).await?;
 
   client.send(&edit::text(&sent, "Welcome back.".text())).await?;
@@ -53,7 +53,7 @@ async fn greet(client: &Client, chat_id: i64) -> tdx::client::Result<()> {
 }
 ```
 
-Use `text!` for composed text and `.text()` for plain strings. Media payloads
+Use tuples with `line`/`lines` for composed text and `.text()` for plain strings. Media payloads
 can be passed directly to send helpers; optional fields use explicit conversions,
 such as `video.caption = Some(text.into())`. Albums and forwards expose each
 message's outcome through `track_all`. Edits use `send`.

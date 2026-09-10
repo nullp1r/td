@@ -1,0 +1,2688 @@
+=== ENVIRONMENT ===
+2026-09-10T02:46:12+03:00
+Linux pc 5.15.167.4-microsoft-standard-WSL2 #1 SMP Tue Nov 5 00:21:55 UTC 2024 x86_64 x86_64 x86_64 GNU/Linux
+root=/home/me/dev/rust/td
+CARGO_NET_OFFLINE=true
+
+
+================================================================
+>>> git status --short --branch
+================================================================
+## tdx...origin/tdx
+M  Cargo.lock
+M  Cargo.toml
+M  README.md
+AM _handoff_manifest.json
+D  assets/architecture.svg
+AM diagnostics-sandbox.txt
+AM docs/handoff/00_handoff/ARTIFACT_LINEAGE.md
+AM docs/handoff/00_handoff/CURRENT_STATE.md
+A  docs/handoff/00_handoff/FUTURE_AI_BOOTSTRAP.md
+A  docs/handoff/00_handoff/LOST_UX_IMPLEMENTATION.md
+A  docs/handoff/00_handoff/ORIGINAL_UX_REQUEST_AND_AUDIT_2026-09-09.md
+A  docs/handoff/00_handoff/RESTORED_UX_2026-09-09.md
+AM docs/handoff/00_handoff/SESSION_HISTORY.md
+A  docs/handoff/00_handoff/START_HERE.md
+A  docs/handoff/00_handoff/USER_PREFERENCES.md
+A  docs/handoff/01_product/DECISIONS.md
+A  docs/handoff/01_product/LONG_TERM_DIRECTION.md
+A  docs/handoff/01_product/MVP_AND_ROADMAP.md
+A  docs/handoff/01_product/OPEN_QUESTIONS.md
+A  docs/handoff/01_product/PRODUCT_VISION.md
+A  docs/handoff/02_game_design/CONTENT_AND_FEATURE_STATUS.md
+A  docs/handoff/02_game_design/FISHING_CURRENT_MODEL.md
+A  docs/handoff/02_game_design/ITEMS_ECONOMY_PROCEDURAL.md
+A  docs/handoff/02_game_design/PROGRESSION_AND_SPECIALIZATION.md
+A  docs/handoff/02_game_design/SOCIAL_MMO_DESIGN.md
+A  docs/handoff/02_game_design/WORLD_AND_DISCOVERY.md
+A  docs/handoff/03_ux/COMMANDS_AND_NAVIGATION.md
+A  docs/handoff/03_ux/GROUP_CHAT_UX.md
+A  docs/handoff/03_ux/PLAYER_COPY_STYLE.md
+A  docs/handoff/03_ux/PRIVATE_CHAT_UX.md
+A  docs/handoff/03_ux/SCREEN_BLUEPRINTS.md
+A  docs/handoff/03_ux/UX_PRINCIPLES.md
+A  docs/handoff/04_telegram/EPHEMERAL_AND_RATE_LIMITS.md
+A  docs/handoff/04_telegram/PLATFORM_2026.md
+A  docs/handoff/04_telegram/RICH_MESSAGES_AND_BUTTONS.md
+A  docs/handoff/04_telegram/SCHEMA_FETCH_CHECKLIST.md
+A  docs/handoff/04_telegram/TDX_EVOLUTION.md
+AM docs/handoff/04_telegram/TDX_FORMATTING_COMPOSITION_2026-09-10.md
+A  docs/handoff/05_technical/ARCHITECTURE.md
+A  docs/handoff/05_technical/DIAGNOSTICS.md
+A  docs/handoff/05_technical/IMPLEMENTATION_STATUS.md
+A  docs/handoff/05_technical/PERSISTENCE_AND_CONCURRENCY.md
+A  docs/handoff/05_technical/REAL_DIAGNOSTIC_FIXES.md
+AM docs/handoff/05_technical/REFACTOR_AND_TECH_DEBT.md
+A  docs/handoff/05_technical/SCALING.md
+A  docs/handoff/06_roadmap/FUTURE_SYSTEMS.md
+AM docs/handoff/06_roadmap/NEXT_ITERATION.md
+A  docs/handoff/06_roadmap/PLAYTESTING.md
+AM docs/handoff/07_reference/DECISION_LOG.md
+A  docs/handoff/07_reference/GLOSSARY.md
+AM docs/handoff/07_reference/MANIFEST.md
+AM docs/handoff/07_reference/READING_MAP.md
+A  docs/handoff/99_archive/README.md
+A  "docs/handoff/99_archive/original_design/Fishing System Specification v0.md"
+A  "docs/handoff/99_archive/original_design/Game Design Foundation.md"
+A  "docs/handoff/99_archive/original_design/MVP-0 Rust Architecture.md"
+A  "docs/handoff/99_archive/original_design/MVP-0 Specification.md"
+A  docs/handoff/99_archive/original_diagnostics/DIAGNOSTIC_REPORT.md
+A  docs/handoff/99_archive/original_diagnostics/TECH_DEBT_PASS.md
+A  docs/handoff/README.md
+A  game/.gitignore
+AM game/AGENTS.md
+A  game/Cargo.toml
+A  game/README.md
+A  game/build.rs
+A  game/content/game.json
+A  game/migrations/0001_init.sql
+A  game/migrations/0002_progression.sql
+A  game/migrations/0003_world_loop.sql
+A  game/migrations/0004_social_crafting.sql
+AM game/src/app/angling.rs
+AM game/src/app/character.rs
+AM game/src/app/economy.rs
+AM game/src/app/mod.rs
+AM game/src/app/progression.rs
+AM game/src/app/social.rs
+AM game/src/app/tests.rs
+AM game/src/content.rs
+AM game/src/db.rs
+AM game/src/fishing.rs
+AM game/src/ids.rs
+A  game/src/lib.rs
+A  game/src/main.rs
+AM game/src/rng.rs
+AM game/src/telegram/callback.rs
+AM game/src/telegram/dispatch.rs
+AM game/src/telegram/mod.rs
+AM game/src/telegram/present/core.rs
+AM game/src/telegram/present/fishing.rs
+AM game/src/telegram/present/mod.rs
+AM game/src/telegram/present/progression.rs
+AM game/src/telegram/present/social.rs
+AM game/src/telegram/present/world.rs
+AM game/src/timer.rs
+AM game/src/view.rs
+AM game/src/world.rs
+M  td/fetch
+M  tdx/examples/echo-handler.rs
+M  tdx/examples/fishing/ui.rs
+M  tdx/examples/showcase.rs
+M  tdx/examples/workflow.rs
+M  tdx/src/action/send.rs
+M  tdx/src/command.rs
+M  tdx/src/compose/markup.rs
+M  tdx/src/format.rs
+M  tdx/src/format/rich.rs
+M  tdx/src/format/rich/block.rs
+M  tdx/src/format/rich/table.rs
+M  tdx/src/format/style.rs
+M  tdx/src/format/text.rs
+M  tdx/src/lib.rs
+MM tdx/tests/format.rs
+M  tdx/tests/inspect.rs
+M  tdx/tests/requests.rs
+A  tools/HANDOFF.md
+A  tools/collect-diagnostics.sh
+A  tools/handoff.py
+A  tools/make-handoff.sh
+?? diagnostics.txt
+?? docs/handoff/05_technical/GAME_MAINTAINABILITY_PASS_2026-09-10.md
+
+>>> EXIT STATUS: 0
+
+
+================================================================
+>>> git rev-parse HEAD
+================================================================
+943e10d3d04fffe0c1f78f349622e51260c52482
+
+>>> EXIT STATUS: 0
+
+
+================================================================
+>>> git diff --stat
+================================================================
+ _handoff_manifest.json                             | 158 +++---
+ diagnostics-sandbox.txt                            |  13 +-
+ docs/handoff/00_handoff/ARTIFACT_LINEAGE.md        |   5 +
+ docs/handoff/00_handoff/CURRENT_STATE.md           |  12 +-
+ docs/handoff/00_handoff/SESSION_HISTORY.md         |   9 +
+ .../TDX_FORMATTING_COMPOSITION_2026-09-10.md       |  20 +-
+ .../handoff/05_technical/REFACTOR_AND_TECH_DEBT.md |   7 +
+ docs/handoff/06_roadmap/NEXT_ITERATION.md          |  53 +-
+ docs/handoff/07_reference/DECISION_LOG.md          |  13 +
+ docs/handoff/07_reference/MANIFEST.md              |  17 +-
+ docs/handoff/07_reference/READING_MAP.md           |   4 +-
+ game/AGENTS.md                                     |   5 +
+ game/src/app/angling.rs                            | 489 +++++++++---------
+ game/src/app/character.rs                          | 253 +++++-----
+ game/src/app/economy.rs                            | 507 +++++++++----------
+ game/src/app/mod.rs                                | 332 ++++++-------
+ game/src/app/progression.rs                        | 546 ++++++++++-----------
+ game/src/app/social.rs                             | 134 ++---
+ game/src/app/tests.rs                              | 178 +++----
+ game/src/content.rs                                |  37 +-
+ game/src/db.rs                                     |  20 +-
+ game/src/fishing.rs                                |  36 +-
+ game/src/ids.rs                                    |   3 +-
+ game/src/rng.rs                                    |   3 +
+ game/src/telegram/callback.rs                      |  13 +-
+ game/src/telegram/dispatch.rs                      | 141 +++---
+ game/src/telegram/mod.rs                           |   4 +
+ game/src/telegram/present/core.rs                  |  79 ++-
+ game/src/telegram/present/fishing.rs               | 100 ++--
+ game/src/telegram/present/mod.rs                   |  36 +-
+ game/src/telegram/present/progression.rs           | 224 +++------
+ game/src/telegram/present/social.rs                |  25 +-
+ game/src/telegram/present/world.rs                 |  92 ++--
+ game/src/timer.rs                                  |  13 +-
+ game/src/view.rs                                   |  89 ++--
+ game/src/world.rs                                  |   3 +
+ tdx/tests/format.rs                                |   8 +-
+ 37 files changed, 1837 insertions(+), 1844 deletions(-)
+
+>>> EXIT STATUS: 0
+
+
+================================================================
+>>> git diff --check
+================================================================
+docs/handoff/00_handoff/ARTIFACT_LINEAGE.md:51: new blank line at EOF.
+docs/handoff/00_handoff/SESSION_HISTORY.md:168: new blank line at EOF.
+docs/handoff/05_technical/REFACTOR_AND_TECH_DEBT.md:57: new blank line at EOF.
+docs/handoff/07_reference/DECISION_LOG.md:78: new blank line at EOF.
+game/src/telegram/present/world.rs:168: new blank line at EOF.
+game/src/view.rs:357: new blank line at EOF.
+
+>>> EXIT STATUS: 2
+
+=== REQUIRED TD SCHEMA SURFACE ===
+OK   buttonStylePrimary
+OK   buttonStyleDanger
+OK   buttonStyleSuccess
+OK   inlineButton
+OK   inputPageBlockButtonRow
+OK   inputMessageRichMessage
+OK   sendEphemeralMessage
+OK   editEphemeralMessage
+OK   deleteEphemeralMessage
+OK   dateTimeFormattingTypeRelative
+OK   richTextDateTime
+OK   textEntityTypeDateTime
+OK   botCommand.is_ephemeral
+
+=== HANDOFF TREE IDENTITY ===
+
+
+================================================================
+>>> python3 tools/handoff.py verify-tree
+================================================================
+OK tree matches _handoff_manifest.json for 203 immutable files
+
+>>> EXIT STATUS: 0
+
+=== SOURCE REGRESSION SCANS ===
+OK   no legacy /game/group_hub/world_status references in active Rust sources
+OK   no known developer/prototype wording in player-facing Telegram sources
+OK   group /help uses the ephemeral-command path
+OK   group help is discoverable from the shared Rich Message
+OK   removed plain/concat/empty formatting helpers stay absent
+OK   table() is headerless-by-default at active call sites
+OK   formatting composition operators stay removed
+OK   group shoal uses Telegram client-updated relative time
+
+
+================================================================
+>>> bash syntax: td/fetch
+================================================================
+
+>>> EXIT STATUS: 0
+
+
+================================================================
+>>> bash syntax: tools/collect-diagnostics.sh
+================================================================
+
+>>> EXIT STATUS: 0
+
+
+================================================================
+>>> SQLite quick_check + schema version (Python, temporary copy)
+================================================================
+quick_check=ok
+user_version=4
+
+>>> EXIT STATUS: 0
+
+=== RUST TOOLCHAIN ===
+
+
+================================================================
+>>> rustup version
+================================================================
+rustup 1.29.1 (d95a37b6a 2026-08-13)
+info: This is the version for the rustup toolchain manager, not the rustc compiler.
+info: the currently active `rustc` version is `rustc 1.100.0-nightly (a69a63265 2026-09-03)`
+
+>>> EXIT STATUS: 0
+
+
+================================================================
+>>> rustc version
+================================================================
+rustc 1.100.0-nightly (a69a63265 2026-09-03)
+
+>>> EXIT STATUS: 0
+
+
+================================================================
+>>> cargo version
+================================================================
+cargo 1.100.0-nightly (b2e9d5f9d 2026-09-02)
+
+>>> EXIT STATUS: 0
+
+
+================================================================
+>>> rustfmt version
+================================================================
+rustfmt 1.10.0-nightly (a69a63265c 2026-09-03)
+
+>>> EXIT STATUS: 0
+
+
+================================================================
+>>> cargo clippy -V
+================================================================
+clippy 0.1.100 (a69a63265c 2026-09-03)
+
+>>> EXIT STATUS: 0
+
+=== CARGO METADATA ===
+
+
+================================================================
+>>> cargo metadata --format-version 1 --no-deps
+================================================================
+{"packages":[{"name":"td-client","version":"0.1.0","id":"path+file:///home/me/dev/rust/td/td-client#0.1.0","license":null,"license_file":null,"description":null,"source":null,"dependencies":[{"name":"serde","source":"registry+https://github.com/rust-lang/crates.io-index","req":"*","kind":null,"rename":null,"optional":false,"uses_default_features":true,"features":["derive"],"target":null,"registry":null},{"name":"serde_json","source":"registry+https://github.com/rust-lang/crates.io-index","req":"*","kind":null,"rename":null,"optional":false,"uses_default_features":true,"features":[],"target":null,"registry":null},{"name":"td-sys","source":null,"req":"*","kind":null,"rename":null,"optional":false,"uses_default_features":true,"features":[],"target":null,"registry":null,"path":"/home/me/dev/rust/td/td-sys"},{"name":"td-types","source":null,"req":"*","kind":null,"rename":null,"optional":false,"uses_default_features":true,"features":[],"target":null,"registry":null,"path":"/home/me/dev/rust/td/td-types"},{"name":"thiserror","source":"registry+https://github.com/rust-lang/crates.io-index","req":"*","kind":null,"rename":null,"optional":false,"uses_default_features":true,"features":[],"target":null,"registry":null},{"name":"tokio","source":"registry+https://github.com/rust-lang/crates.io-index","req":"*","kind":null,"rename":null,"optional":false,"uses_default_features":true,"features":["macros","sync"],"target":null,"registry":null},{"name":"tokio-util","source":"registry+https://github.com/rust-lang/crates.io-index","req":"*","kind":null,"rename":null,"optional":false,"uses_default_features":true,"features":[],"target":null,"registry":null},{"name":"anyhow","source":"registry+https://github.com/rust-lang/crates.io-index","req":"*","kind":"dev","rename":null,"optional":false,"uses_default_features":true,"features":[],"target":null,"registry":null},{"name":"tokio","source":"registry+https://github.com/rust-lang/crates.io-index","req":"*","kind":"dev","rename":null,"optional":false,"uses_default_features":true,"features":["macros","process","rt-multi-thread","time"],"target":null,"registry":null},{"name":"td-sys","source":null,"req":"*","kind":"build","rename":null,"optional":false,"uses_default_features":true,"features":[],"target":null,"registry":null,"path":"/home/me/dev/rust/td/td-sys"}],"targets":[{"kind":["lib"],"crate_types":["lib"],"name":"td_client","src_path":"/home/me/dev/rust/td/td-client/src/lib.rs","edition":"2024","doc":true,"doctest":true,"test":true},{"kind":["test"],"crate_types":["bin"],"name":"client","src_path":"/home/me/dev/rust/td/td-client/tests/client.rs","edition":"2024","doc":false,"doctest":false,"test":true},{"kind":["test"],"crate_types":["bin"],"name":"logging","src_path":"/home/me/dev/rust/td/td-client/tests/logging.rs","edition":"2024","doc":false,"doctest":false,"test":true},{"kind":["custom-build"],"crate_types":["bin"],"name":"build-script-build","src_path":"/home/me/dev/rust/td/td-client/build.rs","edition":"2024","doc":false,"doctest":false,"test":false}],"features":{},"manifest_path":"/home/me/dev/rust/td/td-client/Cargo.toml","metadata":null,"publish":null,"authors":[],"categories":[],"keywords":[],"readme":null,"repository":null,"homepage":null,"documentation":null,"edition":"2024","links":null,"default_run":null,"rust_version":"1.98.1"},{"name":"td-sys","version":"0.1.0","id":"path+file:///home/me/dev/rust/td/td-sys#0.1.0","license":null,"license_file":null,"description":null,"source":null,"dependencies":[{"name":"serde_json","source":"registry+https://github.com/rust-lang/crates.io-index","req":"*","kind":"dev","rename":null,"optional":false,"uses_default_features":true,"features":[],"target":null,"registry":null},{"name":"td-types","source":null,"req":"*","kind":"dev","rename":null,"optional":false,"uses_default_features":true,"features":[],"target":null,"registry":null,"path":"/home/me/dev/rust/td/td-types"}],"targets":[{"kind":["lib"],"crate_types":["lib"],"name":"td_sys","src_path":"/home/me/dev/rust/td/td-sys/src/lib.rs","edition":"2024","doc":true,"doctest":true,"test":true},{"kind":["test"],"crate_types":["bin"],"name":"logging","src_path":"/home/me/dev/rust/td/td-sys/tests/logging.rs","edition":"2024","doc":false,"doctest":false,"test":true},{"kind":["test"],"crate_types":["bin"],"name":"test_calls","src_path":"/home/me/dev/rust/td/td-sys/tests/test_calls.rs","edition":"2024","doc":false,"doctest":false,"test":true},{"kind":["custom-build"],"crate_types":["bin"],"name":"build-script-build","src_path":"/home/me/dev/rust/td/td-sys/build.rs","edition":"2024","doc":false,"doctest":false,"test":false}],"features":{},"manifest_path":"/home/me/dev/rust/td/td-sys/Cargo.toml","metadata":null,"publish":null,"authors":[],"categories":[],"keywords":[],"readme":null,"repository":null,"homepage":null,"documentation":null,"edition":"2024","links":null,"default_run":null,"rust_version":"1.98.1"},{"name":"td-types","version":"0.1.0","id":"path+file:///home/me/dev/rust/td/td-types#0.1.0","license":null,"license_file":null,"description":null,"source":null,"dependencies":[{"name":"serde","source":"registry+https://github.com/rust-lang/crates.io-index","req":"*","kind":null,"rename":null,"optional":false,"uses_default_features":true,"features":["derive"],"target":null,"registry":null},{"name":"serde_json","source":"registry+https://github.com/rust-lang/crates.io-index","req":"*","kind":"dev","rename":null,"optional":false,"uses_default_features":true,"features":[],"target":null,"registry":null},{"name":"td-codegen","source":null,"req":"*","kind":"build","rename":null,"optional":false,"uses_default_features":true,"features":[],"target":null,"registry":null,"path":"/home/me/dev/rust/td/td-codegen"},{"name":"td-parser","source":null,"req":"*","kind":"build","rename":null,"optional":false,"uses_default_features":true,"features":[],"target":null,"registry":null,"path":"/home/me/dev/rust/td/td-parser"}],"targets":[{"kind":["lib"],"crate_types":["lib"],"name":"td_types","src_path":"/home/me/dev/rust/td/td-types/src/lib.rs","edition":"2024","doc":true,"doctest":false,"test":true},{"kind":["test"],"crate_types":["bin"],"name":"deserialization","src_path":"/home/me/dev/rust/td/td-types/tests/deserialization.rs","edition":"2024","doc":false,"doctest":false,"test":true},{"kind":["test"],"crate_types":["bin"],"name":"fns","src_path":"/home/me/dev/rust/td/td-types/tests/fns.rs","edition":"2024","doc":false,"doctest":false,"test":true},{"kind":["test"],"crate_types":["bin"],"name":"roundtrips","src_path":"/home/me/dev/rust/td/td-types/tests/roundtrips.rs","edition":"2024","doc":false,"doctest":false,"test":true},{"kind":["custom-build"],"crate_types":["bin"],"name":"build-script-build","src_path":"/home/me/dev/rust/td/td-types/build.rs","edition":"2024","doc":false,"doctest":false,"test":false}],"features":{},"manifest_path":"/home/me/dev/rust/td/td-types/Cargo.toml","metadata":null,"publish":null,"authors":[],"categories":[],"keywords":[],"readme":null,"repository":null,"homepage":null,"documentation":null,"edition":"2024","links":null,"default_run":null,"rust_version":"1.98.1"},{"name":"td-codegen","version":"0.1.0","id":"path+file:///home/me/dev/rust/td/td-codegen#0.1.0","license":null,"license_file":null,"description":null,"source":null,"dependencies":[{"name":"td-parser","source":null,"req":"*","kind":null,"rename":null,"optional":false,"uses_default_features":true,"features":[],"target":null,"registry":null,"path":"/home/me/dev/rust/td/td-parser"},{"name":"pretty_assertions","source":"registry+https://github.com/rust-lang/crates.io-index","req":"*","kind":"dev","rename":null,"optional":false,"uses_default_features":true,"features":[],"target":null,"registry":null},{"name":"syn","source":"registry+https://github.com/rust-lang/crates.io-index","req":"*","kind":"dev","rename":null,"optional":false,"uses_default_features":true,"features":["full"],"target":null,"registry":null}],"targets":[{"kind":["lib"],"crate_types":["lib"],"name":"td_codegen","src_path":"/home/me/dev/rust/td/td-codegen/src/lib.rs","edition":"2024","doc":true,"doctest":true,"test":true},{"kind":["test"],"crate_types":["bin"],"name":"codegen","src_path":"/home/me/dev/rust/td/td-codegen/tests/codegen.rs","edition":"2024","doc":false,"doctest":false,"test":true}],"features":{},"manifest_path":"/home/me/dev/rust/td/td-codegen/Cargo.toml","metadata":null,"publish":null,"authors":[],"categories":[],"keywords":[],"readme":null,"repository":null,"homepage":null,"documentation":null,"edition":"2024","links":null,"default_run":null,"rust_version":"1.98.1"},{"name":"td-parser","version":"0.1.0","id":"path+file:///home/me/dev/rust/td/td-parser#0.1.0","license":null,"license_file":null,"description":null,"source":null,"dependencies":[{"name":"thiserror","source":"registry+https://github.com/rust-lang/crates.io-index","req":"*","kind":null,"rename":null,"optional":false,"uses_default_features":true,"features":[],"target":null,"registry":null}],"targets":[{"kind":["lib"],"crate_types":["lib"],"name":"td_parser","src_path":"/home/me/dev/rust/td/td-parser/src/lib.rs","edition":"2024","doc":true,"doctest":true,"test":true}],"features":{},"manifest_path":"/home/me/dev/rust/td/td-parser/Cargo.toml","metadata":null,"publish":null,"authors":[],"categories":[],"keywords":[],"readme":null,"repository":null,"homepage":null,"documentation":null,"edition":"2024","links":null,"default_run":null,"rust_version":"1.98.1"},{"name":"tdx","version":"0.1.0","id":"path+file:///home/me/dev/rust/td/tdx#0.1.0","license":null,"license_file":null,"description":null,"source":null,"dependencies":[{"name":"td-client","source":null,"req":"*","kind":null,"rename":null,"optional":false,"uses_default_features":true,"features":[],"target":null,"registry":null,"path":"/home/me/dev/rust/td/td-client"},{"name":"td-types","source":null,"req":"*","kind":null,"rename":null,"optional":false,"uses_default_features":true,"features":[],"target":null,"registry":null,"path":"/home/me/dev/rust/td/td-types"},{"name":"thiserror","source":"registry+https://github.com/rust-lang/crates.io-index","req":"*","kind":null,"rename":null,"optional":false,"uses_default_features":true,"features":[],"target":null,"registry":null},{"name":"anyhow","source":"registry+https://github.com/rust-lang/crates.io-index","req":"*","kind":"dev","rename":null,"optional":false,"uses_default_features":true,"features":[],"target":null,"registry":null},{"name":"serde","source":"registry+https://github.com/rust-lang/crates.io-index","req":"*","kind":"dev","rename":null,"optional":false,"uses_default_features":true,"features":["derive"],"target":null,"registry":null},{"name":"serde_json","source":"registry+https://github.com/rust-lang/crates.io-index","req":"*","kind":"dev","rename":null,"optional":false,"uses_default_features":true,"features":[],"target":null,"registry":null},{"name":"tokio","source":"registry+https://github.com/rust-lang/crates.io-index","req":"*","kind":"dev","rename":null,"optional":false,"uses_default_features":true,"features":["macros","process","rt","signal","time"],"target":null,"registry":null},{"name":"tracing","source":"registry+https://github.com/rust-lang/crates.io-index","req":"*","kind":"dev","rename":null,"optional":false,"uses_default_features":true,"features":[],"target":null,"registry":null},{"name":"tracing-subscriber","source":"registry+https://github.com/rust-lang/crates.io-index","req":"*","kind":"dev","rename":null,"optional":false,"uses_default_features":true,"features":[],"target":null,"registry":null},{"name":"td-sys","source":null,"req":"*","kind":"build","rename":null,"optional":false,"uses_default_features":true,"features":[],"target":null,"registry":null,"path":"/home/me/dev/rust/td/td-sys"}],"targets":[{"kind":["lib"],"crate_types":["lib"],"name":"tdx","src_path":"/home/me/dev/rust/td/tdx/src/lib.rs","edition":"2024","doc":true,"doctest":true,"test":true},{"kind":["example"],"crate_types":["bin"],"name":"echo-handler","src_path":"/home/me/dev/rust/td/tdx/examples/echo-handler.rs","edition":"2024","doc":false,"doctest":false,"test":false},{"kind":["example"],"crate_types":["bin"],"name":"fishing","src_path":"/home/me/dev/rust/td/tdx/examples/fishing/main.rs","edition":"2024","doc":false,"doctest":false,"test":false},{"kind":["example"],"crate_types":["bin"],"name":"showcase","src_path":"/home/me/dev/rust/td/tdx/examples/showcase.rs","edition":"2024","doc":false,"doctest":false,"test":false},{"kind":["example"],"crate_types":["bin"],"name":"workflow","src_path":"/home/me/dev/rust/td/tdx/examples/workflow.rs","edition":"2024","doc":false,"doctest":false,"test":false},{"kind":["test"],"crate_types":["bin"],"name":"format","src_path":"/home/me/dev/rust/td/tdx/tests/format.rs","edition":"2024","doc":false,"doctest":false,"test":true},{"kind":["test"],"crate_types":["bin"],"name":"inspect","src_path":"/home/me/dev/rust/td/tdx/tests/inspect.rs","edition":"2024","doc":false,"doctest":false,"test":true},{"kind":["test"],"crate_types":["bin"],"name":"live","src_path":"/home/me/dev/rust/td/tdx/tests/live.rs","edition":"2024","doc":false,"doctest":false,"test":true},{"kind":["test"],"crate_types":["bin"],"name":"requests","src_path":"/home/me/dev/rust/td/tdx/tests/requests.rs","edition":"2024","doc":false,"doctest":false,"test":true},{"kind":["custom-build"],"crate_types":["bin"],"name":"build-script-build","src_path":"/home/me/dev/rust/td/tdx/build.rs","edition":"2024","doc":false,"doctest":false,"test":false}],"features":{},"manifest_path":"/home/me/dev/rust/td/tdx/Cargo.toml","metadata":null,"publish":null,"authors":[],"categories":[],"keywords":[],"readme":null,"repository":null,"homepage":null,"documentation":null,"edition":"2024","links":null,"default_run":null,"rust_version":"1.98.1"},{"name":"game","version":"0.1.0","id":"path+file:///home/me/dev/rust/td/game#0.1.0","license":null,"license_file":null,"description":null,"source":null,"dependencies":[{"name":"anyhow","source":"registry+https://github.com/rust-lang/crates.io-index","req":"*","kind":null,"rename":null,"optional":true,"uses_default_features":true,"features":[],"target":null,"registry":null},{"name":"getrandom","source":"registry+https://github.com/rust-lang/crates.io-index","req":"*","kind":null,"rename":null,"optional":true,"uses_default_features":true,"features":[],"target":null,"registry":null},{"name":"rusqlite","source":"registry+https://github.com/rust-lang/crates.io-index","req":"*","kind":null,"rename":null,"optional":false,"uses_default_features":true,"features":["bundled"],"target":null,"registry":null},{"name":"serde","source":"registry+https://github.com/rust-lang/crates.io-index","req":"*","kind":null,"rename":null,"optional":false,"uses_default_features":true,"features":["derive"],"target":null,"registry":null},{"name":"serde_json","source":"registry+https://github.com/rust-lang/crates.io-index","req":"*","kind":null,"rename":null,"optional":false,"uses_default_features":true,"features":[],"target":null,"registry":null},{"name":"tdx","source":null,"req":"*","kind":null,"rename":null,"optional":true,"uses_default_features":true,"features":[],"target":null,"registry":null,"path":"/home/me/dev/rust/td/tdx"},{"name":"thiserror","source":"registry+https://github.com/rust-lang/crates.io-index","req":"*","kind":null,"rename":null,"optional":false,"uses_default_features":true,"features":[],"target":null,"registry":null},{"name":"tokio","source":"registry+https://github.com/rust-lang/crates.io-index","req":"*","kind":null,"rename":null,"optional":false,"uses_default_features":true,"features":["macros","rt-multi-thread","signal","sync","time"],"target":null,"registry":null},{"name":"tracing","source":"registry+https://github.com/rust-lang/crates.io-index","req":"*","kind":null,"rename":null,"optional":false,"uses_default_features":true,"features":[],"target":null,"registry":null},{"name":"tracing-subscriber","source":"registry+https://github.com/rust-lang/crates.io-index","req":"*","kind":null,"rename":null,"optional":true,"uses_default_features":true,"features":[],"target":null,"registry":null},{"name":"td-sys","source":null,"req":"*","kind":"build","rename":null,"optional":false,"uses_default_features":true,"features":[],"target":null,"registry":null,"path":"/home/me/dev/rust/td/td-sys"}],"targets":[{"kind":["lib"],"crate_types":["lib"],"name":"game","src_path":"/home/me/dev/rust/td/game/src/lib.rs","edition":"2024","doc":true,"doctest":true,"test":true},{"kind":["bin"],"crate_types":["bin"],"name":"game","src_path":"/home/me/dev/rust/td/game/src/main.rs","edition":"2024","doc":true,"doctest":false,"test":true},{"kind":["custom-build"],"crate_types":["bin"],"name":"build-script-build","src_path":"/home/me/dev/rust/td/game/build.rs","edition":"2024","doc":false,"doctest":false,"test":false}],"features":{"default":["telegram"],"telegram":["dep:anyhow","dep:getrandom","dep:tracing-subscriber","dep:tdx"]},"manifest_path":"/home/me/dev/rust/td/game/Cargo.toml","metadata":null,"publish":[],"authors":[],"categories":[],"keywords":[],"readme":"README.md","repository":null,"homepage":null,"documentation":null,"edition":"2024","links":null,"default_run":null,"rust_version":"1.98.1"}],"workspace_members":["path+file:///home/me/dev/rust/td/td-client#0.1.0","path+file:///home/me/dev/rust/td/td-sys#0.1.0","path+file:///home/me/dev/rust/td/td-types#0.1.0","path+file:///home/me/dev/rust/td/td-codegen#0.1.0","path+file:///home/me/dev/rust/td/td-parser#0.1.0","path+file:///home/me/dev/rust/td/tdx#0.1.0","path+file:///home/me/dev/rust/td/game#0.1.0"],"workspace_default_members":["path+file:///home/me/dev/rust/td/td-client#0.1.0","path+file:///home/me/dev/rust/td/td-sys#0.1.0","path+file:///home/me/dev/rust/td/td-types#0.1.0","path+file:///home/me/dev/rust/td/td-codegen#0.1.0","path+file:///home/me/dev/rust/td/td-parser#0.1.0","path+file:///home/me/dev/rust/td/tdx#0.1.0","path+file:///home/me/dev/rust/td/game#0.1.0"],"resolve":null,"target_directory":"/home/me/dev/rust/td/target","build_directory":"/home/me/dev/rust/td/target","version":1,"workspace_root":"/home/me/dev/rust/td","metadata":null}
+
+>>> EXIT STATUS: 0
+
+=== FORMAT ===
+
+
+================================================================
+>>> cargo fmt --all -- --check
+================================================================
+Diff in /home/me/dev/rust/td/game/src/app/angling.rs:3:
+ use rusqlite::{OptionalExtension as _, params};
+ 
+ use super::{
+[31m-  App, CatchInput, DISCOVERY_RELIC, DISCOVERY_SPECIES, Error, ITEM_RUSTED_KEY, RELIC_RUSTED_KEY, Result, award_xp, has_active_encounter, load_character, owns_item, record_catch, require_character_id,
+(B[m[32m+  App, CatchInput, DISCOVERY_RELIC, DISCOVERY_SPECIES, Error, ITEM_RUSTED_KEY, RELIC_RUSTED_KEY, Result, award_xp, has_active_encounter, load_character,
+(B[m[32m+  owns_item, record_catch, require_character_id,
+(B[m };
+ use crate::{
+   content::{Content, Species},
+Diff in /home/me/dev/rust/td/game/src/app/angling.rs:193:
+   }
+ 
+   pub async fn next_timer_due_at(&self) -> Result<Option<i64>> {
+[31m-    self
+(B[m[31m-      .run_db(|connection| Ok(connection.query_row("SELECT due_at_ms FROM timers ORDER BY due_at_ms, id LIMIT 1", [], |row| row.get(0)).optional()?))
+(B[m[31m-      .await
+(B[m[32m+    self.run_db(|connection| Ok(connection.query_row("SELECT due_at_ms FROM timers ORDER BY due_at_ms, id LIMIT 1", [], |row| row.get(0)).optional()?)).await
+(B[m   }
+ 
+   pub async fn due_timer_ids(&self, now_ms: i64, limit: u32) -> Result<Vec<i64>> {
+Diff in /home/me/dev/rust/td/game/src/app/angling.rs:233:
+       })
+       .await
+   }
+[31m-
+(B[m }
+ 
+ struct DueTimer {
+Diff in /home/me/dev/rust/td/game/src/app/angling.rs:259:
+ }
+ 
+ fn timer_encounter(tx: &rusqlite::Transaction<'_>, encounter_id: EncounterId) -> rusqlite::Result<Option<TimerEncounter>> {
+[31m-  tx.query_row(
+(B[m[31m-    "SELECT chat_id, message_id, step, phase, species_id, special_id FROM fishing_encounters WHERE id = ?1",
+(B[m[31m-    [encounter_id.0],
+(B[m[31m-    |row| {
+(B[m[31m-      Ok(TimerEncounter {
+(B[m[31m-        chat_id: row.get(0)?,
+(B[m[31m-        message_id: row.get(1)?,
+(B[m[31m-        step: row.get(2)?,
+(B[m[31m-        phase: row.get(3)?,
+(B[m[31m-        species_id: SpeciesId(row.get(4)?),
+(B[m[31m-        special_id: row.get(5)?,
+(B[m[31m-      })
+(B[m[31m-    },
+(B[m[31m-  )
+(B[m[32m+  tx.query_row("SELECT chat_id, message_id, step, phase, species_id, special_id FROM fishing_encounters WHERE id = ?1", [encounter_id.0], |row| {
+(B[m[32m+    Ok(TimerEncounter {
+(B[m[32m+      chat_id: row.get(0)?,
+(B[m[32m+      message_id: row.get(1)?,
+(B[m[32m+      step: row.get(2)?,
+(B[m[32m+      phase: row.get(3)?,
+(B[m[32m+      species_id: SpeciesId(row.get(4)?),
+(B[m[32m+      special_id: row.get(5)?,
+(B[m[32m+    })
+(B[m[32m+  })
+(B[m   .optional()
+ }
+ 
+Diff in /home/me/dev/rust/td/game/src/app/angling.rs:400:
+ ) -> rusqlite::Result<ReelOutcome> {
+   let rod_control = encounter_rod_control(tx, content, encounter)?;
+   let discovery_count: i64 =
+[31m-    tx.query_row("SELECT count(*) FROM discoveries WHERE character_id = ?1 AND kind = ?2", params![encounter.character_id, DISCOVERY_SPECIES], |row| row.get(0))?;
+(B[m[32m+    tx.query_row("SELECT count(*) FROM discoveries WHERE character_id = ?1 AND kind = ?2", params![encounter.character_id, DISCOVERY_SPECIES], |row| {
+(B[m[32m+      row.get(0)
+(B[m[32m+    })?;
+(B[m   let first_catch = discovery_count == 0;
+ 
+   if !fishing::can_land(species, rod_control, reaction, first_catch) {
+Diff in /home/me/dev/rust/td/game/src/app/angling.rs:453:
+   telegram_user_id: i64,
+ }
+ 
+[31m-fn require_encounter(
+(B[m[31m-  tx: &rusqlite::Transaction<'_>,
+(B[m[31m-  encounter_id: EncounterId,
+(B[m[31m-  telegram_user_id: i64,
+(B[m[31m-  step: u32,
+(B[m[31m-  phase: i64,
+(B[m[31m-) -> Result<ActiveEncounter> {
+(B[m[32m+fn require_encounter(tx: &rusqlite::Transaction<'_>, encounter_id: EncounterId, telegram_user_id: i64, step: u32, phase: i64) -> Result<ActiveEncounter> {
+(B[m   let Some(encounter) = load_encounter(tx, encounter_id)? else { return Err(Error::StaleEncounter) };
+   if encounter.telegram_user_id != telegram_user_id {
+     return Err(Error::WrongPlayer);
+Diff in /home/me/dev/rust/td/game/src/app/angling.rs:476:
+ }
+ 
+ fn encounter_rod_control(tx: &rusqlite::Transaction<'_>, content: &Content, encounter: &ActiveEncounter) -> rusqlite::Result<u32> {
+[31m-  let condition = tx.query_row(
+(B[m[31m-    "SELECT condition FROM character_rods WHERE character_id = ?1 AND rod_id = ?2",
+(B[m[31m-    params![encounter.character_id, encounter.rod_id.0],
+(B[m[31m-    |row| row.get(0),
+(B[m[31m-  )?;
+(B[m[32m+  let condition =
+(B[m[32m+    tx.query_row("SELECT condition FROM character_rods WHERE character_id = ?1 AND rod_id = ?2", params![encounter.character_id, encounter.rod_id.0], |row| {
+(B[m[32m+      row.get(0)
+(B[m[32m+    })?;
+(B[m   Ok(fishing::effective_control(content.rod(encounter.rod_id).control, condition))
+ }
+ 
+Diff in /home/me/dev/rust/td/game/src/app/character.rs:2:
+ 
+ use rusqlite::{OptionalExtension as _, params};
+ 
+[31m-use super::{App, DISCOVERY_SPECIES, Error, ITEM_RUSTED_KEY, Result, award_xp, character_location, has_active_encounter, knows_location, load_character, require_character_id};
+(B[m[32m+use super::{
+(B[m[32m+  App, DISCOVERY_SPECIES, Error, ITEM_RUSTED_KEY, Result, award_xp, character_location, has_active_encounter, knows_location, load_character,
+(B[m[32m+  require_character_id,
+(B[m[32m+};
+(B[m use crate::{
+   content::Content,
+   fishing,
+Diff in /home/me/dev/rust/td/game/src/app/character.rs:155:
+   let (character_id, location_id) = character_location(connection, telegram_user_id)?;
+   let environment = environment_at(now_ms);
+   let mut statement = connection.prepare("SELECT subject_id FROM discoveries WHERE character_id = ?1 AND kind = ?2 ORDER BY subject_id")?;
+[31m-  let discovered = statement
+(B[m[31m-    .query_map(params![character_id, DISCOVERY_SPECIES], |row| Ok(SpeciesId(row.get(0)?)))?
+(B[m[31m-    .collect::<rusqlite::Result<Vec<_>>>()?;
+(B[m[32m+  let discovered = statement.query_map(params![character_id, DISCOVERY_SPECIES], |row| Ok(SpeciesId(row.get(0)?)))?.collect::<rusqlite::Result<Vec<_>>>()?;
+(B[m   let location = content.location(location_id);
+   let mut active_known_species = Vec::new();
+   let mut known_but_inactive = 0_u32;
+Diff in /home/me/dev/rust/td/game/src/app/character.rs:226:
+       ),
+       Some(LocationId(4)),
+     ),
+[31m-    2 if has_key => {
+(B[m[31m-      finding("Broken Breakwater", "The rusted key and the old maintenance marker clearly belong to the lighthouse above. The path is already known to you.", None)
+(B[m[31m-    }
+(B[m[32m+    2 if has_key => finding(
+(B[m[32m+      "Broken Breakwater",
+(B[m[32m+      "The rusted key and the old maintenance marker clearly belong to the lighthouse above. The path is already known to you.",
+(B[m[32m+      None,
+(B[m[32m+    ),
+(B[m     2 => finding(
+       "A familiar crest",
+       concat!(
+Diff in /home/me/dev/rust/td/game/src/app/character.rs:254:
+       Some(LocationId(5)),
+     ),
+     4 if has_key => finding("Old Lighthouse", "The unlocked service stair still leads down toward the hidden cove beneath the cliffs.", None),
+[31m-    4 => finding("Old Lighthouse", "The iron door is locked. Its corroded keyhole is surrounded by the same lighthouse crest seen around the old harbor works.", None),
+(B[m[32m+    4 => finding(
+(B[m[32m+      "Old Lighthouse",
+(B[m[32m+      "The iron door is locked. Its corroded keyhole is surrounded by the same lighthouse crest seen around the old harbor works.",
+(B[m[32m+      None,
+(B[m[32m+    ),
+(B[m     5 => finding(
+       "Lighthouse Cove",
+       concat!(
+Diff in /home/me/dev/rust/td/game/src/app/economy.rs:304:
+     "SELECT c.id, c.coins, c.selected_bait_id, c.equipped_rod_id
+      FROM characters c JOIN accounts a ON a.id = c.account_id WHERE a.telegram_user_id = ?1",
+     [telegram_user_id],
+[31m-    |row| {
+(B[m[31m-      Ok(InventoryState { character_id: row.get(0)?, coins: row.get(1)?, selected_bait_id: BaitId(row.get(2)?), equipped_rod_id: RodId(row.get(3)?) })
+(B[m[31m-    },
+(B[m[32m+    |row| Ok(InventoryState { character_id: row.get(0)?, coins: row.get(1)?, selected_bait_id: BaitId(row.get(2)?), equipped_rod_id: RodId(row.get(3)?) }),
+(B[m   )
+ }
+ 
+Diff in /home/me/dev/rust/td/game/src/app/economy.rs:313:
+ fn owns_rod(connection: &rusqlite::Connection, character_id: i64, rod_id: RodId) -> rusqlite::Result<bool> {
+[31m-  connection.query_row(
+(B[m[31m-    "SELECT EXISTS(SELECT 1 FROM character_rods WHERE character_id = ?1 AND rod_id = ?2)",
+(B[m[31m-    params![character_id, rod_id.0],
+(B[m[31m-    |row| row.get(0),
+(B[m[31m-  )
+(B[m[32m+  connection.query_row("SELECT EXISTS(SELECT 1 FROM character_rods WHERE character_id = ?1 AND rod_id = ?2)", params![character_id, rod_id.0], |row| row.get(0))
+(B[m }
+ 
+ fn owned_rods(connection: &rusqlite::Connection, character_id: i64) -> rusqlite::Result<Vec<(RodId, u32)>> {
+Diff in /home/me/dev/rust/td/game/src/app/mod.rs:159:
+ }
+ 
+ fn owns_item(connection: &Connection, character_id: i64, item_def_id: u32) -> rusqlite::Result<bool> {
+[31m-  connection.query_row(
+(B[m[31m-    "SELECT EXISTS(SELECT 1 FROM items WHERE owner_character_id = ?1 AND item_def_id = ?2)",
+(B[m[31m-    params![character_id, item_def_id],
+(B[m[31m-    |row| row.get(0),
+(B[m[31m-  )
+(B[m[32m+  connection
+(B[m[32m+    .query_row("SELECT EXISTS(SELECT 1 FROM items WHERE owner_character_id = ?1 AND item_def_id = ?2)", params![character_id, item_def_id], |row| row.get(0))
+(B[m }
+ 
+ fn knows_location(connection: &Connection, character_id: i64, location_id: LocationId) -> rusqlite::Result<bool> {
+Diff in /home/me/dev/rust/td/game/src/app/mod.rs:227:
+   let location = content.location(state.location_id);
+   let bait = content.bait(state.bait_id);
+   let rod = content.rod(state.rod_id);
+[31m-  let rod_condition = connection.query_row(
+(B[m[31m-    "SELECT condition FROM character_rods WHERE character_id = ?1 AND rod_id = ?2",
+(B[m[31m-    params![state.id, state.rod_id.0],
+(B[m[31m-    |row| row.get::<_, u32>(0),
+(B[m[31m-  )?;
+(B[m[32m+  let rod_condition =
+(B[m[32m+    connection.query_row("SELECT condition FROM character_rods WHERE character_id = ?1 AND rod_id = ?2", params![state.id, state.rod_id.0], |row| {
+(B[m[32m+      row.get::<_, u32>(0)
+(B[m[32m+    })?;
+(B[m   Ok(CharacterView {
+     name: state.name,
+     xp: state.xp.max(0) as u64,
+Diff in /home/me/dev/rust/td/game/src/app/progression.rs:3:
+ use rusqlite::{OptionalExtension as _, params};
+ 
+ use super::{
+[31m-  App, DISCOVERY_RELIC, DISCOVERY_SPECIES, Error, ITEM_RUSTED_KEY, RELIC_RUSTED_KEY, Result, award_xp, character_location, character_wallet,
+(B[m[31m-  knows_location, owns_item, require_character_id, title_definition,
+(B[m[32m+  App, DISCOVERY_RELIC, DISCOVERY_SPECIES, Error, ITEM_RUSTED_KEY, RELIC_RUSTED_KEY, Result, award_xp, character_location, character_wallet, knows_location,
+(B[m[32m+  owns_item, require_character_id, title_definition,
+(B[m };
+ use crate::{
+   content::{Content, Species},
+Diff in /home/me/dev/rust/td/game/src/app/progression.rs:367:
+ 
+ fn objective_progress(connection: &rusqlite::Connection, content: &Content, character_id: i64, objective: &ObjectiveDefinition) -> rusqlite::Result<u32> {
+   let progress = match objective.id {
+[31m-    OBJECTIVE_FIRST_HAUL => connection.query_row(
+(B[m[31m-      "SELECT count(*) FROM catches c JOIN items i ON i.id = c.item_id WHERE i.owner_character_id = ?1",
+(B[m[31m-      [character_id],
+(B[m[31m-      |row| row.get(0),
+(B[m[31m-    )?,
+(B[m[31m-    OBJECTIVE_FIELD_NOTES => connection.query_row(
+(B[m[31m-      "SELECT count(*) FROM discoveries WHERE character_id = ?1 AND kind = ?2",
+(B[m[31m-      params![character_id, DISCOVERY_SPECIES],
+(B[m[31m-      |row| row.get(0),
+(B[m[31m-    )?,
+(B[m[32m+    OBJECTIVE_FIRST_HAUL => {
+(B[m[32m+      connection
+(B[m[32m+        .query_row("SELECT count(*) FROM catches c JOIN items i ON i.id = c.item_id WHERE i.owner_character_id = ?1", [character_id], |row| row.get(0))?
+(B[m[32m+    }
+(B[m[32m+    OBJECTIVE_FIELD_NOTES => {
+(B[m[32m+      connection
+(B[m[32m+        .query_row("SELECT count(*) FROM discoveries WHERE character_id = ?1 AND kind = ?2", params![character_id, DISCOVERY_SPECIES], |row| row.get(0))?
+(B[m[32m+    }
+(B[m     OBJECTIVE_DEEP_WATER => {
+       let mut statement = connection
+         .prepare("SELECT DISTINCT c.species_id FROM catches c JOIN items i ON i.id = c.item_id WHERE i.owner_character_id = ?1 AND c.location_id = 2")?;
+Diff in /home/me/dev/rust/td/game/src/app/tests.rs:325:
+   assert_eq!(inventory.baits.iter().find(|bait| bait.id == FISH_CHUNKS_BAIT).expect("fish chunks").quantity, 4);
+   assert_eq!(app.records(53).await.expect("records").lifetime_catches, 1);
+ 
+[31m-  let consumed: bool = db_call(&app, move |connection| {
+(B[m[31m-    connection.query_row("SELECT EXISTS(SELECT 1 FROM craft_consumptions WHERE item_id = ?1)", [item_id], |row| row.get(0))
+(B[m[31m-  })
+(B[m[31m-  .await;
+(B[m[32m+  let consumed: bool =
+(B[m[32m+    db_call(&app, move |connection| connection.query_row("SELECT EXISTS(SELECT 1 FROM craft_consumptions WHERE item_id = ?1)", [item_id], |row| row.get(0)))
+(B[m[32m+      .await;
+(B[m   assert!(consumed);
+ }
+ 
+Diff in /home/me/dev/rust/td/game/src/telegram/dispatch.rs:21:
+ /// Handles one incoming bot-command message.
+ pub async fn message(app: &App, client: &Client, message: &types::message) -> anyhow::Result<()> {
+   let Some(command) = message.command() else { return Ok(()) };
+[31m-  if message.chat_id < 0 {
+(B[m[31m-    group_command(app, client, message, command.name).await
+(B[m[31m-  } else {
+(B[m[31m-    private_command(app, client, message, command.name).await
+(B[m[31m-  }
+(B[m[32m+  if message.chat_id < 0 { group_command(app, client, message, command.name).await } else { private_command(app, client, message, command.name).await }
+(B[m }
+ 
+ async fn group_command(app: &App, client: &Client, message: &types::message, command: &str) -> anyhow::Result<()> {
+Diff in /home/me/dev/rust/td/game/src/telegram/present/core.rs:27:
+   let mut blocks = vec![
+     heading(format!("🌊 {}", character.location.name), 1),
+     paragraph(character.location.description.as_str()),
+[31m-    block_quote([paragraph(format_args!(
+(B[m[31m-      "{} · {}",
+(B[m[31m-      character.environment.day_part.label(),
+(B[m[31m-      character.environment.weather.label(),
+(B[m[31m-    ))]),
+(B[m[32m+    block_quote([paragraph(format_args!("{} · {}", character.environment.day_part.label(), character.environment.weather.label(),))]),
+(B[m     table()
+       .row(("👤 Angler", character.name.as_str()))
+       .row(("⭐ Level", character.level))
+Diff in /home/me/dev/rust/td/game/src/telegram/present/core.rs:60:
+   let actions = if character.fishing_active {
+     button_row([danger_callback_button("✂️ Cut active line", Callback::CancelFishing.encode())])
+   } else if character.location.fishable && character.bait_left > 0 {
+[31m-    button_row([
+(B[m[31m-      success_callback_button("🎣 Cast a line", Callback::Cast.encode()),
+(B[m[31m-      primary_callback_button("🔎 Explore", Callback::Explore.encode()),
+(B[m[31m-    ])
+(B[m[32m+    button_row([success_callback_button("🎣 Cast a line", Callback::Cast.encode()), primary_callback_button("🔎 Explore", Callback::Explore.encode())])
+(B[m   } else if character.location.fishable && character.total_bait > 0 {
+[31m-    button_row([
+(B[m[31m-      callback_button("🎒 Select bait", Callback::Inventory.encode()),
+(B[m[31m-      primary_callback_button("🔎 Explore", Callback::Explore.encode()),
+(B[m[31m-    ])
+(B[m[32m+    button_row([callback_button("🎒 Select bait", Callback::Inventory.encode()), primary_callback_button("🔎 Explore", Callback::Explore.encode())])
+(B[m   } else if character.location.fishable {
+[31m-    button_row([
+(B[m[31m-      success_callback_button("🪱 Dig for worms", Callback::ForageBait.encode()),
+(B[m[31m-      primary_callback_button("🔎 Explore", Callback::Explore.encode()),
+(B[m[31m-    ])
+(B[m[32m+    button_row([success_callback_button("🪱 Dig for worms", Callback::ForageBait.encode()), primary_callback_button("🔎 Explore", Callback::Explore.encode())])
+(B[m   } else {
+     button_row([primary_callback_button("🔎 Explore", Callback::Explore.encode())])
+   };
+Diff in /home/me/dev/rust/td/game/src/telegram/present/core.rs:120:
+   if view.has_rusted_key {
+     blocks.extend([heading("🗝 Relics", 2), paragraph("🗝 Rusted Key — an old lighthouse emblem is stamped into the bow.")]);
+   }
+[31m-  blocks.extend([
+(B[m[31m-    heading("🐟 Catches", 2),
+(B[m[31m-    paragraph(format_args!("{} stored · worth about {} coins at the tackle stall", view.catch_count, view.sell_value)),
+(B[m[31m-  ]);
+(B[m[32m+  blocks.extend([heading("🐟 Catches", 2), paragraph(format_args!("{} stored · worth about {} coins at the tackle stall", view.catch_count, view.sell_value))]);
+(B[m   if view.recent_catches.is_empty() {
+     blocks.push(paragraph(italic("No catches stored yet.")));
+   } else {
+Diff in /home/me/dev/rust/td/game/src/telegram/present/core.rs:130:
+     let catches = view.recent_catches.iter().fold(table().header(("Recent catch", "Size", "Value")), |table, catch| {
+[31m-      table.row((
+(B[m[31m-        catch.species_name.as_str(),
+(B[m[31m-        format_args!("{:.1} cm · {}", f64::from(catch.length_mm) / 10.0, format_weight(catch.weight_g)),
+(B[m[31m-        catch.value,
+(B[m[31m-      ))
+(B[m[32m+      table.row((catch.species_name.as_str(), format_args!("{:.1} cm · {}", f64::from(catch.length_mm) / 10.0, format_weight(catch.weight_g)), catch.value))
+(B[m     });
+     blocks.push(catches.striped().compact().into());
+   }
+Diff in /home/me/dev/rust/td/game/src/telegram/present/core.rs:139:
+[31m-  blocks.extend(view.rods.iter().filter(|rod| rod.owned && !rod.equipped).map(|rod| {
+(B[m[31m-    button_row([callback_button(format_args!("Equip {} · control {}", rod.name, rod.control), Callback::EquipRod { rod_id: rod.id }.encode())])
+(B[m[31m-  }));
+(B[m[31m-  blocks.extend(view.baits.iter().filter(|bait| bait.quantity > 0 && !bait.selected).map(|bait| {
+(B[m[31m-    button_row([callback_button(format_args!("Use {} ×{}", bait.name, bait.quantity), Callback::SelectBait { bait_id: bait.id }.encode())])
+(B[m[31m-  }));
+(B[m[32m+  blocks.extend(
+(B[m[32m+    view
+(B[m[32m+      .rods
+(B[m[32m+      .iter()
+(B[m[32m+      .filter(|rod| rod.owned && !rod.equipped)
+(B[m[32m+      .map(|rod| button_row([callback_button(format_args!("Equip {} · control {}", rod.name, rod.control), Callback::EquipRod { rod_id: rod.id }.encode())])),
+(B[m[32m+  );
+(B[m[32m+  blocks.extend(
+(B[m[32m+    view
+(B[m[32m+      .baits
+(B[m[32m+      .iter()
+(B[m[32m+      .filter(|bait| bait.quantity > 0 && !bait.selected)
+(B[m[32m+      .map(|bait| button_row([callback_button(format_args!("Use {} ×{}", bait.name, bait.quantity), Callback::SelectBait { bait_id: bait.id }.encode())])),
+(B[m[32m+  );
+(B[m   if view.catch_count > 0 {
+     blocks.push(button_row([danger_callback_button(format_args!("Sell all fish · {} coins", view.sell_value), Callback::SellAll.encode())]));
+   }
+Diff in /home/me/dev/rust/td/game/src/telegram/present/fishing.rs:141:
+     client,
+     escape.chat_id,
+     escape.message_id,
+[31m-    rich([
+(B[m[31m-      heading("🌫 It got away", 1),
+(B[m[31m-      paragraph(escape.reason),
+(B[m[31m-      button_row([success_callback_button("🎣 Cast again", Callback::Cast.encode())]),
+(B[m[31m-    ]),
+(B[m[32m+    rich([heading("🌫 It got away", 1), paragraph(escape.reason), button_row([success_callback_button("🎣 Cast again", Callback::Cast.encode())])]),
+(B[m     markup::inline([[markup::callback("🎒 Inventory", Callback::Inventory.encode()), markup::callback("🏠 Home", Callback::Home.encode())]]),
+   )
+   .await
+Diff in /home/me/dev/rust/td/game/src/telegram/present/progression.rs:97:
+     ))
+   });
+   let rod_table = table().header(("Rod", "Control", "Condition", "Price", "Status")).rows(view.rods.iter().map(|rod| {
+[31m-    let status = if rod.equipped { "equipped" } else if rod.owned { "owned" } else { "" };
+(B[m[32m+    let status = if rod.equipped {
+(B[m[32m+      "equipped"
+(B[m[32m+    } else if rod.owned {
+(B[m[32m+      "owned"
+(B[m[32m+    } else {
+(B[m[32m+      ""
+(B[m[32m+    };
+(B[m     (
+       rod.name.as_str(),
+       rod.control,
+Diff in /home/me/dev/rust/td/game/src/telegram/present/progression.rs:127:
+       "Digging for emergency worms is available whenever you run completely out of bait."
+     }),
+   ];
+[31m-  blocks.extend(view.rods.iter().filter(|rod| !rod.owned && rod.price > 0).map(|rod| {
+(B[m[31m-    button_row([success_callback_button(format_args!("Buy {} · {} coins", rod.name, rod.price), Callback::BuyRod { rod_id: rod.id }.encode())])
+(B[m[31m-  }));
+(B[m[32m+  blocks.extend(
+(B[m[32m+    view
+(B[m[32m+      .rods
+(B[m[32m+      .iter()
+(B[m[32m+      .filter(|rod| !rod.owned && rod.price > 0)
+(B[m[32m+      .map(|rod| button_row([success_callback_button(format_args!("Buy {} · {} coins", rod.name, rod.price), Callback::BuyRod { rod_id: rod.id }.encode())])),
+(B[m[32m+  );
+(B[m   if view.repair_all_cost > 0 {
+     blocks.push(button_row([callback_button(format_args!("Repair all rods · {} coins", view.repair_all_cost), Callback::RepairRods.encode())]));
+   }
+Diff in /home/me/dev/rust/td/game/src/telegram/present/progression.rs:197:
+ 
+ fn titles_content(view: &TitlesView) -> types::inputMessageRichMessage {
+   let titles = table().header(("Title", "Requirement", "Status")).rows(view.titles.iter().map(|title| {
+[31m-    let status = if title.equipped { "equipped" } else if title.unlocked { "unlocked" } else { "locked" };
+(B[m[32m+    let status = if title.equipped {
+(B[m[32m+      "equipped"
+(B[m[32m+    } else if title.unlocked {
+(B[m[32m+      "unlocked"
+(B[m[32m+    } else {
+(B[m[32m+      "locked"
+(B[m[32m+    };
+(B[m     (title.name, title.description, status)
+   }));
+   let mut blocks = vec![
+Diff in /home/me/dev/rust/td/game/src/telegram/present/progression.rs:204:
+     heading("🏷 Titles", 1),
+[31m-    paragraph("Titles show what you’ve accomplished in Rustwater. They don’t change your fishing strength, and you can swap any unlocked title whenever you like."),
+(B[m[32m+    paragraph(
+(B[m[32m+      "Titles show what you’ve accomplished in Rustwater. They don’t change your fishing strength, and you can swap any unlocked title whenever you like.",
+(B[m[32m+    ),
+(B[m     titles.striped().compact().into(),
+   ];
+[31m-  blocks.extend(view.titles.iter().filter(|title| title.unlocked && !title.equipped).map(|title| {
+(B[m[31m-    button_row([callback_button(format_args!("Equip {}", title.name), Callback::EquipTitle { title_id: title.id }.encode())])
+(B[m[31m-  }));
+(B[m[32m+  blocks.extend(
+(B[m[32m+    view
+(B[m[32m+      .titles
+(B[m[32m+      .iter()
+(B[m[32m+      .filter(|title| title.unlocked && !title.equipped)
+(B[m[32m+      .map(|title| button_row([callback_button(format_args!("Equip {}", title.name), Callback::EquipTitle { title_id: title.id }.encode())])),
+(B[m[32m+  );
+(B[m   rich(blocks)
+ }
+ 
+Diff in /home/me/dev/rust/td/game/src/telegram/present/progression.rs:221:
+ 
+ fn crafting_blocks(view: &CraftingView) -> Vec<enums::InputPageBlock> {
+   let recipes = view.recipes.iter().fold(table().header(("Preparation", "Output", "Status")), |table, recipe| {
+[31m-    table.row((
+(B[m[31m-      recipe.name,
+(B[m[31m-      format_args!("{} ×{}", recipe.output_name, recipe.output_quantity),
+(B[m[31m-      if recipe.ready { "ready" } else { "missing specimen" },
+(B[m[31m-    ))
+(B[m[32m+    table.row((recipe.name, format_args!("{} ×{}", recipe.output_name, recipe.output_quantity), if recipe.ready { "ready" } else { "missing specimen" }))
+(B[m   });
+   let mut blocks = vec![
+     heading("🧰 Tackle Preparation", 1),
+Diff in /home/me/dev/rust/td/game/src/telegram/present/progression.rs:234:
+   ];
+   blocks.extend(view.recipes.iter().map(|recipe| paragraph(format_args!("{} — {}", recipe.name, recipe.description))));
+   blocks.push(paragraph(italic("Preparing bait uses one stored specimen. The catch still counts in Records after the specimen is used.")));
+[31m-  blocks.extend(view.recipes.iter().filter(|recipe| recipe.ready).map(|recipe| {
+(B[m[31m-    button_row([success_callback_button(format_args!("Prepare {}", recipe.output_name), Callback::Craft { recipe_id: recipe.id }.encode())])
+(B[m[31m-  }));
+(B[m[32m+  blocks.extend(
+(B[m[32m+    view
+(B[m[32m+      .recipes
+(B[m[32m+      .iter()
+(B[m[32m+      .filter(|recipe| recipe.ready)
+(B[m[32m+      .map(|recipe| button_row([success_callback_button(format_args!("Prepare {}", recipe.output_name), Callback::Craft { recipe_id: recipe.id }.encode())])),
+(B[m[32m+  );
+(B[m   blocks
+ }
+ 
+Diff in /home/me/dev/rust/td/game/src/telegram/present/progression.rs:251:
+ fn help_content() -> types::inputMessageRichMessage {
+   rich([
+     heading("🌊 Welcome to Rustwater", 1),
+[31m-    paragraph("You’re an angler working the old harbor and the waters around it. Fish, explore, keep interesting specimens, and follow whatever the shoreline turns up."),
+(B[m[31m-    block_quote([paragraph((
+(B[m[31m-      "🎣 ",
+(B[m[31m-      bold("Start here:"),
+(B[m[31m-      " go Home and tap “Cast a line”. When something bites, react to what you see.",
+(B[m[31m-    ))]),
+(B[m[32m+    paragraph(
+(B[m[32m+      "You’re an angler working the old harbor and the waters around it. Fish, explore, keep interesting specimens, and follow whatever the shoreline turns up.",
+(B[m[32m+    ),
+(B[m[32m+    block_quote([paragraph(("🎣 ", bold("Start here:"), " go Home and tap “Cast a line”. When something bites, react to what you see."))]),
+(B[m     paragraph("🎣 Fish — catch specimens and learn what lives where."),
+     paragraph("🧭 Explore — discover places, people, and clues."),
+     paragraph("🎒 Prepare — choose gear, sell catches, and make bait."),
+Diff in /home/me/dev/rust/td/game/src/telegram/present/social.rs:42:
+ fn group_content(event: &GroupEventView, world_first: bool) -> types::inputMessageRichMessage {
+   let mut blocks = vec![
+     heading("🎣 Fishing in this chat", 1),
+[31m-    paragraph((
+(B[m[31m-      "This shared shoal features ",
+(B[m[31m-      bold(event.species_name.as_str()),
+(B[m[31m-      ". Everyone gets one free cast during its window.",
+(B[m[31m-    )),
+(B[m[32m+    paragraph(("This shared shoal features ", bold(event.species_name.as_str()), ". Everyone gets one free cast during its window.")),
+(B[m     paragraph(italic("Your rod, bait, and coins are untouched by this shared cast.")),
+     table()
+       .row(("🐟 Shoal", event.species_name.as_str()))
+Diff in /home/me/dev/rust/td/game/src/telegram/present/social.rs:68:
+ fn group_result_content(catch: &GroupCatchView) -> types::inputMessageRichMessage {
+   let mut blocks = vec![
+     heading("🎉 Your catch", 1),
+[31m-    paragraph(bold(format_args!(
+(B[m[31m-      "{} · {} · {:.1} cm",
+(B[m[31m-      catch.species_name,
+(B[m[31m-      format_weight(catch.weight_g),
+(B[m[31m-      f64::from(catch.length_mm) / 10.0,
+(B[m[31m-    ))),
+(B[m[31m-    table()
+(B[m[31m-      .row(("✨ XP", format_args!("+{}", catch.xp_gained)))
+(B[m[31m-      .row(("⭐ Level", catch.level))
+(B[m[31m-      .compact()
+(B[m[31m-      .into(),
+(B[m[32m+    paragraph(bold(format_args!("{} · {} · {:.1} cm", catch.species_name, format_weight(catch.weight_g), f64::from(catch.length_mm) / 10.0,))),
+(B[m[32m+    table().row(("✨ XP", format_args!("+{}", catch.xp_gained))).row(("⭐ Level", catch.level)).compact().into(),
+(B[m   ];
+   if catch.new_species {
+     blocks.push(paragraph("📖 New species — added to your Journal."));
+Diff in /home/me/dev/rust/td/game/src/telegram/present/social.rs:88:
+   }
+   blocks.push(paragraph("🎒 Added to your Inventory."));
+   blocks.push(paragraph(italic("Only you can see this result.")));
+[31m-  blocks.push(button_row([
+(B[m[31m-    callback_button("📖 Journal", Callback::GroupJournal.encode()),
+(B[m[31m-    callback_button("🏆 Records", Callback::GroupRecords.encode()),
+(B[m[31m-  ]));
+(B[m[32m+  blocks.push(button_row([callback_button("📖 Journal", Callback::GroupJournal.encode()), callback_button("🏆 Records", Callback::GroupRecords.encode())]));
+(B[m   rich(blocks)
+ }
+ 
+Diff in /home/me/dev/rust/td/game/src/telegram/present/social.rs:98:
+ fn group_help_content() -> types::inputMessageRichMessage {
+   rich([
+     heading("🌊 Fishing together in Rustwater", 1),
+[31m-    paragraph("Rustwater is the harbor region where your adventure begins. Your character, discoveries, catches, and gear follow you between private chat and group activities."),
+(B[m[32m+    paragraph(
+(B[m[32m+      "Rustwater is the harbor region where your adventure begins. Your character, discoveries, catches, and gear follow you between private chat and group activities.",
+(B[m[32m+    ),
+(B[m     paragraph("Use /fish to start the current shared shoal. Everyone gets one free cast before it moves on."),
+     paragraph("Your result appears only to you here in the group, and the catch is saved to the same character you play in private chat."),
+     paragraph("Shared casts do not spend bait or coins, and they do not change your equipped rod."),
+Diff in /home/me/dev/rust/td/game/src/telegram/present/world.rs:106:
+ fn conditions_content(view: &ConditionsView) -> types::inputMessageRichMessage {
+   let mut blocks = vec![
+     heading(format!("🌦 Conditions · {}", view.location_name), 1),
+[31m-    table().header(("Signal", "Now"))
+(B[m[32m+    table()
+(B[m[32m+      .header(("Signal", "Now"))
+(B[m       .row(("Game time", format_game_time(view.environment.game_minute)))
+       .row(("Day part", view.environment.day_part.label()))
+       .row(("Weather", view.environment.weather.label()))
+Diff in /home/me/dev/rust/td/game/src/telegram/present/world.rs:157:
+     ))]));
+   }
+   if !view.entries.is_empty() {
+[31m-    let records = table().header(("Species", "Your best", "World best")).rows(
+(B[m[31m-      view.entries.iter().map(|entry| (entry.species_name.as_str(), format_weight(entry.personal_best_g), format_weight(entry.world_best_g))),
+(B[m[31m-    );
+(B[m[32m+    let records = table()
+(B[m[32m+      .header(("Species", "Your best", "World best"))
+(B[m[32m+      .rows(view.entries.iter().map(|entry| (entry.species_name.as_str(), format_weight(entry.personal_best_g), format_weight(entry.world_best_g))));
+(B[m     blocks.extend([heading("⭐ Personal bests", 2), records.striped().compact().into()]);
+   }
+   blocks.push(paragraph(italic("Records include specimens that were later sold, turned in, or processed into bait.")));
+Diff in /home/me/dev/rust/td/game/src/telegram/present/world.rs:166:
+   rich(blocks)
+ }
+[31m-
+(B[m 
+Diff in /home/me/dev/rust/td/game/src/view.rs:354:
+   Escaped(EscapeView),
+   Stale,
+ }
+[31m-
+(B[m 
+Diff in /home/me/dev/rust/td/tdx/examples/fishing/ui.rs:55:
+ 
+ /// View displaying a successfully caught fish with stats and folklore lore formatted in a rich table.
+ pub fn cast_success(user_id: i64, user_name: &str, record: &CatchRecord, lore: &str) -> (types::inputMessageRichMessage, enums::ReplyMarkup) {
+[31m-  let catch_table = table()
+(B[m[31m-    .header(("Species", "Rarity", "Weight", "Value"))
+(B[m[31m-    .bordered()
+(B[m[31m-    .striped()
+(B[m[31m-    .compact()
+(B[m[31m-    .caption(bold(record.species_name))
+(B[m[31m-    .row((
+(B[m[31m-      bold(record.species_name),
+(B[m[31m-      record.rarity.badge(),
+(B[m[31m-      cell(code(format_args!("{:.2} kg", record.weight))).center(),
+(B[m[31m-      cell(bold(format_args!("{} 🪙", record.price))).right(),
+(B[m[31m-    ));
+(B[m[32m+  let catch_table = table().header(("Species", "Rarity", "Weight", "Value")).bordered().striped().compact().caption(bold(record.species_name)).row((
+(B[m[32m+    bold(record.species_name),
+(B[m[32m+    record.rarity.badge(),
+(B[m[32m+    cell(code(format_args!("{:.2} kg", record.weight))).center(),
+(B[m[32m+    cell(bold(format_args!("{} 🪙", record.price))).right(),
+(B[m[32m+  ));
+(B[m 
+   let content = rich([
+     heading(bold(format_args!("🎉 {user_name} hooked a catch!")), 1), //.
+Diff in /home/me/dev/rust/td/tdx/examples/fishing/ui.rs:86:
+   let rod = RODS.get(player.rod_id).unwrap_or(&RODS[0]);
+   let total_val: u32 = player.bag.iter().map(|c| c.price).sum();
+ 
+[31m-  let overview_table = table()
+(B[m[31m-    .header(("🪙 Balance", "🎣 Rod", "🗺 Water", "🐟 Caught"))
+(B[m[31m-    .bordered()
+(B[m[31m-    .compact()
+(B[m[31m-    .row((
+(B[m[31m-      cell(bold(format_args!("{} 🪙", player.coins))).center(),
+(B[m[31m-      bold(rod.name),
+(B[m[31m-      italic(spot.name),
+(B[m[31m-      cell(code(player.total_caught)).center(),
+(B[m[31m-    ));
+(B[m[32m+  let overview_table = table().header(("🪙 Balance", "🎣 Rod", "🗺 Water", "🐟 Caught")).bordered().compact().row((
+(B[m[32m+    cell(bold(format_args!("{} 🪙", player.coins))).center(),
+(B[m[32m+    bold(rod.name),
+(B[m[32m+    italic(spot.name),
+(B[m[32m+    cell(code(player.total_caught)).center(),
+(B[m[32m+  ));
+(B[m 
+   let mut blocks = vec![
+     heading(bold(format_args!("🎒 {}'s Angler Bag", player.display_name())), 1), //.
+Diff in /home/me/dev/rust/td/tdx/examples/fishing/ui.rs:147:
+ 
+ /// View showing the tackle shop for rod upgrades in a structured table.
+ pub fn shop_view(user_id: i64, player: &Player) -> (types::inputMessageRichMessage, enums::ReplyMarkup) {
+[31m-  let mut shop_table = table().header(("Rod", "Price", "Luck", "Status")) //.
+(B[m[32m+  let mut shop_table = table()
+(B[m[32m+    .header(("Rod", "Price", "Luck", "Status")) //.
+(B[m     .bordered()
+     .striped()
+     .compact()
+Diff in /home/me/dev/rust/td/tdx/examples/fishing/ui.rs:200:
+ 
+ /// View showing fishing spots and requirements in a structured table.
+ pub fn spots_view(user_id: i64, player: &Player) -> (types::inputMessageRichMessage, enums::ReplyMarkup) {
+[31m-  let mut spots_table = table().header(("Location", "Required Tackle", "Status")) //.
+(B[m[32m+  let mut spots_table = table()
+(B[m[32m+    .header(("Location", "Required Tackle", "Status")) //.
+(B[m     .bordered()
+     .striped()
+     .compact()
+Diff in /home/me/dev/rust/td/tdx/examples/fishing/ui.rs:255:
+ 
+   rich([
+     heading(bold(format_args!("🏆 {name}'s Greatest Trophy!")), 1),
+[31m-    table().header(("Species", "Rarity", "Weight", "Appraised Value"))
+(B[m[32m+    table()
+(B[m[32m+      .header(("Species", "Rarity", "Weight", "Appraised Value"))
+(B[m       .bordered()
+       .striped()
+       .compact()
+Diff in /home/me/dev/rust/td/tdx/examples/showcase.rs:111:
+   let req = fns::getChat { chat_id: source.chat_id };
+   let enums::Chat::chat(chat) = client.send(&req).await?;
+ 
+[31m-  let mut text = lines((
+(B[m[31m-    bold(chat.title),
+(B[m[31m-    "",
+(B[m[31m-    ("Chat ID: ", code(source.chat_id)),
+(B[m[31m-    ("Message ID: ", code(source.id)),
+(B[m[31m-  ));
+(B[m[32m+  let mut text = lines((bold(chat.title), "", ("Chat ID: ", code(source.chat_id)), ("Message ID: ", code(source.id))));
+(B[m 
+   if let MessageSender::messageSenderUser(sender) = &source.sender_id {
+     let req = fns::getUser { user_id: sender.user_id };
+Diff in /home/me/dev/rust/td/tdx/src/format/rich.rs:108:
+   };
+ }
+ 
+[31m-display_rich_parts!(
+(B[m[31m-  bool, i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize, f32, f64,
+(B[m[31m-);
+(B[m[32m+display_rich_parts!(bool, i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize, f32, f64,);
+(B[m 
+ impl<T: IntoRichText, const N: usize> IntoRichText for [T; N] {
+   fn into_rich_text(self) -> RichText {
+Diff in /home/me/dev/rust/td/tdx/src/format/text.rs:228:
+   };
+ }
+ 
+[31m-display_parts!(
+(B[m[31m-  bool, i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize, f32, f64,
+(B[m[31m-);
+(B[m[32m+display_parts!(bool, i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize, f32, f64,);
+(B[m 
+ impl<T: Part, const N: usize> Part for [T; N] {
+   fn write_to(self, text: &mut Text) {
+Diff in /home/me/dev/rust/td/tdx/tests/format.rs:195:
+ fn rich_button_rows_keep_styles_and_callback_payloads() -> Result<()> {
+   use tdx::enums::{ButtonStyle, InlineKeyboardButtonType};
+ 
+[31m-  let row = button_row([
+(B[m[31m-    success_callback_button("Cast", b"cast"),
+(B[m[31m-    primary_callback_button("Explore", b"explore"),
+(B[m[31m-    danger_callback_button("Cut", b"cut"),
+(B[m[31m-  ]);
+(B[m[32m+  let row = button_row([success_callback_button("Cast", b"cast"), primary_callback_button("Explore", b"explore"), danger_callback_button("Cut", b"cut")]);
+(B[m   let InputPageBlock::inputPageBlockButtonRow(row) = row else { bail!("expected rich button row") };
+   let [cast, explore, cut] = row.buttons.as_slice() else { bail!("expected three buttons") };
+   assert_eq!(cast.style, ButtonStyle::buttonStyleSuccess);
+Diff in /home/me/dev/rust/td/tdx/tests/inspect.rs:2:
+ 
+ use std::assert_matches;
+ 
+[31m-use tdx::{command, enums::TextEntityType};
+(B[m use tdx::prelude::*;
+[32m+use tdx::{command, enums::TextEntityType};
+(B[m 
+ #[test]
+ fn commands_agree_across_text_content_and_message() {
+
+>>> EXIT STATUS: 1
+
+=== DEFAULT FEATURE BUILD ===
+
+
+================================================================
+>>> cargo check --workspace --all-targets
+================================================================
+warning: struct `CharacterId` is never constructed
+  --> game/src/ids.rs:12:5
+   |
+12 | id!(CharacterId, i64);
+   |     ^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+   = note: this warning originates in the macro `id` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: field `id` is never read
+  --> game/src/view.rs:28:7
+   |
+27 | pub struct LocationView {
+   |            ------------ field in this struct
+28 |   pub id: LocationId,
+   |       ^^
+   |
+   = note: `LocationView` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: field `description` is never read
+  --> game/src/view.rs:55:7
+   |
+52 | pub struct RodInventoryView {
+   |            ---------------- field in this struct
+...
+55 |   pub description: String,
+   |       ^^^^^^^^^^^
+   |
+   = note: `RodInventoryView` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: field `description` is never read
+   --> game/src/view.rs:122:7
+    |
+119 | pub struct ShopRodView {
+    |            ----------- field in this struct
+...
+122 |   pub description: String,
+    |       ^^^^^^^^^^^
+    |
+    = note: `ShopRodView` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: field `due_at_ms` is never read
+   --> game/src/view.rs:279:7
+    |
+278 | pub struct CastStarted {
+    |            ----------- field in this struct
+279 |   pub due_at_ms: i64,
+    |       ^^^^^^^^^
+    |
+    = note: `CastStarted` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: field `total_xp` is never read
+   --> game/src/view.rs:302:7
+    |
+292 | pub struct CatchView {
+    |            --------- field in this struct
+...
+302 |   pub total_xp: u64,
+    |       ^^^^^^^^
+    |
+    = note: `CatchView` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: field `total_xp` is never read
+   --> game/src/view.rs:325:7
+    |
+318 | pub struct RelicView {
+    |            --------- field in this struct
+...
+325 |   pub total_xp: u64,
+    |       ^^^^^^^^
+    |
+    = note: `RelicView` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: field `id` is never read
+   --> game/src/view.rs:362:7
+    |
+361 | pub struct Timer {
+    |            ----- field in this struct
+362 |   pub id: i64,
+    |       ^^
+    |
+    = note: `Timer` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: `game` (lib) generated 8 warnings
+warning: `game` (lib test) generated 5 warnings (5 duplicates)
+    Checking tdx v0.1.0 (/home/me/dev/rust/td/tdx)
+error[E0505]: cannot move out of `fragment` because it is borrowed
+  --> tdx/tests/format.rs:16:45
+   |
+15 |   let fragment = line(bold(italic("🦀é")));
+   |       -------- binding `fragment` declared here
+16 |   let text = lines((("Hi ", &fragment), "", fragment));
+   |                             ---------       ^^^^^^^^ move out of `fragment` occurs here
+   |                             |
+   |                             borrow of `fragment` occurs here
+   |
+help: consider cloning the value if the performance cost is acceptable
+   |
+16 |   let text = lines((("Hi ", &fragment.clone()), "", fragment));
+   |                                      ++++++++
+
+For more information about this error, try `rustc --explain E0505`.
+error: could not compile `tdx` (test "format") due to 1 previous error
+
+>>> EXIT STATUS: 101
+
+=== DEFAULT FEATURE TESTS ===
+
+
+================================================================
+>>> cargo test --workspace
+================================================================
+   Compiling tdx v0.1.0 (/home/me/dev/rust/td/tdx)
+   Compiling game v0.1.0 (/home/me/dev/rust/td/game)
+error[E0277]: the trait bound `TitleOptionView: Clone` is not satisfied
+   --> game/src/view.rs:213:12
+    |
+212 | #[derive(Copy, Debug)]
+    |          ---- in this derive macro expansion
+213 | pub struct TitleOptionView {
+    |            ^^^^^^^^^^^^^^^ the trait `Clone` is not implemented for `TitleOptionView`
+    |
+note: required by a bound in `Copy`
+   --> /home/me/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/marker.rs:454:17
+    |
+454 | pub trait Copy: Clone {
+    |                 ^^^^^ required by this bound in `Copy`
+help: consider annotating `TitleOptionView` with `#[derive(Clone)]`
+    |
+213 + #[derive(Clone)]
+214 | pub struct TitleOptionView {
+    |
+
+error[E0277]: the trait bound `SaleView: Clone` is not satisfied
+   --> game/src/view.rs:271:12
+    |
+270 | #[derive(Copy, Debug)]
+    |          ---- in this derive macro expansion
+271 | pub struct SaleView {
+    |            ^^^^^^^^ the trait `Clone` is not implemented for `SaleView`
+    |
+note: required by a bound in `Copy`
+   --> /home/me/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/marker.rs:454:17
+    |
+454 | pub trait Copy: Clone {
+    |                 ^^^^^ required by this bound in `Copy`
+help: consider annotating `SaleView` with `#[derive(Clone)]`
+    |
+271 + #[derive(Clone)]
+272 | pub struct SaleView {
+    |
+
+error[E0277]: the trait bound `CastStarted: Clone` is not satisfied
+   --> game/src/view.rs:278:12
+    |
+277 | #[derive(Copy, Debug)]
+    |          ---- in this derive macro expansion
+278 | pub struct CastStarted {
+    |            ^^^^^^^^^^^ the trait `Clone` is not implemented for `CastStarted`
+    |
+note: required by a bound in `Copy`
+   --> /home/me/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/marker.rs:454:17
+    |
+454 | pub trait Copy: Clone {
+    |                 ^^^^^ required by this bound in `Copy`
+help: consider annotating `CastStarted` with `#[derive(Clone)]`
+    |
+278 + #[derive(Clone)]
+279 | pub struct CastStarted {
+    |
+
+error[E0308]: `match` arms have incompatible types
+  --> game/src/telegram/dispatch.rs:36:7
+   |
+32 | /   match command {
+33 | |     "fish" => present::group_fish(client, message.chat_id, &app.group_event(message.chat_id, timer::now_ms()).await?).await?,
+   | |               -------------------------------------------------------------------------------------------------------------- this is found to be of type `tdx::types::message`
+34 | |     "help" => {
+35 | |       let Some(user_id) = message.sender_id.user_id() else { return Ok(()) };
+36 | |       present::group_help_send(client, message, user_id).await?;
+   | |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^-
+   | |       |                                                        |
+   | |       |                                                        help: consider removing this semicolon
+   | |       expected `message`, found `()`
+37 | |     }
+38 | |     _ => {}
+39 | |   }
+   | |___- `match` arms have incompatible types
+
+error[E0308]: mismatched types
+  --> game/src/telegram/dispatch.rs:45:3
+   |
+45 | /   match command {
+46 | |     "start" => present::home(client, message.chat_id, &app.ensure_character(user_id, timer::now_ms()).await?).await?,
+47 | |     _ => present::help_send(client, message.chat_id).await?,
+48 | |   }
+   | |   ^- help: consider using a semicolon here
+   | |___|
+   |     expected `()`, found `message`
+
+error[E0308]: `match` arms have incompatible types
+   --> game/src/telegram/dispatch.rs:297:41
+    |
+279 |     match app.group_cast(update.sender_user_id, update.chat_id, cycle, seed, now_ms).await {
+    |     -------------------------------------------------------------------------------------- `match` arms have incompatible types
+...
+293 | /       if catch.global_first || catch.event.participants.is_power_of_two() {
+294 | |         present::group_caught(client, update.chat_id, update.message_id, &catch).await?;
+295 | |       }
+    | |_______- this is found to be of type `()`
+296 |       }
+297 |       Err(AppError::GroupEventClaimed) => client.send(&action_callback::toast(update, "You already cast into this shoal.")).await?,
+    |                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `()`, found `Ok`
+
+error[E0308]: `match` arms have incompatible types
+   --> game/src/telegram/dispatch.rs:318:7
+    |
+314 | /   match result {
+315 | |     Ok(()) => client.send(&action_callback::ack(update)).await?,
+    | |               ------------------------------------------------- this is found to be of type `tdx::enums::Ok`
+316 | |     Err(error) => {
+317 | |       tracing::warn!(?error, chat_id = update.chat_id, user_id = update.sender_user_id, panel, "ephemeral group panel failed");
+318 | |       client.send(&action_callback::toast(update, fallback)).await?;
+    | |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^-
+    | |       |                                                            |
+    | |       |                                                            help: consider removing this semicolon
+    | |       expected `Ok`, found `()`
+319 | |     }
+320 | |   }
+    | |___- `match` arms have incompatible types
+
+error: future cannot be sent between threads safely
+   --> game/src/telegram/mod.rs:100:9
+    |
+100 | /         tokio::spawn(async move {
+101 | |           if let Err(error) = dispatch::callback(&app, &client, &update, &wake).await {
+102 | |             tracing::error!(?error, "callback update failed");
+103 | |           }
+104 | |         });
+    | |__________^ future created by async block is not `Send`
+    |
+    = help: within `{async block@game/src/telegram/mod.rs:100:22: 100:32}`, the trait `Send` is not implemented for `{async fn body of present::fishing::casting()}`
+note: future is not `Send` as it awaits another future which is not `Send`
+   --> game/src/telegram/dispatch.rs:115:11
+    |
+115 |           present::casting(client, update.chat_id, update.message_id, &app.character(update.sender_user_id, now).await?).await?;
+    |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ await occurs here on type `impl Future<Output = std::result::Result<(), tdx::td_client::Error>>`, which is not `Send`
+note: required by a bound in `tokio::spawn`
+   --> /home/me/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/task/spawn.rs:176:21
+    |
+174 |     pub fn spawn<F>(future: F) -> JoinHandle<F::Output>
+    |            ----- required by a bound in this function
+175 |     where
+176 |         F: Future + Send + 'static,
+    |                     ^^^^ required by this bound in `spawn`
+
+Some errors have detailed explanations: E0277, E0308.
+For more information about an error, try `rustc --explain E0277`.
+error: could not compile `game` (lib) due to 8 previous errors
+warning: build failed, waiting for other jobs to finish...
+
+>>> EXIT STATUS: 101
+
+=== DEFAULT FEATURE CLIPPY ===
+
+
+================================================================
+>>> cargo clippy --workspace --all-targets -- -D warnings
+================================================================
+   Compiling tdx v0.1.0 (/home/me/dev/rust/td/tdx)
+   Compiling game v0.1.0 (/home/me/dev/rust/td/game)
+error[E0277]: the trait bound `view::TitleOptionView: std::clone::Clone` is not satisfied
+   --> game/src/view.rs:213:12
+    |
+212 | #[derive(Copy, Debug)]
+    |          ---- in this derive macro expansion
+213 | pub struct TitleOptionView {
+    |            ^^^^^^^^^^^^^^^ the trait `std::clone::Clone` is not implemented for `view::TitleOptionView`
+    |
+note: required by a bound in `std::marker::Copy`
+   --> /home/me/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/marker.rs:454:17
+    |
+454 | pub trait Copy: Clone {
+    |                 ^^^^^ required by this bound in `Copy`
+help: consider annotating `view::TitleOptionView` with `#[derive(Clone)]`
+    |
+213 + #[derive(Clone)]
+214 | pub struct TitleOptionView {
+    |
+
+error[E0277]: the trait bound `view::SaleView: std::clone::Clone` is not satisfied
+   --> game/src/view.rs:271:12
+    |
+270 | #[derive(Copy, Debug)]
+    |          ---- in this derive macro expansion
+271 | pub struct SaleView {
+    |            ^^^^^^^^ the trait `std::clone::Clone` is not implemented for `view::SaleView`
+    |
+note: required by a bound in `std::marker::Copy`
+   --> /home/me/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/marker.rs:454:17
+    |
+454 | pub trait Copy: Clone {
+    |                 ^^^^^ required by this bound in `Copy`
+help: consider annotating `view::SaleView` with `#[derive(Clone)]`
+    |
+271 + #[derive(Clone)]
+272 | pub struct SaleView {
+    |
+
+error[E0277]: the trait bound `view::CastStarted: std::clone::Clone` is not satisfied
+   --> game/src/view.rs:278:12
+    |
+277 | #[derive(Copy, Debug)]
+    |          ---- in this derive macro expansion
+278 | pub struct CastStarted {
+    |            ^^^^^^^^^^^ the trait `std::clone::Clone` is not implemented for `view::CastStarted`
+    |
+note: required by a bound in `std::marker::Copy`
+   --> /home/me/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/marker.rs:454:17
+    |
+454 | pub trait Copy: Clone {
+    |                 ^^^^^ required by this bound in `Copy`
+help: consider annotating `view::CastStarted` with `#[derive(Clone)]`
+    |
+278 + #[derive(Clone)]
+279 | pub struct CastStarted {
+    |
+
+error[E0505]: cannot move out of `fragment` because it is borrowed
+  --> tdx/tests/format.rs:16:45
+   |
+15 |   let fragment = line(bold(italic("🦀é")));
+   |       -------- binding `fragment` declared here
+16 |   let text = lines((("Hi ", &fragment), "", fragment));
+   |                             ---------       ^^^^^^^^ move out of `fragment` occurs here
+   |                             |
+   |                             borrow of `fragment` occurs here
+   |
+help: consider cloning the value if the performance cost is acceptable
+   |
+16 |   let text = lines((("Hi ", &fragment.clone()), "", fragment));
+   |                                      ++++++++
+
+For more information about this error, try `rustc --explain E0505`.
+error: could not compile `tdx` (test "format") due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
+error[E0308]: `match` arms have incompatible types
+  --> game/src/telegram/dispatch.rs:36:7
+   |
+32 | /   match command {
+33 | |     "fish" => present::group_fish(client, message.chat_id, &app.group_event(message.chat_id, timer::now_ms()).await?).await?,
+   | |               -------------------------------------------------------------------------------------------------------------- this is found to be of type `tdx::types::message`
+34 | |     "help" => {
+35 | |       let Some(user_id) = message.sender_id.user_id() else { return Ok(()) };
+36 | |       present::group_help_send(client, message, user_id).await?;
+   | |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^-
+   | |       |                                                        |
+   | |       |                                                        help: consider removing this semicolon
+   | |       expected `message`, found `()`
+37 | |     }
+38 | |     _ => {}
+39 | |   }
+   | |___- `match` arms have incompatible types
+
+error[E0308]: mismatched types
+  --> game/src/telegram/dispatch.rs:45:3
+   |
+45 | /   match command {
+46 | |     "start" => present::home(client, message.chat_id, &app.ensure_character(user_id, timer::now_ms()).await?).await?,
+47 | |     _ => present::help_send(client, message.chat_id).await?,
+48 | |   }
+   | |   ^- help: consider using a semicolon here
+   | |___|
+   |     expected `()`, found `message`
+
+error[E0308]: `match` arms have incompatible types
+   --> game/src/telegram/dispatch.rs:297:41
+    |
+279 |     match app.group_cast(update.sender_user_id, update.chat_id, cycle, seed, now_ms).await {
+    |     -------------------------------------------------------------------------------------- `match` arms have incompatible types
+...
+293 | /       if catch.global_first || catch.event.participants.is_power_of_two() {
+294 | |         present::group_caught(client, update.chat_id, update.message_id, &catch).await?;
+295 | |       }
+    | |_______- this is found to be of type `()`
+296 |       }
+297 |       Err(AppError::GroupEventClaimed) => client.send(&action_callback::toast(update, "You already cast into this shoal.")).await?,
+    |                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `()`, found `Ok`
+
+error[E0308]: `match` arms have incompatible types
+   --> game/src/telegram/dispatch.rs:318:7
+    |
+314 | /   match result {
+315 | |     Ok(()) => client.send(&action_callback::ack(update)).await?,
+    | |               ------------------------------------------------- this is found to be of type `tdx::enums::Ok`
+316 | |     Err(error) => {
+317 | |       tracing::warn!(?error, chat_id = update.chat_id, user_id = update.sender_user_id, panel, "ephemeral group panel failed");
+318 | |       client.send(&action_callback::toast(update, fallback)).await?;
+    | |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^-
+    | |       |                                                            |
+    | |       |                                                            help: consider removing this semicolon
+    | |       expected `Ok`, found `()`
+319 | |     }
+320 | |   }
+    | |___- `match` arms have incompatible types
+
+error: future cannot be sent between threads safely
+   --> game/src/telegram/mod.rs:100:9
+    |
+100 | /         tokio::spawn(async move {
+101 | |           if let Err(error) = dispatch::callback(&app, &client, &update, &wake).await {
+102 | |             tracing::error!(?error, "callback update failed");
+103 | |           }
+104 | |         });
+    | |__________^ future created by async block is not `Send`
+    |
+    = help: within `{async block@game/src/telegram/mod.rs:100:22: 100:32}`, the trait `std::marker::Send` is not implemented for `{async fn body of telegram::present::fishing::casting()}`
+note: future is not `Send` as it awaits another future which is not `Send`
+   --> game/src/telegram/dispatch.rs:115:11
+    |
+115 |           present::casting(client, update.chat_id, update.message_id, &app.character(update.sender_user_id, now).await?).await?;
+    |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ await occurs here on type `impl std::future::Future<Output = std::result::Result<(), tdx::td_client::Error>>`, which is not `Send`
+note: required by a bound in `tokio::spawn`
+   --> /home/me/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/task/spawn.rs:176:21
+    |
+174 |     pub fn spawn<F>(future: F) -> JoinHandle<F::Output>
+    |            ----- required by a bound in this function
+175 |     where
+176 |         F: Future + Send + 'static,
+    |                     ^^^^ required by this bound in `spawn`
+
+Some errors have detailed explanations: E0277, E0308.
+For more information about an error, try `rustc --explain E0277`.
+error: could not compile `game` (lib) due to 8 previous errors
+error: could not compile `game` (lib test) due to 8 previous errors
+
+>>> EXIT STATUS: 101
+
+=== ALL FEATURES BUILD ===
+
+
+================================================================
+>>> cargo check --workspace --all-targets --all-features
+================================================================
+warning: struct `CharacterId` is never constructed
+  --> game/src/ids.rs:12:5
+   |
+12 | id!(CharacterId, i64);
+   |     ^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+   = note: this warning originates in the macro `id` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: field `id` is never read
+  --> game/src/view.rs:28:7
+   |
+27 | pub struct LocationView {
+   |            ------------ field in this struct
+28 |   pub id: LocationId,
+   |       ^^
+   |
+   = note: `LocationView` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: field `description` is never read
+  --> game/src/view.rs:55:7
+   |
+52 | pub struct RodInventoryView {
+   |            ---------------- field in this struct
+...
+55 |   pub description: String,
+   |       ^^^^^^^^^^^
+   |
+   = note: `RodInventoryView` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: field `description` is never read
+   --> game/src/view.rs:122:7
+    |
+119 | pub struct ShopRodView {
+    |            ----------- field in this struct
+...
+122 |   pub description: String,
+    |       ^^^^^^^^^^^
+    |
+    = note: `ShopRodView` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: field `due_at_ms` is never read
+   --> game/src/view.rs:279:7
+    |
+278 | pub struct CastStarted {
+    |            ----------- field in this struct
+279 |   pub due_at_ms: i64,
+    |       ^^^^^^^^^
+    |
+    = note: `CastStarted` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: field `total_xp` is never read
+   --> game/src/view.rs:302:7
+    |
+292 | pub struct CatchView {
+    |            --------- field in this struct
+...
+302 |   pub total_xp: u64,
+    |       ^^^^^^^^
+    |
+    = note: `CatchView` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: field `total_xp` is never read
+   --> game/src/view.rs:325:7
+    |
+318 | pub struct RelicView {
+    |            --------- field in this struct
+...
+325 |   pub total_xp: u64,
+    |       ^^^^^^^^
+    |
+    = note: `RelicView` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: field `id` is never read
+   --> game/src/view.rs:362:7
+    |
+361 | pub struct Timer {
+    |            ----- field in this struct
+362 |   pub id: i64,
+    |       ^^
+    |
+    = note: `Timer` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: `game` (lib) generated 8 warnings
+warning: `game` (lib test) generated 5 warnings (5 duplicates)
+    Checking tdx v0.1.0 (/home/me/dev/rust/td/tdx)
+error[E0505]: cannot move out of `fragment` because it is borrowed
+  --> tdx/tests/format.rs:16:45
+   |
+15 |   let fragment = line(bold(italic("🦀é")));
+   |       -------- binding `fragment` declared here
+16 |   let text = lines((("Hi ", &fragment), "", fragment));
+   |                             ---------       ^^^^^^^^ move out of `fragment` occurs here
+   |                             |
+   |                             borrow of `fragment` occurs here
+   |
+help: consider cloning the value if the performance cost is acceptable
+   |
+16 |   let text = lines((("Hi ", &fragment.clone()), "", fragment));
+   |                                      ++++++++
+
+For more information about this error, try `rustc --explain E0505`.
+error: could not compile `tdx` (test "format") due to 1 previous error
+
+>>> EXIT STATUS: 101
+
+=== ALL FEATURES TESTS ===
+
+
+================================================================
+>>> cargo test --workspace --all-features
+================================================================
+   Compiling game v0.1.0 (/home/me/dev/rust/td/game)
+   Compiling tdx v0.1.0 (/home/me/dev/rust/td/tdx)
+error[E0505]: cannot move out of `fragment` because it is borrowed
+  --> tdx/tests/format.rs:16:45
+   |
+15 |   let fragment = line(bold(italic("🦀é")));
+   |       -------- binding `fragment` declared here
+16 |   let text = lines((("Hi ", &fragment), "", fragment));
+   |                             ---------       ^^^^^^^^ move out of `fragment` occurs here
+   |                             |
+   |                             borrow of `fragment` occurs here
+   |
+help: consider cloning the value if the performance cost is acceptable
+   |
+16 |   let text = lines((("Hi ", &fragment.clone()), "", fragment));
+   |                                      ++++++++
+
+For more information about this error, try `rustc --explain E0505`.
+error: could not compile `tdx` (test "format") due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
+error[E0277]: the trait bound `TitleOptionView: Clone` is not satisfied
+   --> game/src/view.rs:213:12
+    |
+212 | #[derive(Copy, Debug)]
+    |          ---- in this derive macro expansion
+213 | pub struct TitleOptionView {
+    |            ^^^^^^^^^^^^^^^ the trait `Clone` is not implemented for `TitleOptionView`
+    |
+note: required by a bound in `Copy`
+   --> /home/me/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/marker.rs:454:17
+    |
+454 | pub trait Copy: Clone {
+    |                 ^^^^^ required by this bound in `Copy`
+help: consider annotating `TitleOptionView` with `#[derive(Clone)]`
+    |
+213 + #[derive(Clone)]
+214 | pub struct TitleOptionView {
+    |
+
+error[E0277]: the trait bound `SaleView: Clone` is not satisfied
+   --> game/src/view.rs:271:12
+    |
+270 | #[derive(Copy, Debug)]
+    |          ---- in this derive macro expansion
+271 | pub struct SaleView {
+    |            ^^^^^^^^ the trait `Clone` is not implemented for `SaleView`
+    |
+note: required by a bound in `Copy`
+   --> /home/me/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/marker.rs:454:17
+    |
+454 | pub trait Copy: Clone {
+    |                 ^^^^^ required by this bound in `Copy`
+help: consider annotating `SaleView` with `#[derive(Clone)]`
+    |
+271 + #[derive(Clone)]
+272 | pub struct SaleView {
+    |
+
+error[E0277]: the trait bound `CastStarted: Clone` is not satisfied
+   --> game/src/view.rs:278:12
+    |
+277 | #[derive(Copy, Debug)]
+    |          ---- in this derive macro expansion
+278 | pub struct CastStarted {
+    |            ^^^^^^^^^^^ the trait `Clone` is not implemented for `CastStarted`
+    |
+note: required by a bound in `Copy`
+   --> /home/me/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/marker.rs:454:17
+    |
+454 | pub trait Copy: Clone {
+    |                 ^^^^^ required by this bound in `Copy`
+help: consider annotating `CastStarted` with `#[derive(Clone)]`
+    |
+278 + #[derive(Clone)]
+279 | pub struct CastStarted {
+    |
+
+error[E0308]: `match` arms have incompatible types
+  --> game/src/telegram/dispatch.rs:36:7
+   |
+32 | /   match command {
+33 | |     "fish" => present::group_fish(client, message.chat_id, &app.group_event(message.chat_id, timer::now_ms()).await?).await?,
+   | |               -------------------------------------------------------------------------------------------------------------- this is found to be of type `tdx::types::message`
+34 | |     "help" => {
+35 | |       let Some(user_id) = message.sender_id.user_id() else { return Ok(()) };
+36 | |       present::group_help_send(client, message, user_id).await?;
+   | |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^-
+   | |       |                                                        |
+   | |       |                                                        help: consider removing this semicolon
+   | |       expected `message`, found `()`
+37 | |     }
+38 | |     _ => {}
+39 | |   }
+   | |___- `match` arms have incompatible types
+
+error[E0308]: mismatched types
+  --> game/src/telegram/dispatch.rs:45:3
+   |
+45 | /   match command {
+46 | |     "start" => present::home(client, message.chat_id, &app.ensure_character(user_id, timer::now_ms()).await?).await?,
+47 | |     _ => present::help_send(client, message.chat_id).await?,
+48 | |   }
+   | |   ^- help: consider using a semicolon here
+   | |___|
+   |     expected `()`, found `message`
+
+error[E0308]: `match` arms have incompatible types
+   --> game/src/telegram/dispatch.rs:297:41
+    |
+279 |     match app.group_cast(update.sender_user_id, update.chat_id, cycle, seed, now_ms).await {
+    |     -------------------------------------------------------------------------------------- `match` arms have incompatible types
+...
+293 | /       if catch.global_first || catch.event.participants.is_power_of_two() {
+294 | |         present::group_caught(client, update.chat_id, update.message_id, &catch).await?;
+295 | |       }
+    | |_______- this is found to be of type `()`
+296 |       }
+297 |       Err(AppError::GroupEventClaimed) => client.send(&action_callback::toast(update, "You already cast into this shoal.")).await?,
+    |                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `()`, found `Ok`
+
+error[E0308]: `match` arms have incompatible types
+   --> game/src/telegram/dispatch.rs:318:7
+    |
+314 | /   match result {
+315 | |     Ok(()) => client.send(&action_callback::ack(update)).await?,
+    | |               ------------------------------------------------- this is found to be of type `tdx::enums::Ok`
+316 | |     Err(error) => {
+317 | |       tracing::warn!(?error, chat_id = update.chat_id, user_id = update.sender_user_id, panel, "ephemeral group panel failed");
+318 | |       client.send(&action_callback::toast(update, fallback)).await?;
+    | |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^-
+    | |       |                                                            |
+    | |       |                                                            help: consider removing this semicolon
+    | |       expected `Ok`, found `()`
+319 | |     }
+320 | |   }
+    | |___- `match` arms have incompatible types
+
+error: future cannot be sent between threads safely
+   --> game/src/telegram/mod.rs:100:9
+    |
+100 | /         tokio::spawn(async move {
+101 | |           if let Err(error) = dispatch::callback(&app, &client, &update, &wake).await {
+102 | |             tracing::error!(?error, "callback update failed");
+103 | |           }
+104 | |         });
+    | |__________^ future created by async block is not `Send`
+    |
+    = help: within `{async block@game/src/telegram/mod.rs:100:22: 100:32}`, the trait `Send` is not implemented for `{async fn body of present::fishing::casting()}`
+note: future is not `Send` as it awaits another future which is not `Send`
+   --> game/src/telegram/dispatch.rs:115:11
+    |
+115 |           present::casting(client, update.chat_id, update.message_id, &app.character(update.sender_user_id, now).await?).await?;
+    |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ await occurs here on type `impl Future<Output = std::result::Result<(), tdx::td_client::Error>>`, which is not `Send`
+note: required by a bound in `tokio::spawn`
+   --> /home/me/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/task/spawn.rs:176:21
+    |
+174 |     pub fn spawn<F>(future: F) -> JoinHandle<F::Output>
+    |            ----- required by a bound in this function
+175 |     where
+176 |         F: Future + Send + 'static,
+    |                     ^^^^ required by this bound in `spawn`
+
+Some errors have detailed explanations: E0277, E0308.
+For more information about an error, try `rustc --explain E0277`.
+error: could not compile `game` (lib) due to 8 previous errors
+error: could not compile `game` (lib test) due to 8 previous errors
+
+>>> EXIT STATUS: 101
+
+=== ALL FEATURES CLIPPY ===
+
+
+================================================================
+>>> cargo clippy --workspace --all-targets --all-features -- -D warnings
+================================================================
+    Checking game v0.1.0 (/home/me/dev/rust/td/game)
+    Checking tdx v0.1.0 (/home/me/dev/rust/td/tdx)
+error[E0505]: cannot move out of `fragment` because it is borrowed
+  --> tdx/tests/format.rs:16:45
+   |
+15 |   let fragment = line(bold(italic("🦀é")));
+   |       -------- binding `fragment` declared here
+16 |   let text = lines((("Hi ", &fragment), "", fragment));
+   |                             ---------       ^^^^^^^^ move out of `fragment` occurs here
+   |                             |
+   |                             borrow of `fragment` occurs here
+   |
+help: consider cloning the value if the performance cost is acceptable
+   |
+16 |   let text = lines((("Hi ", &fragment.clone()), "", fragment));
+   |                                      ++++++++
+
+For more information about this error, try `rustc --explain E0505`.
+error: could not compile `tdx` (test "format") due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
+error[E0277]: the trait bound `view::TitleOptionView: std::clone::Clone` is not satisfied
+   --> game/src/view.rs:213:12
+    |
+212 | #[derive(Copy, Debug)]
+    |          ---- in this derive macro expansion
+213 | pub struct TitleOptionView {
+    |            ^^^^^^^^^^^^^^^ the trait `std::clone::Clone` is not implemented for `view::TitleOptionView`
+    |
+note: required by a bound in `std::marker::Copy`
+   --> /home/me/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/marker.rs:454:17
+    |
+454 | pub trait Copy: Clone {
+    |                 ^^^^^ required by this bound in `Copy`
+help: consider annotating `view::TitleOptionView` with `#[derive(Clone)]`
+    |
+213 + #[derive(Clone)]
+214 | pub struct TitleOptionView {
+    |
+
+error[E0277]: the trait bound `view::SaleView: std::clone::Clone` is not satisfied
+   --> game/src/view.rs:271:12
+    |
+270 | #[derive(Copy, Debug)]
+    |          ---- in this derive macro expansion
+271 | pub struct SaleView {
+    |            ^^^^^^^^ the trait `std::clone::Clone` is not implemented for `view::SaleView`
+    |
+note: required by a bound in `std::marker::Copy`
+   --> /home/me/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/marker.rs:454:17
+    |
+454 | pub trait Copy: Clone {
+    |                 ^^^^^ required by this bound in `Copy`
+help: consider annotating `view::SaleView` with `#[derive(Clone)]`
+    |
+271 + #[derive(Clone)]
+272 | pub struct SaleView {
+    |
+
+error[E0277]: the trait bound `view::CastStarted: std::clone::Clone` is not satisfied
+   --> game/src/view.rs:278:12
+    |
+277 | #[derive(Copy, Debug)]
+    |          ---- in this derive macro expansion
+278 | pub struct CastStarted {
+    |            ^^^^^^^^^^^ the trait `std::clone::Clone` is not implemented for `view::CastStarted`
+    |
+note: required by a bound in `std::marker::Copy`
+   --> /home/me/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/marker.rs:454:17
+    |
+454 | pub trait Copy: Clone {
+    |                 ^^^^^ required by this bound in `Copy`
+help: consider annotating `view::CastStarted` with `#[derive(Clone)]`
+    |
+278 + #[derive(Clone)]
+279 | pub struct CastStarted {
+    |
+
+error[E0308]: `match` arms have incompatible types
+  --> game/src/telegram/dispatch.rs:36:7
+   |
+32 | /   match command {
+33 | |     "fish" => present::group_fish(client, message.chat_id, &app.group_event(message.chat_id, timer::now_ms()).await?).await?,
+   | |               -------------------------------------------------------------------------------------------------------------- this is found to be of type `tdx::types::message`
+34 | |     "help" => {
+35 | |       let Some(user_id) = message.sender_id.user_id() else { return Ok(()) };
+36 | |       present::group_help_send(client, message, user_id).await?;
+   | |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^-
+   | |       |                                                        |
+   | |       |                                                        help: consider removing this semicolon
+   | |       expected `message`, found `()`
+37 | |     }
+38 | |     _ => {}
+39 | |   }
+   | |___- `match` arms have incompatible types
+
+error[E0308]: mismatched types
+  --> game/src/telegram/dispatch.rs:45:3
+   |
+45 | /   match command {
+46 | |     "start" => present::home(client, message.chat_id, &app.ensure_character(user_id, timer::now_ms()).await?).await?,
+47 | |     _ => present::help_send(client, message.chat_id).await?,
+48 | |   }
+   | |   ^- help: consider using a semicolon here
+   | |___|
+   |     expected `()`, found `message`
+
+error[E0308]: `match` arms have incompatible types
+   --> game/src/telegram/dispatch.rs:297:41
+    |
+279 |     match app.group_cast(update.sender_user_id, update.chat_id, cycle, seed, now_ms).await {
+    |     -------------------------------------------------------------------------------------- `match` arms have incompatible types
+...
+293 | /       if catch.global_first || catch.event.participants.is_power_of_two() {
+294 | |         present::group_caught(client, update.chat_id, update.message_id, &catch).await?;
+295 | |       }
+    | |_______- this is found to be of type `()`
+296 |       }
+297 |       Err(AppError::GroupEventClaimed) => client.send(&action_callback::toast(update, "You already cast into this shoal.")).await?,
+    |                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `()`, found `Ok`
+
+error[E0308]: `match` arms have incompatible types
+   --> game/src/telegram/dispatch.rs:318:7
+    |
+314 | /   match result {
+315 | |     Ok(()) => client.send(&action_callback::ack(update)).await?,
+    | |               ------------------------------------------------- this is found to be of type `tdx::enums::Ok`
+316 | |     Err(error) => {
+317 | |       tracing::warn!(?error, chat_id = update.chat_id, user_id = update.sender_user_id, panel, "ephemeral group panel failed");
+318 | |       client.send(&action_callback::toast(update, fallback)).await?;
+    | |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^-
+    | |       |                                                            |
+    | |       |                                                            help: consider removing this semicolon
+    | |       expected `Ok`, found `()`
+319 | |     }
+320 | |   }
+    | |___- `match` arms have incompatible types
+
+error: future cannot be sent between threads safely
+   --> game/src/telegram/mod.rs:100:9
+    |
+100 | /         tokio::spawn(async move {
+101 | |           if let Err(error) = dispatch::callback(&app, &client, &update, &wake).await {
+102 | |             tracing::error!(?error, "callback update failed");
+103 | |           }
+104 | |         });
+    | |__________^ future created by async block is not `Send`
+    |
+    = help: within `{async block@game/src/telegram/mod.rs:100:22: 100:32}`, the trait `std::marker::Send` is not implemented for `{async fn body of telegram::present::fishing::casting()}`
+note: future is not `Send` as it awaits another future which is not `Send`
+   --> game/src/telegram/dispatch.rs:115:11
+    |
+115 |           present::casting(client, update.chat_id, update.message_id, &app.character(update.sender_user_id, now).await?).await?;
+    |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ await occurs here on type `impl std::future::Future<Output = std::result::Result<(), tdx::td_client::Error>>`, which is not `Send`
+note: required by a bound in `tokio::spawn`
+   --> /home/me/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/task/spawn.rs:176:21
+    |
+174 |     pub fn spawn<F>(future: F) -> JoinHandle<F::Output>
+    |            ----- required by a bound in this function
+175 |     where
+176 |         F: Future + Send + 'static,
+    |                     ^^^^ required by this bound in `spawn`
+
+Some errors have detailed explanations: E0277, E0308.
+For more information about an error, try `rustc --explain E0277`.
+error: could not compile `game` (lib) due to 8 previous errors
+error: could not compile `game` (lib test) due to 8 previous errors
+
+>>> EXIT STATUS: 101
+
+=== GAME WITHOUT DEFAULT FEATURES ===
+
+
+================================================================
+>>> cargo check -p game --all-targets --no-default-features
+================================================================
+   Compiling game v0.1.0 (/home/me/dev/rust/td/game)
+error[E0277]: the trait bound `TitleOptionView: Clone` is not satisfied
+   --> game/src/view.rs:213:12
+    |
+212 | #[derive(Copy, Debug)]
+    |          ---- in this derive macro expansion
+213 | pub struct TitleOptionView {
+    |            ^^^^^^^^^^^^^^^ the trait `Clone` is not implemented for `TitleOptionView`
+    |
+note: required by a bound in `Copy`
+   --> /home/me/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/marker.rs:454:17
+    |
+454 | pub trait Copy: Clone {
+    |                 ^^^^^ required by this bound in `Copy`
+help: consider annotating `TitleOptionView` with `#[derive(Clone)]`
+    |
+213 + #[derive(Clone)]
+214 | pub struct TitleOptionView {
+    |
+
+error[E0277]: the trait bound `SaleView: Clone` is not satisfied
+   --> game/src/view.rs:271:12
+    |
+270 | #[derive(Copy, Debug)]
+    |          ---- in this derive macro expansion
+271 | pub struct SaleView {
+    |            ^^^^^^^^ the trait `Clone` is not implemented for `SaleView`
+    |
+note: required by a bound in `Copy`
+   --> /home/me/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/marker.rs:454:17
+    |
+454 | pub trait Copy: Clone {
+    |                 ^^^^^ required by this bound in `Copy`
+help: consider annotating `SaleView` with `#[derive(Clone)]`
+    |
+271 + #[derive(Clone)]
+272 | pub struct SaleView {
+    |
+
+error[E0277]: the trait bound `CastStarted: Clone` is not satisfied
+   --> game/src/view.rs:278:12
+    |
+277 | #[derive(Copy, Debug)]
+    |          ---- in this derive macro expansion
+278 | pub struct CastStarted {
+    |            ^^^^^^^^^^^ the trait `Clone` is not implemented for `CastStarted`
+    |
+note: required by a bound in `Copy`
+   --> /home/me/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/marker.rs:454:17
+    |
+454 | pub trait Copy: Clone {
+    |                 ^^^^^ required by this bound in `Copy`
+help: consider annotating `CastStarted` with `#[derive(Clone)]`
+    |
+278 + #[derive(Clone)]
+279 | pub struct CastStarted {
+    |
+
+For more information about this error, try `rustc --explain E0277`.
+error: could not compile `game` (lib) due to 3 previous errors
+warning: build failed, waiting for other jobs to finish...
+error: could not compile `game` (lib test) due to 3 previous errors
+
+>>> EXIT STATUS: 101
+
+
+================================================================
+>>> cargo test -p game --no-default-features
+================================================================
+   Compiling game v0.1.0 (/home/me/dev/rust/td/game)
+error[E0277]: the trait bound `TitleOptionView: Clone` is not satisfied
+   --> game/src/view.rs:213:12
+    |
+212 | #[derive(Copy, Debug)]
+    |          ---- in this derive macro expansion
+213 | pub struct TitleOptionView {
+    |            ^^^^^^^^^^^^^^^ the trait `Clone` is not implemented for `TitleOptionView`
+    |
+note: required by a bound in `Copy`
+   --> /home/me/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/marker.rs:454:17
+    |
+454 | pub trait Copy: Clone {
+    |                 ^^^^^ required by this bound in `Copy`
+help: consider annotating `TitleOptionView` with `#[derive(Clone)]`
+    |
+213 + #[derive(Clone)]
+214 | pub struct TitleOptionView {
+    |
+
+error[E0277]: the trait bound `SaleView: Clone` is not satisfied
+   --> game/src/view.rs:271:12
+    |
+270 | #[derive(Copy, Debug)]
+    |          ---- in this derive macro expansion
+271 | pub struct SaleView {
+    |            ^^^^^^^^ the trait `Clone` is not implemented for `SaleView`
+    |
+note: required by a bound in `Copy`
+   --> /home/me/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/marker.rs:454:17
+    |
+454 | pub trait Copy: Clone {
+    |                 ^^^^^ required by this bound in `Copy`
+help: consider annotating `SaleView` with `#[derive(Clone)]`
+    |
+271 + #[derive(Clone)]
+272 | pub struct SaleView {
+    |
+
+error[E0277]: the trait bound `CastStarted: Clone` is not satisfied
+   --> game/src/view.rs:278:12
+    |
+277 | #[derive(Copy, Debug)]
+    |          ---- in this derive macro expansion
+278 | pub struct CastStarted {
+    |            ^^^^^^^^^^^ the trait `Clone` is not implemented for `CastStarted`
+    |
+note: required by a bound in `Copy`
+   --> /home/me/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/marker.rs:454:17
+    |
+454 | pub trait Copy: Clone {
+    |                 ^^^^^ required by this bound in `Copy`
+help: consider annotating `CastStarted` with `#[derive(Clone)]`
+    |
+278 + #[derive(Clone)]
+279 | pub struct CastStarted {
+    |
+
+For more information about this error, try `rustc --explain E0277`.
+error: could not compile `game` (lib) due to 3 previous errors
+warning: build failed, waiting for other jobs to finish...
+error: could not compile `game` (lib test) due to 3 previous errors
+
+>>> EXIT STATUS: 101
+
+
+================================================================
+>>> cargo clippy -p game --all-targets --no-default-features -- -D warnings -A dead-code
+================================================================
+   Compiling td-sys v0.1.0 (/home/me/dev/rust/td/td-sys)
+   Compiling game v0.1.0 (/home/me/dev/rust/td/game)
+error[E0277]: the trait bound `view::TitleOptionView: std::clone::Clone` is not satisfied
+   --> game/src/view.rs:213:12
+    |
+212 | #[derive(Copy, Debug)]
+    |          ---- in this derive macro expansion
+213 | pub struct TitleOptionView {
+    |            ^^^^^^^^^^^^^^^ the trait `std::clone::Clone` is not implemented for `view::TitleOptionView`
+    |
+note: required by a bound in `std::marker::Copy`
+   --> /home/me/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/marker.rs:454:17
+    |
+454 | pub trait Copy: Clone {
+    |                 ^^^^^ required by this bound in `Copy`
+help: consider annotating `view::TitleOptionView` with `#[derive(Clone)]`
+    |
+213 + #[derive(Clone)]
+214 | pub struct TitleOptionView {
+    |
+
+error[E0277]: the trait bound `view::SaleView: std::clone::Clone` is not satisfied
+   --> game/src/view.rs:271:12
+    |
+270 | #[derive(Copy, Debug)]
+    |          ---- in this derive macro expansion
+271 | pub struct SaleView {
+    |            ^^^^^^^^ the trait `std::clone::Clone` is not implemented for `view::SaleView`
+    |
+note: required by a bound in `std::marker::Copy`
+   --> /home/me/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/marker.rs:454:17
+    |
+454 | pub trait Copy: Clone {
+    |                 ^^^^^ required by this bound in `Copy`
+help: consider annotating `view::SaleView` with `#[derive(Clone)]`
+    |
+271 + #[derive(Clone)]
+272 | pub struct SaleView {
+    |
+
+error[E0277]: the trait bound `view::CastStarted: std::clone::Clone` is not satisfied
+   --> game/src/view.rs:278:12
+    |
+277 | #[derive(Copy, Debug)]
+    |          ---- in this derive macro expansion
+278 | pub struct CastStarted {
+    |            ^^^^^^^^^^^ the trait `std::clone::Clone` is not implemented for `view::CastStarted`
+    |
+note: required by a bound in `std::marker::Copy`
+   --> /home/me/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/marker.rs:454:17
+    |
+454 | pub trait Copy: Clone {
+    |                 ^^^^^ required by this bound in `Copy`
+help: consider annotating `view::CastStarted` with `#[derive(Clone)]`
+    |
+278 + #[derive(Clone)]
+279 | pub struct CastStarted {
+    |
+
+For more information about this error, try `rustc --explain E0277`.
+error: could not compile `game` (lib) due to 3 previous errors
+warning: build failed, waiting for other jobs to finish...
+error: could not compile `game` (lib test) due to 3 previous errors
+
+>>> EXIT STATUS: 101
+
+=== DEPENDENCY FEATURES ===
+
+
+================================================================
+>>> cargo tree -e features
+================================================================
+game v0.1.0 (/home/me/dev/rust/td/game)
+├── anyhow feature "default"
+│   ├── anyhow v1.0.104
+│   └── anyhow feature "std"
+│       └── anyhow v1.0.104
+├── getrandom feature "default"
+│   └── getrandom v0.4.3
+│       ├── libc v0.2.189
+│       └── cfg-if feature "default"
+│           └── cfg-if v1.0.4
+├── rusqlite feature "bundled"
+│   ├── rusqlite v0.40.2
+│   │   ├── bitflags feature "default"
+│   │   │   └── bitflags v2.13.1
+│   │   ├── fallible-iterator feature "default"
+│   │   │   ├── fallible-iterator v0.3.0
+│   │   │   └── fallible-iterator feature "alloc"
+│   │   │       └── fallible-iterator v0.3.0
+│   │   ├── fallible-streaming-iterator feature "default"
+│   │   │   └── fallible-streaming-iterator v0.1.9
+│   │   ├── hashlink feature "default"
+│   │   │   └── hashlink v0.12.2
+│   │   │       └── hashbrown feature "default-hasher"
+│   │   │           └── hashbrown v0.17.1
+│   │   │               └── foldhash v0.2.0
+│   │   ├── libsqlite3-sys feature "default"
+│   │   │   ├── libsqlite3-sys v0.38.2
+│   │   │   │   [build-dependencies]
+│   │   │   │   ├── cc feature "default"
+│   │   │   │   │   └── cc v1.4.5
+│   │   │   │   │       ├── find-msvc-tools feature "default"
+│   │   │   │   │       │   └── find-msvc-tools v0.1.12
+│   │   │   │   │       └── shlex feature "default"
+│   │   │   │   │           ├── shlex v2.0.1
+│   │   │   │   │           └── shlex feature "std"
+│   │   │   │   │               └── shlex v2.0.1
+│   │   │   │   ├── pkg-config feature "default"
+│   │   │   │   │   └── pkg-config v0.3.34
+│   │   │   │   └── vcpkg feature "default"
+│   │   │   │       └── vcpkg v0.2.15
+│   │   │   └── libsqlite3-sys feature "min_sqlite_version_3_34_1"
+│   │   │       ├── libsqlite3-sys v0.38.2 (*)
+│   │   │       ├── libsqlite3-sys feature "pkg-config"
+│   │   │       │   └── libsqlite3-sys v0.38.2 (*)
+│   │   │       └── libsqlite3-sys feature "vcpkg"
+│   │   │           └── libsqlite3-sys v0.38.2 (*)
+│   │   └── smallvec feature "default"
+│   │       └── smallvec v1.16.0
+│   ├── rusqlite feature "modern_sqlite"
+│   │   ├── rusqlite v0.40.2 (*)
+│   │   └── libsqlite3-sys feature "bundled_bindings"
+│   │       └── libsqlite3-sys v0.38.2 (*)
+│   └── libsqlite3-sys feature "bundled"
+│       ├── libsqlite3-sys v0.38.2 (*)
+│       ├── libsqlite3-sys feature "bundled_bindings" (*)
+│       └── libsqlite3-sys feature "cc"
+│           └── libsqlite3-sys v0.38.2 (*)
+├── rusqlite feature "default"
+│   ├── rusqlite v0.40.2 (*)
+│   ├── rusqlite feature "cache"
+│   │   ├── rusqlite v0.40.2 (*)
+│   │   └── rusqlite feature "hashlink"
+│   │       └── rusqlite v0.40.2 (*)
+│   └── rusqlite feature "ffi-sqlite-wasm-rs"
+│       └── rusqlite v0.40.2 (*)
+├── serde feature "default"
+│   ├── serde v1.0.229
+│   │   ├── serde_core feature "result"
+│   │   │   └── serde_core v1.0.229
+│   │   └── serde_derive feature "default"
+│   │       └── serde_derive v1.0.229 (proc-macro)
+│   │           ├── proc-macro2 feature "proc-macro"
+│   │           │   └── proc-macro2 v1.0.107
+│   │           │       └── unicode-ident feature "default"
+│   │           │           └── unicode-ident v1.0.24
+│   │           ├── quote feature "proc-macro"
+│   │           │   ├── quote v1.0.47
+│   │           │   │   └── proc-macro2 v1.0.107 (*)
+│   │           │   └── proc-macro2 feature "proc-macro" (*)
+│   │           ├── syn feature "clone-impls"
+│   │           │   └── syn v3.0.3
+│   │           │       ├── proc-macro2 v1.0.107 (*)
+│   │           │       ├── quote v1.0.47 (*)
+│   │           │       └── unicode-ident feature "default" (*)
+│   │           ├── syn feature "derive"
+│   │           │   └── syn v3.0.3 (*)
+│   │           ├── syn feature "parsing"
+│   │           │   └── syn v3.0.3 (*)
+│   │           ├── syn feature "printing"
+│   │           │   └── syn v3.0.3 (*)
+│   │           └── syn feature "proc-macro"
+│   │               ├── syn v3.0.3 (*)
+│   │               ├── proc-macro2 feature "proc-macro" (*)
+│   │               └── quote feature "proc-macro" (*)
+│   └── serde feature "std"
+│       ├── serde v1.0.229 (*)
+│       └── serde_core feature "std"
+│           └── serde_core v1.0.229
+├── serde feature "derive"
+│   ├── serde v1.0.229 (*)
+│   └── serde feature "serde_derive"
+│       └── serde v1.0.229 (*)
+├── serde_json feature "default"
+│   ├── serde_json v1.0.151
+│   │   ├── memchr v2.8.3
+│   │   ├── serde_core v1.0.229
+│   │   ├── itoa feature "default"
+│   │   │   └── itoa v1.0.18
+│   │   └── zmij feature "default"
+│   │       └── zmij v1.0.23
+│   └── serde_json feature "std"
+│       ├── serde_json v1.0.151 (*)
+│       ├── serde_core feature "std" (*)
+│       └── memchr feature "std"
+│           ├── memchr v2.8.3
+│           └── memchr feature "alloc"
+│               └── memchr v2.8.3
+├── thiserror feature "default"
+│   ├── thiserror v2.0.20
+│   │   └── thiserror-impl feature "default"
+│   │       └── thiserror-impl v2.0.20 (proc-macro)
+│   │           ├── proc-macro2 feature "default"
+│   │           │   ├── proc-macro2 v1.0.107 (*)
+│   │           │   └── proc-macro2 feature "proc-macro" (*)
+│   │           ├── quote feature "default"
+│   │           │   ├── quote v1.0.47 (*)
+│   │           │   └── quote feature "proc-macro" (*)
+│   │           └── syn feature "default"
+│   │               ├── syn v3.0.3 (*)
+│   │               ├── syn feature "clone-impls" (*)
+│   │               ├── syn feature "derive" (*)
+│   │               ├── syn feature "parsing" (*)
+│   │               ├── syn feature "printing" (*)
+│   │               └── syn feature "proc-macro" (*)
+│   └── thiserror feature "std"
+│       └── thiserror v2.0.20 (*)
+├── tdx feature "default" (command-line)
+│   └── tdx v0.1.0 (/home/me/dev/rust/td/tdx)
+│       ├── td-types feature "default" (command-line)
+│       │   └── td-types v0.1.0 (/home/me/dev/rust/td/td-types)
+│       │       ├── serde feature "default" (*)
+│       │       └── serde feature "derive" (*)
+│       │       [build-dependencies]
+│       │       ├── td-codegen feature "default" (command-line)
+│       │       │   └── td-codegen v0.1.0 (/home/me/dev/rust/td/td-codegen)
+│       │       │       └── td-parser feature "default" (command-line)
+│       │       │           └── td-parser v0.1.0 (/home/me/dev/rust/td/td-parser)
+│       │       │               └── thiserror feature "default" (*)
+│       │       │       [dev-dependencies]
+│       │       │       ├── syn feature "default" (*)
+│       │       │       ├── syn feature "full"
+│       │       │       │   └── syn v3.0.3 (*)
+│       │       │       └── pretty_assertions feature "default"
+│       │       │           ├── pretty_assertions v1.4.1
+│       │       │           │   ├── diff feature "default"
+│       │       │           │   │   └── diff v0.1.13
+│       │       │           │   └── yansi feature "default"
+│       │       │           │       ├── yansi v1.0.1
+│       │       │           │       └── yansi feature "std"
+│       │       │           │           ├── yansi v1.0.1
+│       │       │           │           └── yansi feature "alloc"
+│       │       │           │               └── yansi v1.0.1
+│       │       │           └── pretty_assertions feature "std"
+│       │       │               └── pretty_assertions v1.4.1 (*)
+│       │       └── td-parser feature "default" (command-line) (*)
+│       │       [dev-dependencies]
+│       │       └── serde_json feature "default" (*)
+│       ├── thiserror feature "default" (*)
+│       └── td-client feature "default" (command-line)
+│           └── td-client v0.1.0 (/home/me/dev/rust/td/td-client)
+│               ├── serde feature "default" (*)
+│               ├── serde feature "derive" (*)
+│               ├── serde_json feature "default" (*)
+│               ├── td-sys feature "default" (command-line)
+│               │   └── td-sys v0.1.0 (/home/me/dev/rust/td/td-sys)
+│               │       [dev-dependencies]
+│               │       ├── serde_json feature "default" (*)
+│               │       └── td-types feature "default" (command-line) (*)
+│               ├── td-types feature "default" (command-line) (*)
+│               ├── thiserror feature "default" (*)
+│               ├── tokio feature "default"
+│               │   └── tokio v1.53.1
+│               │       ├── mio v1.2.2
+│               │       │   └── libc feature "default"
+│               │       │       ├── libc v0.2.189
+│               │       │       └── libc feature "std"
+│               │       │           └── libc v0.2.189
+│               │       ├── libc feature "default" (*)
+│               │       ├── bytes feature "default"
+│               │       │   ├── bytes v1.12.1
+│               │       │   └── bytes feature "std"
+│               │       │       └── bytes v1.12.1
+│               │       ├── pin-project-lite feature "default"
+│               │       │   └── pin-project-lite v0.2.17
+│               │       ├── signal-hook-registry feature "default"
+│               │       │   └── signal-hook-registry v1.4.8
+│               │       │       ├── libc feature "default" (*)
+│               │       │       └── errno feature "default"
+│               │       │           ├── errno v0.3.14
+│               │       │           │   └── libc v0.2.189
+│               │       │           └── errno feature "std"
+│               │       │               ├── errno v0.3.14 (*)
+│               │       │               └── libc feature "std" (*)
+│               │       └── tokio-macros feature "default"
+│               │           └── tokio-macros v2.7.2 (proc-macro)
+│               │               ├── proc-macro2 feature "default" (*)
+│               │               ├── quote feature "default" (*)
+│               │               ├── syn feature "default" (*)
+│               │               └── syn feature "full" (*)
+│               ├── tokio feature "macros"
+│               │   ├── tokio v1.53.1 (*)
+│               │   └── tokio feature "tokio-macros"
+│               │       └── tokio v1.53.1 (*)
+│               ├── tokio feature "sync"
+│               │   └── tokio v1.53.1 (*)
+│               └── tokio-util feature "default"
+│                   └── tokio-util v0.7.19
+│                       ├── tokio feature "default" (*)
+│                       ├── tokio feature "sync" (*)
+│                       ├── bytes feature "default" (*)
+│                       ├── pin-project-lite feature "default" (*)
+│                       ├── futures-core feature "default"
+│                       │   ├── futures-core v0.3.34
+│                       │   └── futures-core feature "std"
+│                       │       ├── futures-core v0.3.34
+│                       │       └── futures-core feature "alloc"
+│                       │           └── futures-core v0.3.34
+│                       └── futures-sink feature "default"
+│                           ├── futures-sink v0.3.34
+│                           └── futures-sink feature "std"
+│                               ├── futures-sink v0.3.34
+│                               └── futures-sink feature "alloc"
+│                                   └── futures-sink v0.3.34
+│               [build-dependencies]
+│               └── td-sys feature "default" (command-line) (*)
+│               [dev-dependencies]
+│               ├── anyhow feature "default" (*)
+│               ├── tokio feature "default" (*)
+│               ├── tokio feature "macros" (*)
+│               ├── tokio feature "process"
+│               │   ├── tokio v1.53.1 (*)
+│               │   ├── tokio feature "bytes"
+│               │   │   └── tokio v1.53.1 (*)
+│               │   ├── tokio feature "libc"
+│               │   │   └── tokio v1.53.1 (*)
+│               │   ├── tokio feature "mio"
+│               │   │   └── tokio v1.53.1 (*)
+│               │   ├── tokio feature "signal-hook-registry"
+│               │   │   └── tokio v1.53.1 (*)
+│               │   ├── mio feature "net"
+│               │   │   └── mio v1.2.2 (*)
+│               │   ├── mio feature "os-ext"
+│               │   │   ├── mio v1.2.2 (*)
+│               │   │   └── mio feature "os-poll"
+│               │   │       └── mio v1.2.2 (*)
+│               │   └── mio feature "os-poll" (*)
+│               ├── tokio feature "rt-multi-thread"
+│               │   ├── tokio v1.53.1 (*)
+│               │   └── tokio feature "rt"
+│               │       └── tokio v1.53.1 (*)
+│               └── tokio feature "time"
+│                   └── tokio v1.53.1 (*)
+│       [build-dependencies]
+│       └── td-sys feature "default" (command-line) (*)
+│       [dev-dependencies]
+│       ├── anyhow feature "default" (*)
+│       ├── serde feature "default" (*)
+│       ├── serde feature "derive" (*)
+│       ├── serde_json feature "default" (*)
+│       ├── tokio feature "default" (*)
+│       ├── tokio feature "macros" (*)
+│       ├── tokio feature "process" (*)
+│       ├── tokio feature "rt" (*)
+│       ├── tokio feature "signal"
+│       │   ├── tokio v1.53.1 (*)
+│       │   ├── tokio feature "libc" (*)
+│       │   ├── tokio feature "mio" (*)
+│       │   ├── tokio feature "signal-hook-registry" (*)
+│       │   ├── mio feature "net" (*)
+│       │   ├── mio feature "os-ext" (*)
+│       │   └── mio feature "os-poll" (*)
+│       ├── tokio feature "time" (*)
+│       ├── tracing feature "default"
+│       │   ├── tracing v0.1.44
+│       │   │   ├── tracing-core v0.1.36
+│       │   │   │   └── once_cell feature "default"
+│       │   │   │       ├── once_cell v1.21.4
+│       │   │   │       └── once_cell feature "std"
+│       │   │   │           ├── once_cell v1.21.4
+│       │   │   │           └── once_cell feature "alloc"
+│       │   │   │               ├── once_cell v1.21.4
+│       │   │   │               └── once_cell feature "race"
+│       │   │   │                   └── once_cell v1.21.4
+│       │   │   ├── pin-project-lite feature "default" (*)
+│       │   │   └── tracing-attributes feature "default"
+│       │   │       └── tracing-attributes v0.1.31 (proc-macro)
+│       │   │           ├── proc-macro2 feature "default" (*)
+│       │   │           ├── quote feature "default" (*)
+│       │   │           ├── syn feature "clone-impls"
+│       │   │           │   └── syn v2.0.119
+│       │   │           │       ├── proc-macro2 v1.0.107 (*)
+│       │   │           │       ├── quote v1.0.47 (*)
+│       │   │           │       └── unicode-ident feature "default" (*)
+│       │   │           ├── syn feature "extra-traits"
+│       │   │           │   └── syn v2.0.119 (*)
+│       │   │           ├── syn feature "full"
+│       │   │           │   └── syn v2.0.119 (*)
+│       │   │           ├── syn feature "parsing"
+│       │   │           │   └── syn v2.0.119 (*)
+│       │   │           ├── syn feature "printing"
+│       │   │           │   └── syn v2.0.119 (*)
+│       │   │           ├── syn feature "proc-macro"
+│       │   │           │   ├── syn v2.0.119 (*)
+│       │   │           │   ├── proc-macro2 feature "proc-macro" (*)
+│       │   │           │   └── quote feature "proc-macro" (*)
+│       │   │           └── syn feature "visit-mut"
+│       │   │               └── syn v2.0.119 (*)
+│       │   ├── tracing feature "attributes"
+│       │   │   ├── tracing v0.1.44 (*)
+│       │   │   └── tracing feature "tracing-attributes"
+│       │   │       └── tracing v0.1.44 (*)
+│       │   └── tracing feature "std"
+│       │       ├── tracing v0.1.44 (*)
+│       │       └── tracing-core feature "std"
+│       │           ├── tracing-core v0.1.36 (*)
+│       │           └── tracing-core feature "once_cell"
+│       │               └── tracing-core v0.1.36 (*)
+│       └── tracing-subscriber feature "default"
+│           ├── tracing-subscriber v0.3.23
+│           │   ├── tracing-core v0.1.36 (*)
+│           │   ├── smallvec feature "default" (*)
+│           │   ├── nu-ansi-term feature "default"
+│           │   │   ├── nu-ansi-term v0.50.3
+│           │   │   └── nu-ansi-term feature "std"
+│           │   │       └── nu-ansi-term v0.50.3
+│           │   ├── sharded-slab feature "default"
+│           │   │   └── sharded-slab v0.1.7
+│           │   │       └── lazy_static feature "default"
+│           │   │           └── lazy_static v1.5.0
+│           │   ├── thread_local feature "default"
+│           │   │   └── thread_local v1.1.10
+│           │   │       └── cfg-if feature "default" (*)
+│           │   ├── tracing-log feature "log-tracer"
+│           │   │   └── tracing-log v0.2.0
+│           │   │       ├── tracing-core feature "default"
+│           │   │       │   ├── tracing-core v0.1.36 (*)
+│           │   │       │   └── tracing-core feature "std" (*)
+│           │   │       ├── once_cell feature "default" (*)
+│           │   │       └── log feature "default"
+│           │   │           └── log v0.4.34
+│           │   └── tracing-log feature "std"
+│           │       ├── tracing-log v0.2.0 (*)
+│           │       └── log feature "std"
+│           │           ├── log v0.4.34
+│           │           └── log feature "alloc"
+│           │               └── log v0.4.34
+│           ├── tracing-subscriber feature "ansi"
+│           │   ├── tracing-subscriber v0.3.23 (*)
+│           │   ├── tracing-subscriber feature "fmt"
+│           │   │   ├── tracing-subscriber v0.3.23 (*)
+│           │   │   ├── tracing-subscriber feature "registry"
+│           │   │   │   ├── tracing-subscriber v0.3.23 (*)
+│           │   │   │   ├── tracing-subscriber feature "sharded-slab"
+│           │   │   │   │   └── tracing-subscriber v0.3.23 (*)
+│           │   │   │   ├── tracing-subscriber feature "std"
+│           │   │   │   │   ├── tracing-subscriber v0.3.23 (*)
+│           │   │   │   │   ├── tracing-core feature "std" (*)
+│           │   │   │   │   └── tracing-subscriber feature "alloc"
+│           │   │   │   │       └── tracing-subscriber v0.3.23 (*)
+│           │   │   │   └── tracing-subscriber feature "thread_local"
+│           │   │   │       └── tracing-subscriber v0.3.23 (*)
+│           │   │   └── tracing-subscriber feature "std" (*)
+│           │   └── tracing-subscriber feature "nu-ansi-term"
+│           │       └── tracing-subscriber v0.3.23 (*)
+│           ├── tracing-subscriber feature "fmt" (*)
+│           ├── tracing-subscriber feature "smallvec"
+│           │   └── tracing-subscriber v0.3.23 (*)
+│           ├── tracing-subscriber feature "std" (*)
+│           └── tracing-subscriber feature "tracing-log"
+│               └── tracing-subscriber v0.3.23 (*)
+├── tokio feature "default" (*)
+├── tokio feature "macros" (*)
+├── tokio feature "rt-multi-thread" (*)
+├── tokio feature "signal" (*)
+├── tokio feature "sync" (*)
+├── tokio feature "time" (*)
+├── tracing feature "default" (*)
+└── tracing-subscriber feature "default" (*)
+[build-dependencies]
+└── td-sys feature "default" (command-line) (*)
+
+td-client v0.1.0 (/home/me/dev/rust/td/td-client) (*)
+
+td-codegen v0.1.0 (/home/me/dev/rust/td/td-codegen) (*)
+
+td-parser v0.1.0 (/home/me/dev/rust/td/td-parser) (*)
+
+td-sys v0.1.0 (/home/me/dev/rust/td/td-sys) (*)
+
+td-types v0.1.0 (/home/me/dev/rust/td/td-types) (*)
+
+tdx v0.1.0 (/home/me/dev/rust/td/tdx) (*)
+
+>>> EXIT STATUS: 0
+
+=== FINAL GIT STATUS ===
+
+
+================================================================
+>>> git status --short --branch
+================================================================
+## tdx...origin/tdx
+M  Cargo.lock
+M  Cargo.toml
+M  README.md
+AM _handoff_manifest.json
+D  assets/architecture.svg
+AM diagnostics-sandbox.txt
+AM docs/handoff/00_handoff/ARTIFACT_LINEAGE.md
+AM docs/handoff/00_handoff/CURRENT_STATE.md
+A  docs/handoff/00_handoff/FUTURE_AI_BOOTSTRAP.md
+A  docs/handoff/00_handoff/LOST_UX_IMPLEMENTATION.md
+A  docs/handoff/00_handoff/ORIGINAL_UX_REQUEST_AND_AUDIT_2026-09-09.md
+A  docs/handoff/00_handoff/RESTORED_UX_2026-09-09.md
+AM docs/handoff/00_handoff/SESSION_HISTORY.md
+A  docs/handoff/00_handoff/START_HERE.md
+A  docs/handoff/00_handoff/USER_PREFERENCES.md
+A  docs/handoff/01_product/DECISIONS.md
+A  docs/handoff/01_product/LONG_TERM_DIRECTION.md
+A  docs/handoff/01_product/MVP_AND_ROADMAP.md
+A  docs/handoff/01_product/OPEN_QUESTIONS.md
+A  docs/handoff/01_product/PRODUCT_VISION.md
+A  docs/handoff/02_game_design/CONTENT_AND_FEATURE_STATUS.md
+A  docs/handoff/02_game_design/FISHING_CURRENT_MODEL.md
+A  docs/handoff/02_game_design/ITEMS_ECONOMY_PROCEDURAL.md
+A  docs/handoff/02_game_design/PROGRESSION_AND_SPECIALIZATION.md
+A  docs/handoff/02_game_design/SOCIAL_MMO_DESIGN.md
+A  docs/handoff/02_game_design/WORLD_AND_DISCOVERY.md
+A  docs/handoff/03_ux/COMMANDS_AND_NAVIGATION.md
+A  docs/handoff/03_ux/GROUP_CHAT_UX.md
+A  docs/handoff/03_ux/PLAYER_COPY_STYLE.md
+A  docs/handoff/03_ux/PRIVATE_CHAT_UX.md
+A  docs/handoff/03_ux/SCREEN_BLUEPRINTS.md
+A  docs/handoff/03_ux/UX_PRINCIPLES.md
+A  docs/handoff/04_telegram/EPHEMERAL_AND_RATE_LIMITS.md
+A  docs/handoff/04_telegram/PLATFORM_2026.md
+A  docs/handoff/04_telegram/RICH_MESSAGES_AND_BUTTONS.md
+A  docs/handoff/04_telegram/SCHEMA_FETCH_CHECKLIST.md
+A  docs/handoff/04_telegram/TDX_EVOLUTION.md
+AM docs/handoff/04_telegram/TDX_FORMATTING_COMPOSITION_2026-09-10.md
+A  docs/handoff/05_technical/ARCHITECTURE.md
+A  docs/handoff/05_technical/DIAGNOSTICS.md
+A  docs/handoff/05_technical/IMPLEMENTATION_STATUS.md
+A  docs/handoff/05_technical/PERSISTENCE_AND_CONCURRENCY.md
+A  docs/handoff/05_technical/REAL_DIAGNOSTIC_FIXES.md
+AM docs/handoff/05_technical/REFACTOR_AND_TECH_DEBT.md
+A  docs/handoff/05_technical/SCALING.md
+A  docs/handoff/06_roadmap/FUTURE_SYSTEMS.md
+AM docs/handoff/06_roadmap/NEXT_ITERATION.md
+A  docs/handoff/06_roadmap/PLAYTESTING.md
+AM docs/handoff/07_reference/DECISION_LOG.md
+A  docs/handoff/07_reference/GLOSSARY.md
+AM docs/handoff/07_reference/MANIFEST.md
+AM docs/handoff/07_reference/READING_MAP.md
+A  docs/handoff/99_archive/README.md
+A  "docs/handoff/99_archive/original_design/Fishing System Specification v0.md"
+A  "docs/handoff/99_archive/original_design/Game Design Foundation.md"
+A  "docs/handoff/99_archive/original_design/MVP-0 Rust Architecture.md"
+A  "docs/handoff/99_archive/original_design/MVP-0 Specification.md"
+A  docs/handoff/99_archive/original_diagnostics/DIAGNOSTIC_REPORT.md
+A  docs/handoff/99_archive/original_diagnostics/TECH_DEBT_PASS.md
+A  docs/handoff/README.md
+A  game/.gitignore
+AM game/AGENTS.md
+A  game/Cargo.toml
+A  game/README.md
+A  game/build.rs
+A  game/content/game.json
+A  game/migrations/0001_init.sql
+A  game/migrations/0002_progression.sql
+A  game/migrations/0003_world_loop.sql
+A  game/migrations/0004_social_crafting.sql
+AM game/src/app/angling.rs
+AM game/src/app/character.rs
+AM game/src/app/economy.rs
+AM game/src/app/mod.rs
+AM game/src/app/progression.rs
+AM game/src/app/social.rs
+AM game/src/app/tests.rs
+AM game/src/content.rs
+AM game/src/db.rs
+AM game/src/fishing.rs
+AM game/src/ids.rs
+A  game/src/lib.rs
+A  game/src/main.rs
+AM game/src/rng.rs
+AM game/src/telegram/callback.rs
+AM game/src/telegram/dispatch.rs
+AM game/src/telegram/mod.rs
+AM game/src/telegram/present/core.rs
+AM game/src/telegram/present/fishing.rs
+AM game/src/telegram/present/mod.rs
+AM game/src/telegram/present/progression.rs
+AM game/src/telegram/present/social.rs
+AM game/src/telegram/present/world.rs
+AM game/src/timer.rs
+AM game/src/view.rs
+AM game/src/world.rs
+M  td/fetch
+M  tdx/examples/echo-handler.rs
+M  tdx/examples/fishing/ui.rs
+M  tdx/examples/showcase.rs
+M  tdx/examples/workflow.rs
+M  tdx/src/action/send.rs
+M  tdx/src/command.rs
+M  tdx/src/compose/markup.rs
+M  tdx/src/format.rs
+M  tdx/src/format/rich.rs
+M  tdx/src/format/rich/block.rs
+M  tdx/src/format/rich/table.rs
+M  tdx/src/format/style.rs
+M  tdx/src/format/text.rs
+M  tdx/src/lib.rs
+MM tdx/tests/format.rs
+M  tdx/tests/inspect.rs
+M  tdx/tests/requests.rs
+A  tools/HANDOFF.md
+A  tools/collect-diagnostics.sh
+A  tools/handoff.py
+A  tools/make-handoff.sh
+?? diagnostics.txt
+?? docs/handoff/05_technical/GAME_MAINTAINABILITY_PASS_2026-09-10.md
+
+>>> EXIT STATUS: 0
+
+=== SUMMARY ===
+Recorded failing/missing checks: 11
+Return this entire file with the next project handoff.
