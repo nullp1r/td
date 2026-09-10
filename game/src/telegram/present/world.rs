@@ -106,7 +106,8 @@ fn locations_markup(view: &LocationsView) -> enums::ReplyMarkup {
 fn conditions_content(view: &ConditionsView) -> types::inputMessageRichMessage {
   let mut blocks = vec![
     heading(format!("🌦 Conditions · {}", view.location_name), 1),
-    table().header(("Signal", "Now"))
+    table()
+      .header(("Signal", "Now"))
       .row(("Game time", format_game_time(view.environment.game_minute)))
       .row(("Day part", view.environment.day_part.label()))
       .row(("Weather", view.environment.weather.label()))
@@ -157,12 +158,11 @@ pub(super) fn records_content(view: &RecordsView) -> types::inputMessageRichMess
     ))]));
   }
   if !view.entries.is_empty() {
-    let records = table().header(("Species", "Your best", "World best")).rows(
-      view.entries.iter().map(|entry| (entry.species_name.as_str(), format_weight(entry.personal_best_g), format_weight(entry.world_best_g))),
-    );
+    let records = table()
+      .header(("Species", "Your best", "World best"))
+      .rows(view.entries.iter().map(|entry| (entry.species_name.as_str(), format_weight(entry.personal_best_g), format_weight(entry.world_best_g))));
     blocks.extend([heading("⭐ Personal bests", 2), records.striped().compact().into()]);
   }
   blocks.push(paragraph(italic("Records include specimens that were later sold, turned in, or processed into bait.")));
   rich(blocks)
 }
-

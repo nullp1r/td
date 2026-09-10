@@ -2,8 +2,8 @@
 
 use std::assert_matches;
 
-use tdx::{command, enums::TextEntityType};
 use tdx::prelude::*;
+use tdx::{command, enums::TextEntityType};
 
 #[test]
 fn commands_agree_across_text_content_and_message() {

@@ -1,6 +1,6 @@
 # Game Maintainability Pass — 2026-09-10
 
-> **Status:** implemented in source; compiler/rustfmt/Clippy validation still required on the user's Rust-equipped machine.
+> **Status:** implemented; first real compiler/rustfmt/Clippy diagnostics repaired; one clean rerun is still required.
 
 ## Why this pass happened
 
@@ -14,8 +14,8 @@ Production Rust here means `game/src/**/*.rs` excluding `app/tests.rs`.
 
 | Metric | Before | After | Delta |
 |---|---:|---:|---:|
-| Production lines | 5,285 | 5,190 | **-95** |
-| Comment/doc-comment lines | 7 | 72 | **+65** |
+| Production lines | 5,285 | 5,166 | **-119** |
+| Comment/doc-comment lines | 7 | 74 | **+67** |
 
 The crate therefore became smaller despite adding substantially more documentation. LOC was used as design feedback, not as a target for dense one-liners: `angling.rs` and `social.rs` intentionally grew where named state/transaction boundaries made persisted behavior easier to audit, while larger reductions came from duplicated database/application/presenter mechanics.
 
@@ -129,8 +129,21 @@ impl<T: IntoRichText> IntoRichText for Styled<'_, T> {
 
 This is part of the current formatting lineage and must not be lost in later handoffs.
 
+## First real diagnostics follow-up
+
+The user ran `tools/collect-diagnostics.sh` against the exact packaged maintainability tree; `verify-tree` passed before the compiler matrix. That run exposed a small set of integration errors rather than a structural problem with the refactor. The follow-up source fixes are:
+
+- preserve the user's required scalar `Styled<T>: IntoRichText::into_rich_text` implementation;
+- derive `Clone` alongside `Copy` for the three intentionally copyable scalar view records;
+- make Telegram dispatcher branches explicitly discard TDLib response values when the surrounding match is side-effect-only;
+- construct formatted Rich Message/request values before `.await` where `fmt::Arguments` temporaries would otherwise make a spawned callback future non-`Send`;
+- make the tuple-composition ownership test borrow the original `Text` and move a clone, rather than borrowing and moving the same binding in one tuple;
+- apply the complete rustfmt diff emitted by the real toolchain and remove the newly introduced extra blank lines at EOF.
+
+No gameplay rules, schema, migrations, content, or player-facing behavior were changed by this diagnostics repair.
+
 ## Verification status
 
-The artifact environment has no Rust compiler, Cargo, rustfmt, or Clippy. Static source scans, delimiter checks, TDLib schema checks, SQLite integrity checks, handoff tooling, and runtime-state hash checks can be performed here, but the refactor is **not compiler-verified** until the user runs `tools/collect-diagnostics.sh` on the packaged tree.
+The artifact environment has no Rust compiler, Cargo, rustfmt, or Clippy. The first real diagnostics identified the issues above, and this tree repairs them by source inspection, but a **fresh clean diagnostic rerun is still required** because compiler blockers can mask later Clippy/test failures. Static source scans, TDLib schema checks, SQLite integrity checks, handoff tooling, and runtime-state hash checks are performed before packaging.
 
-The next change after this pass should be driven by those concrete diagnostics and playtesting, not by another speculative structural rewrite.
+After that rerun, further work should be driven by playtesting rather than another speculative structural rewrite.

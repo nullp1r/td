@@ -1,7 +1,7 @@
 === ENVIRONMENT ===
-2026-09-09T23:40:57+00:00
+2026-09-10T00:04:43+00:00
 Linux localhost 6.18.35 #1 SMP Mon Aug 31 18:10:37 UTC 2026 x86_64 GNU/Linux
-root=/mnt/data/_maintainability_prelim_unpack
+root=/mnt/data/_maintainability_fixes_unpack
 CARGO_NET_OFFLINE=true
 
 === GIT ===

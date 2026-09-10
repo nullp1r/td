@@ -325,10 +325,9 @@ async fn crafting_consumes_a_specimen_but_preserves_records() {
   assert_eq!(inventory.baits.iter().find(|bait| bait.id == FISH_CHUNKS_BAIT).expect("fish chunks").quantity, 4);
   assert_eq!(app.records(53).await.expect("records").lifetime_catches, 1);
 
-  let consumed: bool = db_call(&app, move |connection| {
-    connection.query_row("SELECT EXISTS(SELECT 1 FROM craft_consumptions WHERE item_id = ?1)", [item_id], |row| row.get(0))
-  })
-  .await;
+  let consumed: bool =
+    db_call(&app, move |connection| connection.query_row("SELECT EXISTS(SELECT 1 FROM craft_consumptions WHERE item_id = ?1)", [item_id], |row| row.get(0)))
+      .await;
   assert!(consumed);
 }
 

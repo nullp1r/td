@@ -111,12 +111,7 @@ async fn show_info(client: &Client, source: &types::message) -> Result<()> {
   let req = fns::getChat { chat_id: source.chat_id };
   let enums::Chat::chat(chat) = client.send(&req).await?;
 
-  let mut text = lines((
-    bold(chat.title),
-    "",
-    ("Chat ID: ", code(source.chat_id)),
-    ("Message ID: ", code(source.id)),
-  ));
+  let mut text = lines((bold(chat.title), "", ("Chat ID: ", code(source.chat_id)), ("Message ID: ", code(source.id))));
 
   if let MessageSender::messageSenderUser(sender) = &source.sender_id {
     let req = fns::getUser { user_id: sender.user_id };

@@ -13,7 +13,8 @@ fn tuple_text_keeps_utf16_offsets_when_borrowed_moved_and_joined() {
   use TextEntityType::{textEntityTypeBold as Bold, textEntityTypeItalic as Italic};
 
   let fragment = line(bold(italic("🦀é")));
-  let text = lines((("Hi ", &fragment), "", fragment));
+  let moved = fragment.clone();
+  let text = lines((("Hi ", &fragment), "", moved));
   assert_eq!(&*text, "Hi 🦀é\n\n🦀é");
 
   let spans: Vec<_> = text.entities().iter().map(|entity| (entity.offset, entity.length, &entity.r#type)).collect();
@@ -195,11 +196,7 @@ fn native_parsers_agree_with_composition_and_reject_bad_html() {
 fn rich_button_rows_keep_styles_and_callback_payloads() -> Result<()> {
   use tdx::enums::{ButtonStyle, InlineKeyboardButtonType};
 
-  let row = button_row([
-    success_callback_button("Cast", b"cast"),
-    primary_callback_button("Explore", b"explore"),
-    danger_callback_button("Cut", b"cut"),
-  ]);
+  let row = button_row([success_callback_button("Cast", b"cast"), primary_callback_button("Explore", b"explore"), danger_callback_button("Cut", b"cut")]);
   let InputPageBlock::inputPageBlockButtonRow(row) = row else { bail!("expected rich button row") };
   let [cast, explore, cut] = row.buttons.as_slice() else { bail!("expected three buttons") };
   assert_eq!(cast.style, ButtonStyle::buttonStyleSuccess);

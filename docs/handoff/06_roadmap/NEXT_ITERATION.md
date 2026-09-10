@@ -1,10 +1,10 @@
 # Next Iteration — Recommended Plan
 
-> **Status:** current handoff recommendation
+> **Status:** diagnostics-fix candidate; rerun + playtest
 
-The UX/social Telegram pass, `tdx` tuple-formatting redesign, and 2026-09-10 game maintainability pass are implemented in source. The next iteration should be **diagnostics + playtesting**, not another structural rewrite.
+The UX/social Telegram pass, `tdx` tuple-formatting redesign, and 2026-09-10 game maintainability pass are implemented. The first real diagnostics from the exact maintainability handoff have been repaired. The next iteration should be a **clean diagnostics rerun followed by playtesting**, not another structural rewrite.
 
-## 0. Verify that diagnostics are from this exact handoff
+## 0. Verify this exact handoff
 
 From the extracted project root:
 
@@ -13,13 +13,19 @@ python3 tools/handoff.py verify-tree
 ./tools/collect-diagnostics.sh
 ```
 
-`verify-tree` exists because one earlier diagnostic report was accidentally collected from an older checkout. Do not act on compiler output until the source tree matches the embedded handoff manifest.
+Do not act on compiler output unless `verify-tree` first confirms the source tree matches the embedded handoff manifest.
 
-## 1. Repair compiler/rustfmt/strict-Clippy fallout
+## 1. What the first diagnostics repaired
 
-Pay particular attention to the maintainability changes around typed SQLite IDs, `Db::job`/`App::run_db`, private fixture constants, angling timer state, and group-shoal transactions. The artifact environment cannot compile Rust.
+The exact-tree run found and this candidate fixes:
 
-The user already identified and fixed one real `tdx` issue: `Styled<T>: IntoRichText` must implement `into_rich_text` explicitly; that fix is present in this tree.
+- missing `Clone` alongside `Copy` on three scalar view records;
+- side-effect Telegram `match` arms accidentally returning TDLib response values;
+- a tuple-composition test borrowing and moving the same `Text`;
+- a spawned callback future made non-`Send` by formatting temporaries surviving into an awaited presenter expression;
+- the rustfmt/EOF-whitespace diff produced by the real toolchain.
+
+The user's required `Styled<T>: IntoRichText::into_rich_text` correction remains present. No gameplay/content/schema changes were made in this repair.
 
 ## 2. Playtest the Telegram UX
 
@@ -33,8 +39,4 @@ Exercise at least:
 - headerless tables on current Telegram clients;
 - native relative shoal timestamp updating while the message sits idle.
 
-Treat confusion, stale presentation, inaccessible navigation, or misleading player copy as product defects.
-
-## 3. Re-run diagnostics after fixes
-
-A green compiler/test/rustfmt/Clippy matrix is the gate before adding more systems. Preserve the maintainability constraints from `05_technical/GAME_MAINTAINABILITY_PASS_2026-09-10.md`: no speculative frameworks, keep persisted protocol/state mappings explicit, and do not widen production APIs merely for tests.
+Treat confusion, stale presentation, inaccessible navigation, or misleading player copy as product defects. Preserve the maintainability constraints in `05_technical/GAME_MAINTAINABILITY_PASS_2026-09-10.md`.

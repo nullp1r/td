@@ -67,7 +67,7 @@ See `04_telegram/TDX_FORMATTING_COMPOSITION_2026-09-10.md`.
 ## Game maintainability correction — 2026-09-10
 
 - Every game source module has a responsibility-level module doc; comments are for invariants/contracts/policy, not narration.
-- Production `game/src` must remain smaller after the readability pass; the measured result is 5,285 → 5,190 lines while comment/doc-comment lines rise 7 → 72.
+- Production `game/src` must remain smaller after the readability pass; the measured result is 5,285 → 5,166 lines while comment/doc-comment lines rise 7 → 74.
 - SQLite values become typed domain IDs at the query boundary.
 - `Db` transports jobs/results; `App` owns application error policy.
 - Closed gameplay definitions such as objectives and recipes should be declarative while persisted numeric IDs remain explicit/stable.
@@ -75,4 +75,3 @@ See `04_telegram/TDX_FORMATTING_COMPOSITION_2026-09-10.md`.
 - Do not introduce repositories, state-machine frameworks, compatibility layers, or one-use helpers merely to shorten files.
 
 See `05_technical/GAME_MAINTAINABILITY_PASS_2026-09-10.md`.
-

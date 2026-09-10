@@ -47,5 +47,4 @@ Never choose a base tree solely from an artifact name in this file. Inspect the 
 
 ### `tdx` formatting + game maintainability lineage — 2026-09-10
 
-The current source advances from the tuple-formatting fixes with the user's `Styled<T>: IntoRichText` compiler correction and a crate-wide maintainability pass over `game`. The pass is documented in `05_technical/GAME_MAINTAINABILITY_PASS_2026-09-10.md` and remains compiler-unverified in the artifact environment. The packaged handoff name should identify it as the 2026-09-10 maintainability build; use the ZIP's external SHA-256 plus embedded `_handoff_manifest.json` rather than trusting this historical filename alone.
-
+The current source advances from the tuple-formatting fixes with the user's `Styled<T>: IntoRichText` compiler correction and a crate-wide maintainability pass over `game`. The first real diagnostics from the exact maintainability archive were then repaired without changing gameplay. The next packaged handoff is named `telegram-mmo-rpg-maintainability-fixes-2026-09-10.zip`; use its external SHA-256 plus embedded `_handoff_manifest.json` rather than trusting this historical filename alone.

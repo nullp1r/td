@@ -209,7 +209,7 @@ pub struct RecordsView {
   pub entries: Vec<RecordEntryView>,
 }
 
-#[derive(Copy, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct TitleOptionView {
   pub id: u32,
   pub name: &'static str,
@@ -267,14 +267,14 @@ pub struct GroupCatchView {
   pub event: GroupEventView,
 }
 
-#[derive(Copy, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct SaleView {
   pub sold: u32,
   pub coins_gained: u64,
   pub coins: u64,
 }
 
-#[derive(Copy, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct CastStarted {
   pub due_at_ms: i64,
 }
@@ -354,4 +354,3 @@ pub enum TimerOutcome {
   Escaped(EscapeView),
   Stale,
 }
-

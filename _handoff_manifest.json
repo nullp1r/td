@@ -1,5 +1,5 @@
 {
-  "created_at": "2026-09-09T23:41:10.346062+00:00",
+  "created_at": "2026-09-10T00:04:54.366903+00:00",
   "files": [
     {
       "path": ".gitignore",
@@ -33,23 +33,23 @@
     },
     {
       "path": "diagnostics-sandbox.txt",
-      "sha256": "8eb49e50fbd1b75710cb4120966a8708e9b45b27d6b5c20d6cd033baefd1e85b",
-      "size": 2241
+      "sha256": "d3cfeebc9f19e6018fbad207f33e126c587fe6adf792876dfd9f837df0b8024a",
+      "size": 2240
     },
     {
       "path": "diagnostics.txt",
-      "sha256": "8eb49e50fbd1b75710cb4120966a8708e9b45b27d6b5c20d6cd033baefd1e85b",
-      "size": 2241
+      "sha256": "d3cfeebc9f19e6018fbad207f33e126c587fe6adf792876dfd9f837df0b8024a",
+      "size": 2240
     },
     {
       "path": "docs/handoff/00_handoff/ARTIFACT_LINEAGE.md",
-      "sha256": "f138c67f7199c5e5f81fd9a539d5211028b091f335bf71eb48230370d29fad3d",
-      "size": 2647
+      "sha256": "699e2de8f181ccdb7262953ec4d80b44477a14acca0ea3721fb4bd73b5c53afb",
+      "size": 2616
     },
     {
       "path": "docs/handoff/00_handoff/CURRENT_STATE.md",
-      "sha256": "16b213fbd32d12f372773daaef089e7edd56b2ee4da9eb9205dea29ca6f5da34",
-      "size": 6240
+      "sha256": "705cb1c320cec3b1948ca3aa9318917d112fed2e930357cfc76876d85194b51b",
+      "size": 6604
     },
     {
       "path": "docs/handoff/00_handoff/FUTURE_AI_BOOTSTRAP.md",
@@ -73,8 +73,8 @@
     },
     {
       "path": "docs/handoff/00_handoff/SESSION_HISTORY.md",
-      "sha256": "ad7c98aebe3320161fe834d3b4510264cabfae3d9b96b978dacb7918e616104e",
-      "size": 8148
+      "sha256": "40f9c8b00d0c58acf07da3c7a69cd82b2e04a7e5b68550799c6ba203e5846646",
+      "size": 8576
     },
     {
       "path": "docs/handoff/00_handoff/START_HERE.md",
@@ -198,7 +198,7 @@
     },
     {
       "path": "docs/handoff/04_telegram/TDX_FORMATTING_COMPOSITION_2026-09-10.md",
-      "sha256": "166ad55a68899b982c4b5723653867b99c76a10ed948112f894bfcf60f23242f",
+      "sha256": "86ec6ef824155e212d22c033c9f694381c3c3258a76d08c5814a44944106febd",
       "size": 7853
     },
     {
@@ -213,8 +213,8 @@
     },
     {
       "path": "docs/handoff/05_technical/GAME_MAINTAINABILITY_PASS_2026-09-10.md",
-      "sha256": "f7aac69e28ce6d3c768ef1638f57c81a85485e4536ab343c83f3c4407c1764a3",
-      "size": 8424
+      "sha256": "8bcbf4eaae014a6345aba456e729b9145d6d0dcf15d4a7f28661bf76e9fcdeb6",
+      "size": 9669
     },
     {
       "path": "docs/handoff/05_technical/IMPLEMENTATION_STATUS.md",
@@ -233,8 +233,8 @@
     },
     {
       "path": "docs/handoff/05_technical/REFACTOR_AND_TECH_DEBT.md",
-      "sha256": "bacf338c92871e1c2e626519a6ceb1c03086a4080514a26d23d751d66901fcdc",
-      "size": 2300
+      "sha256": "1cc6285dec93bbf3e1210fbc60fee8f284176b075dad5fc1f1cc20c713e8c015",
+      "size": 2793
     },
     {
       "path": "docs/handoff/05_technical/SCALING.md",
@@ -248,8 +248,8 @@
     },
     {
       "path": "docs/handoff/06_roadmap/NEXT_ITERATION.md",
-      "sha256": "b53760edfbe9584b56c94444f7f6de4cc3f09f11d15b2bc98e7417e573b05ce3",
-      "size": 2107
+      "sha256": "9db840767077ec236db436c57f4094aa30e53447c960405053489580e35bd575",
+      "size": 2057
     },
     {
       "path": "docs/handoff/06_roadmap/PLAYTESTING.md",
@@ -258,8 +258,8 @@
     },
     {
       "path": "docs/handoff/07_reference/DECISION_LOG.md",
-      "sha256": "40c75bca90b4ed4e87b3fb59881c56dbdfcc06b9819dc464548ced3a8f8e4f9f",
-      "size": 3470
+      "sha256": "f3415210f4625be669240a71e1e4db2beb346a91ed67060fbbe53ca8155f8236",
+      "size": 3469
     },
     {
       "path": "docs/handoff/07_reference/GLOSSARY.md",
@@ -268,7 +268,7 @@
     },
     {
       "path": "docs/handoff/07_reference/MANIFEST.md",
-      "sha256": "9f2e2e935085c6d9d1351e5aaceeb2a5cf2fc918e06882f66dec98dd6a87dcd6",
+      "sha256": "07718608b743a3cf10fa4ae745511633de85c93c0ecc63d0d8bca25e8a79f96c",
       "size": 6502
     },
     {
@@ -403,28 +403,28 @@
     },
     {
       "path": "game/src/app/angling.rs",
-      "sha256": "f15dd9967a36c054e8b7148516e71ac615ee397f115bd520d3a9a21ca48b1148",
-      "size": 21243
+      "sha256": "f33600d88c9ab51c7cd80af2e4b04c806f003461f50c3decee5c87526dcb1120",
+      "size": 21197
     },
     {
       "path": "game/src/app/character.rs",
-      "sha256": "2c9c9fb6dd8f29a396ca68622e021de61e3db36b92cbd991ae702322c94edfdd",
-      "size": 12496
+      "sha256": "37f93481e18d029ef604d01f3d068590f102d55383920c05cefac8346e52aac2",
+      "size": 12530
     },
     {
       "path": "game/src/app/economy.rs",
-      "sha256": "b464d18267237d09bbc35ee75b8d7648d8d3e8727c6a646263fd4953adfc1431",
-      "size": 18676
+      "sha256": "9649bd2f8f0022e5a5b36eade896b10eaf038fadba4454e09ce7e5115e25d0ec",
+      "size": 18645
     },
     {
       "path": "game/src/app/mod.rs",
-      "sha256": "ee7c495a84f42431e947c3701c772d2c53571a59c53e2549ad2184e1878e663c",
-      "size": 11411
+      "sha256": "973482d2a215b529be8c12093e8a7a219ee1e5fca5b41f37335ff1d0d82c2fb2",
+      "size": 11400
     },
     {
       "path": "game/src/app/progression.rs",
-      "sha256": "0e96d3d67aef6f17291fe8d1c52c8113e2bf6a40f0fd1d4c6126e48dc3aae70f",
-      "size": 21422
+      "sha256": "0f8ce5ace2351d22a12517457141ef6a25449ea84fa5fe72e6f5e64a91805948",
+      "size": 21416
     },
     {
       "path": "game/src/app/social.rs",
@@ -433,8 +433,8 @@
     },
     {
       "path": "game/src/app/tests.rs",
-      "sha256": "c077a17855b1aa020e609a8a1120297e3aaa21d5fcf824ed6f04f9e4c7b92b67",
-      "size": 16109
+      "sha256": "0cc590192c05f82662d16efab196a8995d9b93c407e2ea90181bd52b802c3d9a",
+      "size": 16107
     },
     {
       "path": "game/src/content.rs",
@@ -478,8 +478,8 @@
     },
     {
       "path": "game/src/telegram/dispatch.rs",
-      "sha256": "ef4efb6a321c626439237cad59760f35c23c768a10d2b2b90bfc11ef8bb4a8d7",
-      "size": 19226
+      "sha256": "e508110a254a6664f4b0b7c602c35ffd288a60f7aadc01b8e4e13fb6776d57df",
+      "size": 19297
     },
     {
       "path": "game/src/telegram/mod.rs",
@@ -488,13 +488,13 @@
     },
     {
       "path": "game/src/telegram/present/core.rs",
-      "sha256": "6f9b9b9c8b06908c3352da04eb86f4ce9ede5f3eb764efa79e28a1f0b8372c64",
-      "size": 7421
+      "sha256": "dfd048a1288306481854f1ae6968bbad51775b8e6ab959440304ba14ebf4dbe8",
+      "size": 7348
     },
     {
       "path": "game/src/telegram/present/fishing.rs",
-      "sha256": "eaf8aa8c90571a38f4de309947d3d007d13a9e6b72180e8b1913008947f512ef",
-      "size": 5840
+      "sha256": "2b00f346e6f6ad86d8ca3fbff6569ffce159dce8d130fe0775abc152f305c593",
+      "size": 5954
     },
     {
       "path": "game/src/telegram/present/mod.rs",
@@ -503,18 +503,18 @@
     },
     {
       "path": "game/src/telegram/present/progression.rs",
-      "sha256": "888a5108916a0dfe6d22350700d6c84a5c363cc9fbb087568c236102de793025",
-      "size": 12400
+      "sha256": "2e3b35cf280c91f0370c05d3eccedc84bff2e5b89383320e41f2c65aba5f1acf",
+      "size": 12560
     },
     {
       "path": "game/src/telegram/present/social.rs",
-      "sha256": "261de7b75d40100fc50b2f1347b2ab3fbdcfc1310bd51e8b7f41ac9fde686104",
-      "size": 4719
+      "sha256": "bd15de1bb168a21d22f32abc046bcc919d122fb3dcdd33bee9577ad5c35b95da",
+      "size": 4636
     },
     {
       "path": "game/src/telegram/present/world.rs",
-      "sha256": "9488e605e8bb308036315e61a83bc80244433227561623fc7e6d7d75d14db89c",
-      "size": 6713
+      "sha256": "aad0c0ea4304ca9d637421a8a7d578e36f54406fa2471d5af8f813bd43053bf3",
+      "size": 6720
     },
     {
       "path": "game/src/timer.rs",
@@ -523,8 +523,8 @@
     },
     {
       "path": "game/src/view.rs",
-      "sha256": "a26b7a361e7ea05ee2f37850c2d43f0dd1f69c1b68df807c02ef63f18d6f3d50",
-      "size": 6872
+      "sha256": "aa353a2e3348aa0d779449dfea4a4677256eaee29f10aeb7f50d3a2f73902568",
+      "size": 6892
     },
     {
       "path": "game/src/world.rs",
@@ -833,13 +833,13 @@
     },
     {
       "path": "tdx/examples/fishing/ui.rs",
-      "sha256": "4be34e6c226217da0ed165d2bc616e5aadd5f6ced8a7ad019abaa9ebdb7f49aa",
-      "size": 11516
+      "sha256": "16cff68f9158b1724763e2f150f2a14a146349990786752e9f4cd4c441a1705d",
+      "size": 11463
     },
     {
       "path": "tdx/examples/showcase.rs",
-      "sha256": "67424b4998ad654c13124d8fd445459819a685bc9eb00d8ccdfd7f5d486fd3a6",
-      "size": 8835
+      "sha256": "52a2056d1f0e522c958f2ab7c4013486dd72ec1e4f79480dd2f78272b4bdbf27",
+      "size": 8814
     },
     {
       "path": "tdx/examples/workflow.rs",
@@ -943,8 +943,8 @@
     },
     {
       "path": "tdx/src/format/rich.rs",
-      "sha256": "c578b25846c680014f869b069776c87c5be89950c4db8a1419521e3d9527db6c",
-      "size": 4430
+      "sha256": "8021b3a2c82cfb0a3e9c71dc6a28f6531a1870680e41ad899787122acabdd5fa",
+      "size": 4426
     },
     {
       "path": "tdx/src/format/style.rs",
@@ -953,8 +953,8 @@
     },
     {
       "path": "tdx/src/format/text.rs",
-      "sha256": "4e99ddef6c6827e97b355b85bffb7478c9ba9412c12e2225bafa8ddb2e1c4ec6",
-      "size": 8291
+      "sha256": "33700b16655e24f765e2ae2f3c3bea37181047f733203183c5038a5b39e5a35d",
+      "size": 8287
     },
     {
       "path": "tdx/src/format.rs",
@@ -988,12 +988,12 @@
     },
     {
       "path": "tdx/tests/format.rs",
-      "sha256": "e0ce5728427fdda262b02e4daad565615c8b49fda7771475f86f279c2610f077",
-      "size": 8944
+      "sha256": "507909b16baa75d4476db9582c06b5e3bd0a66e04ab4a7b212646afd1223a178",
+      "size": 8956
     },
     {
       "path": "tdx/tests/inspect.rs",
-      "sha256": "d0f30cfe3497b5360245c25f21ba55d50f772d12dd1ec5d9b9639ddd70f394e0",
+      "sha256": "ab7a32b842e391122f349c79c2466993735e6a8e57bdb64ce61d71d93aaa38b2",
       "size": 5291
     },
     {
@@ -1046,5 +1046,5 @@
   "git_head": null,
   "include_secrets": false,
   "include_session": true,
-  "project_root": "readability_work"
+  "project_root": "diag2_fix_work"
 }

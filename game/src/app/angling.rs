@@ -3,7 +3,8 @@
 use rusqlite::{OptionalExtension as _, params};
 
 use super::{
-  App, CatchInput, DISCOVERY_RELIC, DISCOVERY_SPECIES, Error, ITEM_RUSTED_KEY, RELIC_RUSTED_KEY, Result, award_xp, has_active_encounter, load_character, owns_item, record_catch, require_character_id,
+  App, CatchInput, DISCOVERY_RELIC, DISCOVERY_SPECIES, Error, ITEM_RUSTED_KEY, RELIC_RUSTED_KEY, Result, award_xp, has_active_encounter, load_character,
+  owns_item, record_catch, require_character_id,
 };
 use crate::{
   content::{Content, Species},
@@ -193,9 +194,7 @@ impl App {
   }
 
   pub async fn next_timer_due_at(&self) -> Result<Option<i64>> {
-    self
-      .run_db(|connection| Ok(connection.query_row("SELECT due_at_ms FROM timers ORDER BY due_at_ms, id LIMIT 1", [], |row| row.get(0)).optional()?))
-      .await
+    self.run_db(|connection| Ok(connection.query_row("SELECT due_at_ms FROM timers ORDER BY due_at_ms, id LIMIT 1", [], |row| row.get(0)).optional()?)).await
   }
 
   pub async fn due_timer_ids(&self, now_ms: i64, limit: u32) -> Result<Vec<i64>> {
@@ -233,7 +232,6 @@ impl App {
       })
       .await
   }
-
 }
 
 struct DueTimer {
@@ -259,20 +257,16 @@ fn due_timer(tx: &rusqlite::Transaction<'_>, timer_id: i64, now_ms: i64) -> rusq
 }
 
 fn timer_encounter(tx: &rusqlite::Transaction<'_>, encounter_id: EncounterId) -> rusqlite::Result<Option<TimerEncounter>> {
-  tx.query_row(
-    "SELECT chat_id, message_id, step, phase, species_id, special_id FROM fishing_encounters WHERE id = ?1",
-    [encounter_id.0],
-    |row| {
-      Ok(TimerEncounter {
-        chat_id: row.get(0)?,
-        message_id: row.get(1)?,
-        step: row.get(2)?,
-        phase: row.get(3)?,
-        species_id: SpeciesId(row.get(4)?),
-        special_id: row.get(5)?,
-      })
-    },
-  )
+  tx.query_row("SELECT chat_id, message_id, step, phase, species_id, special_id FROM fishing_encounters WHERE id = ?1", [encounter_id.0], |row| {
+    Ok(TimerEncounter {
+      chat_id: row.get(0)?,
+      message_id: row.get(1)?,
+      step: row.get(2)?,
+      phase: row.get(3)?,
+      species_id: SpeciesId(row.get(4)?),
+      special_id: row.get(5)?,
+    })
+  })
   .optional()
 }
 
@@ -400,7 +394,9 @@ fn resolve_fish_reel(
 ) -> rusqlite::Result<ReelOutcome> {
   let rod_control = encounter_rod_control(tx, content, encounter)?;
   let discovery_count: i64 =
-    tx.query_row("SELECT count(*) FROM discoveries WHERE character_id = ?1 AND kind = ?2", params![encounter.character_id, DISCOVERY_SPECIES], |row| row.get(0))?;
+    tx.query_row("SELECT count(*) FROM discoveries WHERE character_id = ?1 AND kind = ?2", params![encounter.character_id, DISCOVERY_SPECIES], |row| {
+      row.get(0)
+    })?;
   let first_catch = discovery_count == 0;
 
   if !fishing::can_land(species, rod_control, reaction, first_catch) {
@@ -453,13 +449,7 @@ struct ActiveEncounter {
   telegram_user_id: i64,
 }
 
-fn require_encounter(
-  tx: &rusqlite::Transaction<'_>,
-  encounter_id: EncounterId,
-  telegram_user_id: i64,
-  step: u32,
-  phase: i64,
-) -> Result<ActiveEncounter> {
+fn require_encounter(tx: &rusqlite::Transaction<'_>, encounter_id: EncounterId, telegram_user_id: i64, step: u32, phase: i64) -> Result<ActiveEncounter> {
   let Some(encounter) = load_encounter(tx, encounter_id)? else { return Err(Error::StaleEncounter) };
   if encounter.telegram_user_id != telegram_user_id {
     return Err(Error::WrongPlayer);
@@ -476,11 +466,10 @@ fn encounter_reaction(species: &Species, encounter: &ActiveEncounter, received_a
 }
 
 fn encounter_rod_control(tx: &rusqlite::Transaction<'_>, content: &Content, encounter: &ActiveEncounter) -> rusqlite::Result<u32> {
-  let condition = tx.query_row(
-    "SELECT condition FROM character_rods WHERE character_id = ?1 AND rod_id = ?2",
-    params![encounter.character_id, encounter.rod_id.0],
-    |row| row.get(0),
-  )?;
+  let condition =
+    tx.query_row("SELECT condition FROM character_rods WHERE character_id = ?1 AND rod_id = ?2", params![encounter.character_id, encounter.rod_id.0], |row| {
+      row.get(0)
+    })?;
   Ok(fishing::effective_control(content.rod(encounter.rod_id).control, condition))
 }
 

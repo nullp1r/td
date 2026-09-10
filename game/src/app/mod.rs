@@ -159,11 +159,8 @@ fn has_active_encounter(connection: &Connection, character_id: i64) -> rusqlite:
 }
 
 fn owns_item(connection: &Connection, character_id: i64, item_def_id: u32) -> rusqlite::Result<bool> {
-  connection.query_row(
-    "SELECT EXISTS(SELECT 1 FROM items WHERE owner_character_id = ?1 AND item_def_id = ?2)",
-    params![character_id, item_def_id],
-    |row| row.get(0),
-  )
+  connection
+    .query_row("SELECT EXISTS(SELECT 1 FROM items WHERE owner_character_id = ?1 AND item_def_id = ?2)", params![character_id, item_def_id], |row| row.get(0))
 }
 
 fn knows_location(connection: &Connection, character_id: i64, location_id: LocationId) -> rusqlite::Result<bool> {
@@ -227,11 +224,10 @@ fn load_character(connection: &Connection, content: &Content, telegram_user_id: 
   let location = content.location(state.location_id);
   let bait = content.bait(state.bait_id);
   let rod = content.rod(state.rod_id);
-  let rod_condition = connection.query_row(
-    "SELECT condition FROM character_rods WHERE character_id = ?1 AND rod_id = ?2",
-    params![state.id, state.rod_id.0],
-    |row| row.get::<_, u32>(0),
-  )?;
+  let rod_condition =
+    connection.query_row("SELECT condition FROM character_rods WHERE character_id = ?1 AND rod_id = ?2", params![state.id, state.rod_id.0], |row| {
+      row.get::<_, u32>(0)
+    })?;
   Ok(CharacterView {
     name: state.name,
     xp: state.xp.max(0) as u64,

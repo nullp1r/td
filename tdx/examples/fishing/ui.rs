@@ -55,18 +55,12 @@ pub fn cast_missed(user_id: i64, reason: &str) -> (types::inputMessageRichMessag
 
 /// View displaying a successfully caught fish with stats and folklore lore formatted in a rich table.
 pub fn cast_success(user_id: i64, user_name: &str, record: &CatchRecord, lore: &str) -> (types::inputMessageRichMessage, enums::ReplyMarkup) {
-  let catch_table = table()
-    .header(("Species", "Rarity", "Weight", "Value"))
-    .bordered()
-    .striped()
-    .compact()
-    .caption(bold(record.species_name))
-    .row((
-      bold(record.species_name),
-      record.rarity.badge(),
-      cell(code(format_args!("{:.2} kg", record.weight))).center(),
-      cell(bold(format_args!("{} 🪙", record.price))).right(),
-    ));
+  let catch_table = table().header(("Species", "Rarity", "Weight", "Value")).bordered().striped().compact().caption(bold(record.species_name)).row((
+    bold(record.species_name),
+    record.rarity.badge(),
+    cell(code(format_args!("{:.2} kg", record.weight))).center(),
+    cell(bold(format_args!("{} 🪙", record.price))).right(),
+  ));
 
   let content = rich([
     heading(bold(format_args!("🎉 {user_name} hooked a catch!")), 1), //.
@@ -86,16 +80,12 @@ pub fn bag_view(user_id: i64, player: &Player) -> (types::inputMessageRichMessag
   let rod = RODS.get(player.rod_id).unwrap_or(&RODS[0]);
   let total_val: u32 = player.bag.iter().map(|c| c.price).sum();
 
-  let overview_table = table()
-    .header(("🪙 Balance", "🎣 Rod", "🗺 Water", "🐟 Caught"))
-    .bordered()
-    .compact()
-    .row((
-      cell(bold(format_args!("{} 🪙", player.coins))).center(),
-      bold(rod.name),
-      italic(spot.name),
-      cell(code(player.total_caught)).center(),
-    ));
+  let overview_table = table().header(("🪙 Balance", "🎣 Rod", "🗺 Water", "🐟 Caught")).bordered().compact().row((
+    cell(bold(format_args!("{} 🪙", player.coins))).center(),
+    bold(rod.name),
+    italic(spot.name),
+    cell(code(player.total_caught)).center(),
+  ));
 
   let mut blocks = vec![
     heading(bold(format_args!("🎒 {}'s Angler Bag", player.display_name())), 1), //.
@@ -147,7 +137,8 @@ pub fn bag_view(user_id: i64, player: &Player) -> (types::inputMessageRichMessag
 
 /// View showing the tackle shop for rod upgrades in a structured table.
 pub fn shop_view(user_id: i64, player: &Player) -> (types::inputMessageRichMessage, enums::ReplyMarkup) {
-  let mut shop_table = table().header(("Rod", "Price", "Luck", "Status")) //.
+  let mut shop_table = table()
+    .header(("Rod", "Price", "Luck", "Status")) //.
     .bordered()
     .striped()
     .compact()
@@ -200,7 +191,8 @@ pub fn shop_view(user_id: i64, player: &Player) -> (types::inputMessageRichMessa
 
 /// View showing fishing spots and requirements in a structured table.
 pub fn spots_view(user_id: i64, player: &Player) -> (types::inputMessageRichMessage, enums::ReplyMarkup) {
-  let mut spots_table = table().header(("Location", "Required Tackle", "Status")) //.
+  let mut spots_table = table()
+    .header(("Location", "Required Tackle", "Status")) //.
     .bordered()
     .striped()
     .compact()
@@ -255,7 +247,8 @@ pub fn brag_view(player: &Player) -> types::inputMessageRichMessage {
 
   rich([
     heading(bold(format_args!("🏆 {name}'s Greatest Trophy!")), 1),
-    table().header(("Species", "Rarity", "Weight", "Appraised Value"))
+    table()
+      .header(("Species", "Rarity", "Weight", "Appraised Value"))
       .bordered()
       .striped()
       .compact()

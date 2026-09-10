@@ -2,7 +2,10 @@
 
 use rusqlite::{OptionalExtension as _, params};
 
-use super::{App, DISCOVERY_SPECIES, Error, ITEM_RUSTED_KEY, Result, award_xp, character_location, has_active_encounter, knows_location, load_character, require_character_id};
+use super::{
+  App, DISCOVERY_SPECIES, Error, ITEM_RUSTED_KEY, Result, award_xp, character_location, has_active_encounter, knows_location, load_character,
+  require_character_id,
+};
 use crate::{
   content::Content,
   fishing,
@@ -155,9 +158,7 @@ fn load_conditions(connection: &rusqlite::Connection, content: &Content, telegra
   let (character_id, location_id) = character_location(connection, telegram_user_id)?;
   let environment = environment_at(now_ms);
   let mut statement = connection.prepare("SELECT subject_id FROM discoveries WHERE character_id = ?1 AND kind = ?2 ORDER BY subject_id")?;
-  let discovered = statement
-    .query_map(params![character_id, DISCOVERY_SPECIES], |row| Ok(SpeciesId(row.get(0)?)))?
-    .collect::<rusqlite::Result<Vec<_>>>()?;
+  let discovered = statement.query_map(params![character_id, DISCOVERY_SPECIES], |row| Ok(SpeciesId(row.get(0)?)))?.collect::<rusqlite::Result<Vec<_>>>()?;
   let location = content.location(location_id);
   let mut active_known_species = Vec::new();
   let mut known_but_inactive = 0_u32;
@@ -226,9 +227,11 @@ fn exploration_finding(location_id: LocationId, has_key: bool, unlocked: &[Locat
       ),
       Some(LocationId(4)),
     ),
-    2 if has_key => {
-      finding("Broken Breakwater", "The rusted key and the old maintenance marker clearly belong to the lighthouse above. The path is already known to you.", None)
-    }
+    2 if has_key => finding(
+      "Broken Breakwater",
+      "The rusted key and the old maintenance marker clearly belong to the lighthouse above. The path is already known to you.",
+      None,
+    ),
     2 => finding(
       "A familiar crest",
       concat!(
@@ -254,7 +257,11 @@ fn exploration_finding(location_id: LocationId, has_key: bool, unlocked: &[Locat
       Some(LocationId(5)),
     ),
     4 if has_key => finding("Old Lighthouse", "The unlocked service stair still leads down toward the hidden cove beneath the cliffs.", None),
-    4 => finding("Old Lighthouse", "The iron door is locked. Its corroded keyhole is surrounded by the same lighthouse crest seen around the old harbor works.", None),
+    4 => finding(
+      "Old Lighthouse",
+      "The iron door is locked. Its corroded keyhole is surrounded by the same lighthouse crest seen around the old harbor works.",
+      None,
+    ),
     5 => finding(
       "Lighthouse Cove",
       concat!(

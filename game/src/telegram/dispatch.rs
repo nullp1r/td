@@ -21,16 +21,14 @@ use super::{callback::Callback, present, wake_timer};
 /// Handles one incoming bot-command message.
 pub async fn message(app: &App, client: &Client, message: &types::message) -> anyhow::Result<()> {
   let Some(command) = message.command() else { return Ok(()) };
-  if message.chat_id < 0 {
-    group_command(app, client, message, command.name).await
-  } else {
-    private_command(app, client, message, command.name).await
-  }
+  if message.chat_id < 0 { group_command(app, client, message, command.name).await } else { private_command(app, client, message, command.name).await }
 }
 
 async fn group_command(app: &App, client: &Client, message: &types::message, command: &str) -> anyhow::Result<()> {
   match command {
-    "fish" => present::group_fish(client, message.chat_id, &app.group_event(message.chat_id, timer::now_ms()).await?).await?,
+    "fish" => {
+      present::group_fish(client, message.chat_id, &app.group_event(message.chat_id, timer::now_ms()).await?).await?;
+    }
     "help" => {
       let Some(user_id) = message.sender_id.user_id() else { return Ok(()) };
       present::group_help_send(client, message, user_id).await?;
@@ -43,8 +41,12 @@ async fn group_command(app: &App, client: &Client, message: &types::message, com
 async fn private_command(app: &App, client: &Client, message: &types::message, command: &str) -> anyhow::Result<()> {
   let Some(user_id) = message.sender_id.user_id() else { return Ok(()) };
   match command {
-    "start" => present::home(client, message.chat_id, &app.ensure_character(user_id, timer::now_ms()).await?).await?,
-    _ => present::help_send(client, message.chat_id).await?,
+    "start" => {
+      present::home(client, message.chat_id, &app.ensure_character(user_id, timer::now_ms()).await?).await?;
+    }
+    _ => {
+      present::help_send(client, message.chat_id).await?;
+    }
   }
   Ok(())
 }
@@ -280,12 +282,11 @@ async fn group_cast_callback(app: &App, client: &Client, update: &types::updateN
     Ok(catch) => {
       if let Err(error) = present::group_result(client, update, &catch).await {
         tracing::warn!(?error, chat_id = update.chat_id, user_id = update.sender_user_id, "ephemeral group catch presentation failed");
-        client
-          .send(&action_callback::toast(
-            update,
-            format_args!("Caught {} · {:.2} kg · +{} XP", catch.species_name, f64::from(catch.weight_g) / 1_000.0, catch.xp_gained),
-          ))
-          .await?;
+        let toast = action_callback::toast(
+          update,
+          format_args!("Caught {} · {:.2} kg · +{} XP", catch.species_name, f64::from(catch.weight_g) / 1_000.0, catch.xp_gained),
+        );
+        client.send(&toast).await?;
       } else {
         client.send(&action_callback::ack(update)).await?;
       }
@@ -294,8 +295,12 @@ async fn group_cast_callback(app: &App, client: &Client, update: &types::updateN
         present::group_caught(client, update.chat_id, update.message_id, &catch).await?;
       }
     }
-    Err(AppError::GroupEventClaimed) => client.send(&action_callback::toast(update, "You already cast into this shoal.")).await?,
-    Err(AppError::GroupEventExpired) => client.send(&action_callback::toast(update, "That shoal moved on. Use /fish for the current one.")).await?,
+    Err(AppError::GroupEventClaimed) => {
+      client.send(&action_callback::toast(update, "You already cast into this shoal.")).await?;
+    }
+    Err(AppError::GroupEventExpired) => {
+      client.send(&action_callback::toast(update, "That shoal moved on. Use /fish for the current one.")).await?;
+    }
     Err(error) => {
       tracing::warn!(?error, chat_id = update.chat_id, "group shoal action failed");
       client.send(&action_callback::alert(update, "The shared cast could not be completed.")).await?;
@@ -312,7 +317,9 @@ async fn finish_ephemeral(
   fallback: &'static str,
 ) -> client::Result<()> {
   match result {
-    Ok(()) => client.send(&action_callback::ack(update)).await?,
+    Ok(()) => {
+      client.send(&action_callback::ack(update)).await?;
+    }
     Err(error) => {
       tracing::warn!(?error, chat_id = update.chat_id, user_id = update.sender_user_id, panel, "ephemeral group panel failed");
       client.send(&action_callback::toast(update, fallback)).await?;

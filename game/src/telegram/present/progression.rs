@@ -51,17 +51,16 @@ pub async fn reward(client: &Client, chat_id: i64, message_id: i64, view: &Rewar
 }
 
 pub async fn npc(client: &Client, chat_id: i64, message_id: i64, view: &NpcView) -> client::Result<()> {
-  edit_panel(
-    client,
-    chat_id,
-    message_id,
-    rich([heading(format_args!("💬 {} · {}", view.name, view.title), 1), paragraph(view.text.as_str()), block_quote([paragraph(view.hint.as_str())])]),
-    markup::inline(vec![
-      vec![markup::callback("📋 Harbor board", Callback::Tasks.encode()), markup::callback("🏪 Tackle stall", Callback::Shop.encode())],
-      vec![markup::callback("🌦 Conditions", Callback::Conditions.encode()), markup::callback("🏠 Home", Callback::Home.encode())],
-    ]),
-  )
-  .await
+  let content = rich([
+    heading(format_args!("💬 {} · {}", view.name, view.title), 1),
+    paragraph(view.text.as_str()),
+    block_quote([paragraph(view.hint.as_str())]),
+  ]);
+  let reply_markup = markup::inline(vec![
+    vec![markup::callback("📋 Harbor board", Callback::Tasks.encode()), markup::callback("🏪 Tackle stall", Callback::Shop.encode())],
+    vec![markup::callback("🌦 Conditions", Callback::Conditions.encode()), markup::callback("🏠 Home", Callback::Home.encode())],
+  ]);
+  edit_panel(client, chat_id, message_id, content, reply_markup).await
 }
 
 pub async fn titles(client: &Client, chat_id: i64, message_id: i64, view: &TitlesView) -> client::Result<()> {
@@ -97,7 +96,13 @@ fn shop_blocks(view: &ShopView) -> Vec<enums::InputPageBlock> {
     ))
   });
   let rod_table = table().header(("Rod", "Control", "Condition", "Price", "Status")).rows(view.rods.iter().map(|rod| {
-    let status = if rod.equipped { "equipped" } else if rod.owned { "owned" } else { "" };
+    let status = if rod.equipped {
+      "equipped"
+    } else if rod.owned {
+      "owned"
+    } else {
+      ""
+    };
     (
       rod.name.as_str(),
       rod.control,
@@ -127,9 +132,13 @@ fn shop_blocks(view: &ShopView) -> Vec<enums::InputPageBlock> {
       "Digging for emergency worms is available whenever you run completely out of bait."
     }),
   ];
-  blocks.extend(view.rods.iter().filter(|rod| !rod.owned && rod.price > 0).map(|rod| {
-    button_row([success_callback_button(format_args!("Buy {} · {} coins", rod.name, rod.price), Callback::BuyRod { rod_id: rod.id }.encode())])
-  }));
+  blocks.extend(
+    view
+      .rods
+      .iter()
+      .filter(|rod| !rod.owned && rod.price > 0)
+      .map(|rod| button_row([success_callback_button(format_args!("Buy {} · {} coins", rod.name, rod.price), Callback::BuyRod { rod_id: rod.id }.encode())])),
+  );
   if view.repair_all_cost > 0 {
     blocks.push(button_row([callback_button(format_args!("Repair all rods · {} coins", view.repair_all_cost), Callback::RepairRods.encode())]));
   }
@@ -197,17 +206,29 @@ fn tasks_markup() -> enums::ReplyMarkup {
 
 fn titles_content(view: &TitlesView) -> types::inputMessageRichMessage {
   let titles = table().header(("Title", "Requirement", "Status")).rows(view.titles.iter().map(|title| {
-    let status = if title.equipped { "equipped" } else if title.unlocked { "unlocked" } else { "locked" };
+    let status = if title.equipped {
+      "equipped"
+    } else if title.unlocked {
+      "unlocked"
+    } else {
+      "locked"
+    };
     (title.name, title.description, status)
   }));
   let mut blocks = vec![
     heading("🏷 Titles", 1),
-    paragraph("Titles show what you’ve accomplished in Rustwater. They don’t change your fishing strength, and you can swap any unlocked title whenever you like."),
+    paragraph(
+      "Titles show what you’ve accomplished in Rustwater. They don’t change your fishing strength, and you can swap any unlocked title whenever you like.",
+    ),
     titles.striped().compact().into(),
   ];
-  blocks.extend(view.titles.iter().filter(|title| title.unlocked && !title.equipped).map(|title| {
-    button_row([callback_button(format_args!("Equip {}", title.name), Callback::EquipTitle { title_id: title.id }.encode())])
-  }));
+  blocks.extend(
+    view
+      .titles
+      .iter()
+      .filter(|title| title.unlocked && !title.equipped)
+      .map(|title| button_row([callback_button(format_args!("Equip {}", title.name), Callback::EquipTitle { title_id: title.id }.encode())])),
+  );
   rich(blocks)
 }
 
@@ -221,11 +242,7 @@ fn crafting_content(view: &CraftingView) -> types::inputMessageRichMessage {
 
 fn crafting_blocks(view: &CraftingView) -> Vec<enums::InputPageBlock> {
   let recipes = view.recipes.iter().fold(table().header(("Preparation", "Output", "Status")), |table, recipe| {
-    table.row((
-      recipe.name,
-      format_args!("{} ×{}", recipe.output_name, recipe.output_quantity),
-      if recipe.ready { "ready" } else { "missing specimen" },
-    ))
+    table.row((recipe.name, format_args!("{} ×{}", recipe.output_name, recipe.output_quantity), if recipe.ready { "ready" } else { "missing specimen" }))
   });
   let mut blocks = vec![
     heading("🧰 Tackle Preparation", 1),
@@ -234,9 +251,13 @@ fn crafting_blocks(view: &CraftingView) -> Vec<enums::InputPageBlock> {
   ];
   blocks.extend(view.recipes.iter().map(|recipe| paragraph(format_args!("{} — {}", recipe.name, recipe.description))));
   blocks.push(paragraph(italic("Preparing bait uses one stored specimen. The catch still counts in Records after the specimen is used.")));
-  blocks.extend(view.recipes.iter().filter(|recipe| recipe.ready).map(|recipe| {
-    button_row([success_callback_button(format_args!("Prepare {}", recipe.output_name), Callback::Craft { recipe_id: recipe.id }.encode())])
-  }));
+  blocks.extend(
+    view
+      .recipes
+      .iter()
+      .filter(|recipe| recipe.ready)
+      .map(|recipe| button_row([success_callback_button(format_args!("Prepare {}", recipe.output_name), Callback::Craft { recipe_id: recipe.id }.encode())])),
+  );
   blocks
 }
 
@@ -251,12 +272,10 @@ fn help_markup() -> enums::ReplyMarkup {
 fn help_content() -> types::inputMessageRichMessage {
   rich([
     heading("🌊 Welcome to Rustwater", 1),
-    paragraph("You’re an angler working the old harbor and the waters around it. Fish, explore, keep interesting specimens, and follow whatever the shoreline turns up."),
-    block_quote([paragraph((
-      "🎣 ",
-      bold("Start here:"),
-      " go Home and tap “Cast a line”. When something bites, react to what you see.",
-    ))]),
+    paragraph(
+      "You’re an angler working the old harbor and the waters around it. Fish, explore, keep interesting specimens, and follow whatever the shoreline turns up.",
+    ),
+    block_quote([paragraph(("🎣 ", bold("Start here:"), " go Home and tap “Cast a line”. When something bites, react to what you see."))]),
     paragraph("🎣 Fish — catch specimens and learn what lives where."),
     paragraph("🧭 Explore — discover places, people, and clues."),
     paragraph("🎒 Prepare — choose gear, sell catches, and make bait."),

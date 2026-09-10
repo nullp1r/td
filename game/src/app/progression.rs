@@ -3,8 +3,8 @@
 use rusqlite::{OptionalExtension as _, params};
 
 use super::{
-  App, DISCOVERY_RELIC, DISCOVERY_SPECIES, Error, ITEM_RUSTED_KEY, RELIC_RUSTED_KEY, Result, award_xp, character_location, character_wallet,
-  knows_location, owns_item, require_character_id, title_definition,
+  App, DISCOVERY_RELIC, DISCOVERY_SPECIES, Error, ITEM_RUSTED_KEY, RELIC_RUSTED_KEY, Result, award_xp, character_location, character_wallet, knows_location,
+  owns_item, require_character_id, title_definition,
 };
 use crate::{
   content::{Content, Species},
@@ -367,16 +367,14 @@ fn contract_hint(contract: &ContractView) -> String {
 
 fn objective_progress(connection: &rusqlite::Connection, content: &Content, character_id: i64, objective: &ObjectiveDefinition) -> rusqlite::Result<u32> {
   let progress = match objective.id {
-    OBJECTIVE_FIRST_HAUL => connection.query_row(
-      "SELECT count(*) FROM catches c JOIN items i ON i.id = c.item_id WHERE i.owner_character_id = ?1",
-      [character_id],
-      |row| row.get(0),
-    )?,
-    OBJECTIVE_FIELD_NOTES => connection.query_row(
-      "SELECT count(*) FROM discoveries WHERE character_id = ?1 AND kind = ?2",
-      params![character_id, DISCOVERY_SPECIES],
-      |row| row.get(0),
-    )?,
+    OBJECTIVE_FIRST_HAUL => {
+      connection
+        .query_row("SELECT count(*) FROM catches c JOIN items i ON i.id = c.item_id WHERE i.owner_character_id = ?1", [character_id], |row| row.get(0))?
+    }
+    OBJECTIVE_FIELD_NOTES => {
+      connection
+        .query_row("SELECT count(*) FROM discoveries WHERE character_id = ?1 AND kind = ?2", params![character_id, DISCOVERY_SPECIES], |row| row.get(0))?
+    }
     OBJECTIVE_DEEP_WATER => {
       let mut statement = connection
         .prepare("SELECT DISTINCT c.species_id FROM catches c JOIN items i ON i.id = c.item_id WHERE i.owner_character_id = ?1 AND c.location_id = 2")?;

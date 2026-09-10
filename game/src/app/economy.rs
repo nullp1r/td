@@ -304,18 +304,12 @@ fn inventory_state(connection: &rusqlite::Connection, telegram_user_id: i64) -> 
     "SELECT c.id, c.coins, c.selected_bait_id, c.equipped_rod_id
      FROM characters c JOIN accounts a ON a.id = c.account_id WHERE a.telegram_user_id = ?1",
     [telegram_user_id],
-    |row| {
-      Ok(InventoryState { character_id: row.get(0)?, coins: row.get(1)?, selected_bait_id: BaitId(row.get(2)?), equipped_rod_id: RodId(row.get(3)?) })
-    },
+    |row| Ok(InventoryState { character_id: row.get(0)?, coins: row.get(1)?, selected_bait_id: BaitId(row.get(2)?), equipped_rod_id: RodId(row.get(3)?) }),
   )
 }
 
 fn owns_rod(connection: &rusqlite::Connection, character_id: i64, rod_id: RodId) -> rusqlite::Result<bool> {
-  connection.query_row(
-    "SELECT EXISTS(SELECT 1 FROM character_rods WHERE character_id = ?1 AND rod_id = ?2)",
-    params![character_id, rod_id.0],
-    |row| row.get(0),
-  )
+  connection.query_row("SELECT EXISTS(SELECT 1 FROM character_rods WHERE character_id = ?1 AND rod_id = ?2)", params![character_id, rod_id.0], |row| row.get(0))
 }
 
 fn owned_rods(connection: &rusqlite::Connection, character_id: i64) -> rusqlite::Result<Vec<(RodId, u32)>> {

@@ -173,9 +173,9 @@ Per repository guidance, production line count was checked against the UX-audite
 | Area | Before | Current | Delta |
 |---|---:|---:|---:|
 | `tdx/src/format.rs` | 79 | 114 | +35 |
-| `tdx/src/format/text.rs` | 241 | 324 | +83 |
-| `tdx/src/format/rich.rs` | 98 | 168 | +70 |
-| `tdx/src/format/style.rs` | 172 | 173 | +1 |
+| `tdx/src/format/text.rs` | 241 | 322 | +81 |
+| `tdx/src/format/rich.rs` | 98 | 166 | +68 |
+| `tdx/src/format/style.rs` | 172 | 177 | +5 |
 | `tdx/src/format/rich/table.rs` | 136 | 186 | +50 |
 | **all `tdx/src/**/*.rs`** | **2250** | **2489** | **+239** |
 

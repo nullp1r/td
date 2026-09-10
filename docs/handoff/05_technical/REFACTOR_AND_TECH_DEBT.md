@@ -51,7 +51,10 @@ The root guidance is correct: extract a helper/module when it isolates a real li
 
 ## Maintainability pass — 2026-09-10
 
-A later review targeted readability rather than another module split. Production `game/src` went from 5,285 to 5,190 lines while explanatory comment/doc-comment lines went from 7 to 72. The main gains came from removing redundant DB/application plumbing, typed SQL-boundary IDs, shared economy mutations, declarative objectives/recipes, clearer persisted-state boundaries, and iterator/tuple-driven presentation.
+A later review targeted readability rather than another module split. Production `game/src` went from 5,285 to 5,166 lines while explanatory comment/doc-comment lines went from 7 to 74. The main gains came from removing redundant DB/application plumbing, typed SQL-boundary IDs, shared economy mutations, declarative objectives/recipes, clearer persisted-state boundaries, and iterator/tuple-driven presentation.
 
 The pass deliberately did **not** add repository/service/state-machine frameworks or macro-generate the callback wire protocol. See `GAME_MAINTAINABILITY_PASS_2026-09-10.md` for the complete rationale and verification status.
 
+## Maintainability diagnostic follow-up
+
+The first compiler run against the exact packaged maintainability tree found a narrow integration set rather than a design rollback: missing `Clone` on `Copy` view records, unit-vs-TDLib-response match results, one borrow/move test error, and one non-`Send` formatting temporary across `.await`. The follow-up keeps the refactor structure intact, applies the real rustfmt output, and requires one clean diagnostic rerun before further structural work.

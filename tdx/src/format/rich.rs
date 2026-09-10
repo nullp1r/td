@@ -108,9 +108,7 @@ macro_rules! display_rich_parts {
   };
 }
 
-display_rich_parts!(
-  bool, i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize, f32, f64,
-);
+display_rich_parts!(bool, i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize, f32, f64,);
 
 impl<T: IntoRichText, const N: usize> IntoRichText for [T; N] {
   fn into_rich_text(self) -> RichText {

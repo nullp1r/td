@@ -10,19 +10,16 @@ use crate::{
 use super::{edit_message, edit_panel, format_weight, reaction_label};
 
 pub async fn casting(client: &Client, chat_id: i64, message_id: i64, character: &CharacterView) -> client::Result<()> {
-  edit_message(
-    client,
-    chat_id,
-    message_id,
-    rich([
-      heading("🎣 Line in the water", 1),
-      paragraph(format_args!("The line settles off {}.", character.location.name)),
-      paragraph(format_args!("{} remaining: {}", character.bait_name, character.bait_left)),
-      paragraph(italic("Watch the float…")),
-      button_row([danger_callback_button("✂️ Cut line", Callback::CancelFishing.encode())]),
-    ]),
-  )
-  .await
+  // Build formatted content before `.await`: `fmt::Arguments` is intentionally
+  // non-`Send`, while callback handlers run in spawned `Send` tasks.
+  let content = rich([
+    heading("🎣 Line in the water", 1),
+    paragraph(format_args!("The line settles off {}.", character.location.name)),
+    paragraph(format_args!("{} remaining: {}", character.bait_name, character.bait_left)),
+    paragraph(italic("Watch the float…")),
+    button_row([danger_callback_button("✂️ Cut line", Callback::CancelFishing.encode())]),
+  ]);
+  edit_message(client, chat_id, message_id, content).await
 }
 
 pub async fn bite(client: &Client, bite: &BiteView) -> client::Result<()> {
@@ -141,11 +138,7 @@ pub async fn escaped(client: &Client, escape: &EscapeView) -> client::Result<()>
     client,
     escape.chat_id,
     escape.message_id,
-    rich([
-      heading("🌫 It got away", 1),
-      paragraph(escape.reason),
-      button_row([success_callback_button("🎣 Cast again", Callback::Cast.encode())]),
-    ]),
+    rich([heading("🌫 It got away", 1), paragraph(escape.reason), button_row([success_callback_button("🎣 Cast again", Callback::Cast.encode())])]),
     markup::inline([[markup::callback("🎒 Inventory", Callback::Inventory.encode()), markup::callback("🏠 Home", Callback::Home.encode())]]),
   )
   .await

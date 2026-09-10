@@ -27,11 +27,7 @@ fn home_content(character: &CharacterView) -> types::inputMessageRichMessage {
   let mut blocks = vec![
     heading(format!("🌊 {}", character.location.name), 1),
     paragraph(character.location.description.as_str()),
-    block_quote([paragraph(format_args!(
-      "{} · {}",
-      character.environment.day_part.label(),
-      character.environment.weather.label(),
-    ))]),
+    block_quote([paragraph(format_args!("{} · {}", character.environment.day_part.label(), character.environment.weather.label(),))]),
     table()
       .row(("👤 Angler", character.name.as_str()))
       .row(("⭐ Level", character.level))
@@ -60,20 +56,11 @@ fn home_content(character: &CharacterView) -> types::inputMessageRichMessage {
   let actions = if character.fishing_active {
     button_row([danger_callback_button("✂️ Cut active line", Callback::CancelFishing.encode())])
   } else if character.location.fishable && character.bait_left > 0 {
-    button_row([
-      success_callback_button("🎣 Cast a line", Callback::Cast.encode()),
-      primary_callback_button("🔎 Explore", Callback::Explore.encode()),
-    ])
+    button_row([success_callback_button("🎣 Cast a line", Callback::Cast.encode()), primary_callback_button("🔎 Explore", Callback::Explore.encode())])
   } else if character.location.fishable && character.total_bait > 0 {
-    button_row([
-      callback_button("🎒 Select bait", Callback::Inventory.encode()),
-      primary_callback_button("🔎 Explore", Callback::Explore.encode()),
-    ])
+    button_row([callback_button("🎒 Select bait", Callback::Inventory.encode()), primary_callback_button("🔎 Explore", Callback::Explore.encode())])
   } else if character.location.fishable {
-    button_row([
-      success_callback_button("🪱 Dig for worms", Callback::ForageBait.encode()),
-      primary_callback_button("🔎 Explore", Callback::Explore.encode()),
-    ])
+    button_row([success_callback_button("🪱 Dig for worms", Callback::ForageBait.encode()), primary_callback_button("🔎 Explore", Callback::Explore.encode())])
   } else {
     button_row([primary_callback_button("🔎 Explore", Callback::Explore.encode())])
   };
@@ -120,28 +107,29 @@ fn inventory_content(view: &InventoryView) -> types::inputMessageRichMessage {
   if view.has_rusted_key {
     blocks.extend([heading("🗝 Relics", 2), paragraph("🗝 Rusted Key — an old lighthouse emblem is stamped into the bow.")]);
   }
-  blocks.extend([
-    heading("🐟 Catches", 2),
-    paragraph(format_args!("{} stored · worth about {} coins at the tackle stall", view.catch_count, view.sell_value)),
-  ]);
+  blocks.extend([heading("🐟 Catches", 2), paragraph(format_args!("{} stored · worth about {} coins at the tackle stall", view.catch_count, view.sell_value))]);
   if view.recent_catches.is_empty() {
     blocks.push(paragraph(italic("No catches stored yet.")));
   } else {
     let catches = view.recent_catches.iter().fold(table().header(("Recent catch", "Size", "Value")), |table, catch| {
-      table.row((
-        catch.species_name.as_str(),
-        format_args!("{:.1} cm · {}", f64::from(catch.length_mm) / 10.0, format_weight(catch.weight_g)),
-        catch.value,
-      ))
+      table.row((catch.species_name.as_str(), format_args!("{:.1} cm · {}", f64::from(catch.length_mm) / 10.0, format_weight(catch.weight_g)), catch.value))
     });
     blocks.push(catches.striped().compact().into());
   }
-  blocks.extend(view.rods.iter().filter(|rod| rod.owned && !rod.equipped).map(|rod| {
-    button_row([callback_button(format_args!("Equip {} · control {}", rod.name, rod.control), Callback::EquipRod { rod_id: rod.id }.encode())])
-  }));
-  blocks.extend(view.baits.iter().filter(|bait| bait.quantity > 0 && !bait.selected).map(|bait| {
-    button_row([callback_button(format_args!("Use {} ×{}", bait.name, bait.quantity), Callback::SelectBait { bait_id: bait.id }.encode())])
-  }));
+  blocks.extend(
+    view
+      .rods
+      .iter()
+      .filter(|rod| rod.owned && !rod.equipped)
+      .map(|rod| button_row([callback_button(format_args!("Equip {} · control {}", rod.name, rod.control), Callback::EquipRod { rod_id: rod.id }.encode())])),
+  );
+  blocks.extend(
+    view
+      .baits
+      .iter()
+      .filter(|bait| bait.quantity > 0 && !bait.selected)
+      .map(|bait| button_row([callback_button(format_args!("Use {} ×{}", bait.name, bait.quantity), Callback::SelectBait { bait_id: bait.id }.encode())])),
+  );
   if view.catch_count > 0 {
     blocks.push(button_row([danger_callback_button(format_args!("Sell all fish · {} coins", view.sell_value), Callback::SellAll.encode())]));
   }
