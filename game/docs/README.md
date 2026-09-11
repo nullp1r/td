@@ -77,4 +77,22 @@ If source and docs disagree, inspect the implementation and the intended decisio
 - [`development/playtesting.md`](development/playtesting.md) — how to test the product rather than merely the code.
 - [`reference/glossary.md`](reference/glossary.md) — project terms.
 
-There is deliberately no “next task” document. Future work is chosen from current evidence, ideas, and priorities at the time.
+### Temporary active reset plan
+
+The MVP reset is currently tracked in a deliberately temporary work area. These files describe the intended replacement architecture while the source and durable subsystem docs still describe the fishing-centered implementation. They must be deleted after surviving decisions migrate into the durable docs.
+
+- [`work/mvp-reset/README.md`](work/mvp-reset/README.md) — reset authority, status vocabulary and master checklist.
+- [`work/mvp-reset/00-north-star.md`](work/mvp-reset/00-north-star.md) — reset product thesis and MVP proof.
+- [`work/mvp-reset/10-foundations.md`](work/mvp-reset/10-foundations.md) — shared-world and persistence foundations.
+- [`work/mvp-reset/20-identity-onboarding.md`](work/mvp-reset/20-identity-onboarding.md) — accounts, characters and world entry.
+- [`work/mvp-reset/25-interface-grammar.md`](work/mvp-reset/25-interface-grammar.md) — reset-specific Telegram UI grammar and corrections.
+- [`work/mvp-reset/30-world-locations.md`](work/mvp-reset/30-world-locations.md) — locations, routes, travel and presence.
+- [`work/mvp-reset/40-items-capabilities.md`](work/mvp-reset/40-items-capabilities.md) — item identity, inventory, provenance and capabilities.
+- [`work/mvp-reset/50-actions-encounters.md`](work/mvp-reset/50-actions-encounters.md) — actions, encounters, RNG and idempotency.
+- [`work/mvp-reset/60-npcs-dialogue-knowledge.md`](work/mvp-reset/60-npcs-dialogue-knowledge.md) — inhabited-world design frontier.
+- [`work/mvp-reset/70-social-telegram.md`](work/mvp-reset/70-social-telegram.md) — Telegram-native social/acquisition surfaces.
+- [`work/mvp-reset/80-content-live-world.md`](work/mvp-reset/80-content-live-world.md) — content/localization boundary and world composition.
+- [`work/mvp-reset/85-progression-failure-economy.md`](work/mvp-reset/85-progression-failure-economy.md) — current constraints and open progression/failure/economy design.
+- [`work/mvp-reset/90-implementation.md`](work/mvp-reset/90-implementation.md) — phased reset implementation plan.
+
+Outside this explicitly indexed temporary work area, there is deliberately no “next task” document. Future work is otherwise chosen from current evidence, ideas, and priorities at the time.

@@ -203,20 +203,22 @@ This applies to:
 - stale/duplicate callbacks that resolve to current state;
 - any other transition whose rendered result is unchanged.
 
-### Prefer explicit state markers over fake checkboxes
+### Use explicit state markers only for real selection state
 
 The following selection glyphs were compared directly:
 
 | Selected | Unselected | Verdict |
 |---|---|---|
-| `●` | `○` | **Preferred** |
+| `●` | `○` | **Preferred for true radio/selection state** |
 | `✓` | `·` | Acceptable lighter alternative |
-| `✅` | `⬜️` | Avoid |
-| `☑️` | `◻️` | Avoid |
+| `✅` | `⬜️` | Avoid as fake checkbox UI |
+| `☑️` | `◻️` | Avoid as fake checkbox UI |
 | `◆` | `◇` | Avoid |
 | `✓` | `—` | Avoid |
 
-`● / ○` communicates selected/unselected state without pretending that a rendered Rich Message checkbox itself is clickable. It is also visually cleaner than the ballot-box glyphs on the tested clients.
+`● / ○` communicates selected/unselected state without pretending that a rendered Rich Message checkbox itself is clickable. The later product-design reset explicitly corrected an overgeneralization of this result: it is **not** the default marker for every list, physical location, equipped item or completion state.
+
+Use it narrowly when the user is genuinely choosing one/more options. For completion use completion semantics (`✓`/`✅`) where appropriate; for physical world state and equipment, prefer direct labels/layout rather than redundant radio metaphors.
 
 ## Rustwater UI patterns supported by the evidence
 
@@ -245,13 +247,9 @@ Good candidates:
 
 ### Single-choice equipment/state
 
-A compact table plus `● / ○`, or a disabled selected-state button, can approximate a radio list:
+A compact table plus `● / ○`, or a disabled selected-state button, can approximate a genuine single-choice list.
 
-```text
-● Breakwater Rod   Ctrl 4   Equipped
-○ Harbor Rod       Ctrl 2   Equip
-○ Glasswater Rod   Ctrl 6   Equip
-```
+Avoid redundantly communicating the same state twice. For example, use either a selection marker or an `Equipped` state treatment when one is sufficient rather than mechanically rendering both on every row.
 
 Be aware that the disabled/selected button produced a slight row-size difference on Android. Prefer a stable text/action-cell width when visual jitter matters.
 

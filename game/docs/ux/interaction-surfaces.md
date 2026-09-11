@@ -25,7 +25,7 @@ Rich Messages are the primary high-fidelity panel format. Current rules from cro
 
 - use prose/scene composition for fiction, observation and encounters;
 - use **compact tables with buttons inside cells** for dense transactional collections such as gear, shops, milestones, titles and crafting;
-- use `● / ○` for selected/unselected state;
+- use `● / ○` narrowly for genuine selected/unselected controls, not as a generic marker for locations/equipment/completion;
 - use disabled buttons to communicate unavailable/current states;
 - avoid interactive controls nested in list items because Android composition differed from Desktop;
 - avoid UI that needs rapid repeated message edits; Telegram edit latency/rate limits make high-frequency steppers poor controls;

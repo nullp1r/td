@@ -41,18 +41,20 @@ Plain text remains correct when it is clearest. The mistake is treating all game
 
 Emoji should clarify role and hierarchy, not decorate every noun.
 
-Current useful anchors include:
+Current useful semantic anchors include:
 
-- 🎣 fishing/action;
-- ⚡ urgency/bite;
-- 📖 discovery/journal;
+- `✓` / `✅` completed/successful;
+- ✨ unusual/noteworthy;
+- 🏆 record/exceptional achievement;
+- 🌍 world/global scope;
+- 🗝 clue/relic/mystery;
+- 📍 location;
+- 👥 players/people/social presence;
 - 🪙 value/currency;
-- ✨ XP/progress;
-- 🏠 Home;
 - 🌦 conditions;
-- 🎉 notable success.
+- ⚠ warning/risk.
 
-Custom Rustwater emoji may later become a stronger branded vocabulary; essential meaning still needs text/standard fallback.
+Activity-specific symbols such as 🎣 remain appropriate when fishing is actually the subject, but fishing is no longer a global product/UI identity. Custom Rustwater emoji may later become a stronger branded vocabulary; essential meaning still needs text/standard fallback.
 
 ## Actions vs navigation
 
@@ -74,6 +76,8 @@ Deeper screens should normally have an obvious conceptual parent and Home, for e
 - Conditions → Locations/Map + Home.
 
 Do not maintain a generic browser-history stack until real playtesting shows semantic navigation is insufficient. History would introduce stale navigation/session state and restart semantics without current benefit.
+
+For the active MVP reset, the leading target is that the **current location scene** becomes the normal root rather than an abstract Home dashboard. Until that target is playtested/implemented, treat the Home examples above as fishing-era/current navigation rather than a commitment that Home must survive the reset. See [`../work/mvp-reset/25-interface-grammar.md`](../work/mvp-reset/25-interface-grammar.md).
 
 ## Commands are entry points, not a sitemap
 
