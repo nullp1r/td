@@ -22,6 +22,7 @@
 //!   "",
 //!   ("Weight: ", code(format_args!("{:.2} kg", 1.5))),
 //! ));
+//!
 //! assert_eq!(&*text, "Inventory — updated\n\nWeight: 1.50 kg");
 //! let caption: Option<tdx::types::formattedText> = text.into();
 //! ```
@@ -45,12 +46,14 @@
 //!   .header(("Item", "Count"))
 //!   .row(("Trout", code(3)))
 //!   .bordered();
+//!
 //! let mut message = rich([
 //!   paragraph(("Hello, ", bold("Alice"))),
 //!   stock.into(),
 //!   bullet_list([list_item("Fresh today").checked(true)]),
 //!   details("Notes", [block_quote([paragraph(italic("Keep chilled"))])]),
 //! ]);
+//!
 //! message.message.is_rtl = false;
 //! ```
 //!
@@ -73,30 +76,28 @@
 //!
 //! Generated rich text and page blocks cover native features without a helper.
 
-macro_rules! tuple_impls {
-  ($impl:ident) => {
-    $impl!(A a);
-    $impl!(A a, B b);
-    $impl!(A a, B b, C c);
-    $impl!(A a, B b, C c, D d);
-    $impl!(A a, B b, C c, D d, E e);
-    $impl!(A a, B b, C c, D d, E e, F f);
-    $impl!(A a, B b, C c, D d, E e, F f, G g);
-    $impl!(A a, B b, C c, D d, E e, F f, G g, H h);
-    $impl!(A a, B b, C c, D d, E e, F f, G g, H h, I i);
-    $impl!(A a, B b, C c, D d, E e, F f, G g, H h, I i, J j);
-    $impl!(A a, B b, C c, D d, E e, F f, G g, H h, I i, J j, K k);
-    $impl!(A a, B b, C c, D d, E e, F f, G g, H h, I i, J j, K k, L l);
-    $impl!(A a, B b, C c, D d, E e, F f, G g, H h, I i, J j, K k, L l, M m);
-    $impl!(A a, B b, C c, D d, E e, F f, G g, H h, I i, J j, K k, L l, M m, N n);
-    $impl!(A a, B b, C c, D d, E e, F f, G g, H h, I i, J j, K k, L l, M m, N n, O o);
-    $impl!(A a, B b, C c, D d, E e, F f, G g, H h, I i, J j, K k, L l, M m, N n, O o, P p);
-    $impl!(A a, B b, C c, D d, E e, F f, G g, H h, I i, J j, K k, L l, M m, N n, O o, P p, Q q);
-    $impl!(A a, B b, C c, D d, E e, F f, G g, H h, I i, J j, K k, L l, M m, N n, O o, P p, Q q, R r);
-    $impl!(A a, B b, C c, D d, E e, F f, G g, H h, I i, J j, K k, L l, M m, N n, O o, P p, Q q, R r, S s);
-    $impl!(A a, B b, C c, D d, E e, F f, G g, H h, I i, J j, K k, L l, M m, N n, O o, P p, Q q, R r, S s, T t);
-  };
-}
+macro_rules! tuple_impls(($impl:ident) => {
+  $impl!(A a);
+  $impl!(A a, B b);
+  $impl!(A a, B b, C c);
+  $impl!(A a, B b, C c, D d);
+  $impl!(A a, B b, C c, D d, E e);
+  $impl!(A a, B b, C c, D d, E e, F f);
+  $impl!(A a, B b, C c, D d, E e, F f, G g);
+  $impl!(A a, B b, C c, D d, E e, F f, G g, H h);
+  $impl!(A a, B b, C c, D d, E e, F f, G g, H h, I i);
+  $impl!(A a, B b, C c, D d, E e, F f, G g, H h, I i, J j);
+  $impl!(A a, B b, C c, D d, E e, F f, G g, H h, I i, J j, K k);
+  $impl!(A a, B b, C c, D d, E e, F f, G g, H h, I i, J j, K k, L l);
+  $impl!(A a, B b, C c, D d, E e, F f, G g, H h, I i, J j, K k, L l, M m);
+  $impl!(A a, B b, C c, D d, E e, F f, G g, H h, I i, J j, K k, L l, M m, N n);
+  $impl!(A a, B b, C c, D d, E e, F f, G g, H h, I i, J j, K k, L l, M m, N n, O o);
+  $impl!(A a, B b, C c, D d, E e, F f, G g, H h, I i, J j, K k, L l, M m, N n, O o, P p);
+  $impl!(A a, B b, C c, D d, E e, F f, G g, H h, I i, J j, K k, L l, M m, N n, O o, P p, Q q);
+  $impl!(A a, B b, C c, D d, E e, F f, G g, H h, I i, J j, K k, L l, M m, N n, O o, P p, Q q, R r);
+  $impl!(A a, B b, C c, D d, E e, F f, G g, H h, I i, J j, K k, L l, M m, N n, O o, P p, Q q, R r, S s);
+  $impl!(A a, B b, C c, D d, E e, F f, G g, H h, I i, J j, K k, L l, M m, N n, O o, P p, Q q, R r, S s, T t);
+});
 
 pub mod parse;
 pub mod rich;
