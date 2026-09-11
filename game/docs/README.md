@@ -16,7 +16,7 @@ A developer or AI with no previous conversation context should read, in order:
 
 For character/art work, read [`narrative/mara-reed.md`](narrative/mara-reed.md) and [`art/visual-direction.md`](art/visual-direction.md) early. Mara Reed is the current visual face of the game.
 
-For Telegram/client work, read [`ux/principles.md`](ux/principles.md), [`ux/interaction-surfaces.md`](ux/interaction-surfaces.md), [`telegram/platform.md`](telegram/platform.md), and [`telegram/tdx.md`](telegram/tdx.md).
+For Telegram/client work, read [`ux/principles.md`](ux/principles.md), [`ux/interaction-surfaces.md`](ux/interaction-surfaces.md), [`telegram/platform.md`](telegram/platform.md), [`telegram/rich-messages.md`](telegram/rich-messages.md), and [`telegram/tdx.md`](telegram/tdx.md).
 
 For backend/game-state work, start with [`architecture/overview.md`](architecture/overview.md) and [`architecture/persistence.md`](architecture/persistence.md).
 
@@ -67,6 +67,7 @@ If source and docs disagree, inspect the implementation and the intended decisio
 - [`ux/principles.md`](ux/principles.md) — player-facing interaction principles.
 - [`ux/interaction-surfaces.md`](ux/interaction-surfaces.md) — DM, group, inline, Guest Mode, keyboards, Mini App and sharing strategy.
 - [`telegram/platform.md`](telegram/platform.md) — verified Telegram capabilities and constraints.
+- [`telegram/rich-messages.md`](telegram/rich-messages.md) — empirical Rich Message compatibility/UX research and Rustwater interaction grammar.
 - [`telegram/tdx.md`](telegram/tdx.md) — project-specific `tdx` conventions and evolution rules.
 - [`architecture/overview.md`](architecture/overview.md) — code/runtime architecture.
 - [`architecture/persistence.md`](architecture/persistence.md) — SQLite, transactions, durable timers, history/provenance.

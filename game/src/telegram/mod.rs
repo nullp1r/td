@@ -103,6 +103,15 @@ async fn recv_loop(session: &mut Session, app: App, client: Client, wake: watch:
           }
         });
       }
+      Update::updateNewInlineQuery(update) => {
+        let app = app.clone();
+        let client = client.clone();
+        tokio::spawn(async move {
+          if let Err(error) = dispatch::inline_query(&app, &client, &update).await {
+            tracing::error!(?error, "inline query failed");
+          }
+        });
+      }
       _ => {}
     }
   }

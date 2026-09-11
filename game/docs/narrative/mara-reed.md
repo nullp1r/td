@@ -8,7 +8,7 @@
 - **Current in-game role:** Harbor Warden at Old Harbor
 - **Meta/visual role:** Rustwater's recurring promotional heroine, viewpoint character, **face and mascot**.
 
-Mara is the full identity of the NPC currently presented in-game as **“Mara, Harbor Warden.”**
+Mara is the full identity of the NPC currently presented in-game as **“Mara Reed · Harbor Warden.”**
 
 Her full name and visual design emerged during exploration of Rustwater promotional/anime artwork. The design resonated strongly enough to become canon rather than remaining an isolated promo concept: **Mara Reed is now the official recurring face/mascot of Rustwater.** Preserve that status unless the product deliberately changes direction.
 

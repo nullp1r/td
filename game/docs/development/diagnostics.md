@@ -75,7 +75,7 @@ The no-default-feature `dead_code` allowance is intentional because Telegram-fac
 
 Diagnostics must never run integrity checks directly against a live DB/WAL set in a way that mutates it. Copy the DB plus WAL/SHM to a temporary directory, then open the copy read-only where possible.
 
-Current schema version is 4.
+Current schema version is 5.
 
 ## Documentation check
 

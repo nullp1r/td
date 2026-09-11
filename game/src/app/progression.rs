@@ -300,7 +300,7 @@ fn load_npc(connection: &rusqlite::Connection, content: &Content, telegram_user_
   if stored_catches > 0 {
     hint.push_str(" And don't sell everything blindly—the tackle bench can turn ordinary specimens into useful bait.");
   }
-  Ok(NpcView { name: "Mara", title: "Harbor Warden", text: story.to_owned(), hint })
+  Ok(NpcView { name: "Mara Reed", title: "Harbor Warden", text: story.to_owned(), hint })
 }
 
 fn load_records(connection: &rusqlite::Connection, content: &Content, telegram_user_id: i64) -> Result<RecordsView> {
@@ -312,15 +312,21 @@ fn load_records(connection: &rusqlite::Connection, content: &Content, telegram_u
   )?;
   let heaviest = connection
     .query_row(
-      "SELECT c.species_id, c.length_mm, c.weight_g FROM catches c JOIN items i ON i.id = c.item_id
+      "SELECT c.item_id, c.species_id, c.length_mm, c.weight_g FROM catches c JOIN items i ON i.id = c.item_id
        WHERE i.owner_character_id = ?1 ORDER BY c.weight_g DESC, c.item_id ASC LIMIT 1",
       [character_id],
-      |row| Ok((SpeciesId(row.get(0)?), row.get::<_, u32>(1)?, row.get::<_, u32>(2)?)),
+      |row| Ok((row.get::<_, i64>(0)?, SpeciesId(row.get(1)?), row.get::<_, u32>(2)?, row.get::<_, u32>(3)?)),
     )
     .optional()?
-    .map(|(species_id, length_mm, weight_g)| {
+    .map(|(item_id, species_id, length_mm, weight_g)| {
       let species = content.species(species_id);
-      CatchSummaryView { species_name: species.name.clone(), length_mm, weight_g, value: fishing::sale_value(species, Specimen { length_mm, weight_g }) }
+      CatchSummaryView {
+        item_id,
+        species_name: species.name.clone(),
+        length_mm,
+        weight_g,
+        value: fishing::sale_value(species, Specimen { length_mm, weight_g }),
+      }
     });
   let mut statement = connection.prepare(
     "WITH personal AS (

@@ -1,6 +1,6 @@
 //! Text and layout blocks. Nest blocks explicitly with arrays or iterators.
 
-use td_types::enums::{ButtonStyle, InputPageBlock};
+use td_types::enums::{ButtonStyle, InlineKeyboardButtonType, InputPageBlock, RichText, TargetChat};
 use td_types::types;
 
 use crate::compose::markup::IntoCallbackData;
@@ -28,9 +28,22 @@ pub fn primary_callback_button(text: impl IntoRichText, data: impl IntoCallbackD
   callback_button_with_style(text, data, ButtonStyle::buttonStylePrimary)
 }
 
+/// Constructs a borderless callback button inside a rich message.
+pub fn link_callback_button(text: impl IntoRichText, data: impl IntoCallbackData) -> types::inlineButton {
+  callback_button_with_style(text, data, ButtonStyle::buttonStyleLink)
+}
+
 /// Constructs a green callback button inside a rich message.
 pub fn success_callback_button(text: impl IntoRichText, data: impl IntoCallbackData) -> types::inlineButton {
   callback_button_with_style(text, data, ButtonStyle::buttonStyleSuccess)
+}
+
+/// Constructs a rich-message button that opens classic inline mode in a chosen target chat.
+pub fn switch_inline_button(text: impl IntoRichText, query: impl Into<String>, target_chat: impl Into<TargetChat>) -> types::inlineButton {
+  let text = Box::new(text.into_rich_text());
+  let style = ButtonStyle::buttonStyleDefault;
+  let r#type = types::inlineKeyboardButtonTypeSwitchInline { query: query.into(), target_chat: target_chat.into() }.into();
+  types::inlineButton { text, style, r#type }
 }
 
 /// Constructs a red callback button inside a rich message.
@@ -42,6 +55,24 @@ fn callback_button_with_style(text: impl IntoRichText, data: impl IntoCallbackDa
   let text = Box::new(text.into_rich_text());
   let r#type = types::inlineKeyboardButtonTypeCallback { data: data.into_callback_data() }.into();
   types::inlineButton { text, style, r#type }
+}
+
+/// Embeds a rich-message button into inline text, including table cells and paragraphs.
+pub fn inline_button(button: types::inlineButton) -> RichText {
+  types::richTextButton { button }.into()
+}
+
+/// Constructs a borderless inline callback action suitable for compact tables.
+pub fn inline_callback_button(text: impl IntoRichText, data: impl IntoCallbackData) -> RichText {
+  inline_button(link_callback_button(text, data))
+}
+
+/// Constructs a disabled inline action label suitable for compact tables.
+pub fn inline_disabled_button(text: impl IntoRichText) -> RichText {
+  let text = Box::new(text.into_rich_text());
+  let style = ButtonStyle::buttonStyleDefault;
+  let r#type = InlineKeyboardButtonType::inlineKeyboardButtonTypeDisabled;
+  inline_button(types::inlineButton { text, style, r#type })
 }
 
 /// Places inline content in the document footer.

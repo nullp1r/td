@@ -68,7 +68,7 @@ This registry records decisions that matter beyond one implementation session. I
 | Settled | Player-facing UI should use Rich Message hierarchy, tasteful emoji and semantic controls rather than developer telemetry/walls of text. |
 | Settled | Primary contextual actions belong inside Rich Messages when appropriate; conventional inline reply markup is mainly navigation/secondary action. |
 | Settled | Semantic parent + Home is preferred over a generic persistent browser-history stack until real UX evidence requires history. |
-| Settled | Classic inline mode is part of the intended social/share surface. |
+| Settled | Classic inline mode is part of the social/share surface; catch-card sharing is the first implemented result type. |
 | Direction | Telegram Guest Mode (mentioning the bot in chats where it is not a member) is a promising Rustwater surface and should be prototyped before committing detailed mechanics. |
 | Provisional | Persistent reply keyboards in DMs are not the default navigation model; use only if a specific interaction benefits from an always-present action pad. |
 
@@ -94,5 +94,7 @@ This registry records decisions that matter beyond one implementation session. I
 | Status | Decision |
 |---|---|
 | Settled | Documentation is part of the definition of done for behavior/design/invariant changes. Edit current truth; do not accumulate session-history files. |
-| Settled | Project ZIPs/archives are transient transport between environments, not releases, milestones, or durable identifiers. |
+| Settled | For chat-assisted development, use a complete current project archive as the session bootstrap and prefer small incremental unified patches for durable changes; verify with `git apply --check` before applying. |
+| Settled | Disposable Bash/Python/etc. investigation scripts are encouraged when they provide concrete evidence or reversible experiments; promote them into maintained project tooling only when the workflow becomes recurrent. |
+| Settled | Project ZIPs/archives and generated patch files are transient transport between environments, not releases, milestones, or durable identifiers. |
 | Settled | Diagnostics output is transient. The diagnostics script diagnoses the project; it must not encode archive-transfer policy. |

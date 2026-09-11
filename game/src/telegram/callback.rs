@@ -3,7 +3,10 @@
 //! Messages can outlive a bot process, so version/kind bytes are a wire protocol: append new kinds,
 //! but never silently renumber existing ones. Unknown versions decode to `None` and are acknowledged.
 
-use crate::ids::{BaitId, EncounterId, LocationId, RodId};
+use crate::{
+  ids::{BaitId, EncounterId, LocationId, RodId},
+  view::GroupApproach,
+};
 
 const VERSION: u8 = 1;
 const CAST: u8 = 1;
@@ -40,6 +43,7 @@ const GROUP_CAST: u8 = 31;
 const GROUP_JOURNAL: u8 = 32;
 const GROUP_RECORDS: u8 = 33;
 const GROUP_HELP: u8 = 34;
+const GROUP_APPROACH: u8 = 35;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Callback {
@@ -74,6 +78,7 @@ pub enum Callback {
   Crafting,
   Craft { recipe_id: u32 },
   GroupCast { cycle: i64 },
+  GroupApproach { cycle: i64, approach: GroupApproach },
   GroupJournal,
   GroupRecords,
   GroupHelp,
@@ -113,6 +118,7 @@ impl Callback {
       Self::Crafting => vec![VERSION, CRAFTING],
       Self::Craft { recipe_id } => encode_u32(CRAFT, recipe_id),
       Self::GroupCast { cycle } => encode_i64(GROUP_CAST, cycle),
+      Self::GroupApproach { cycle, approach } => encode_group_approach(cycle, approach),
       Self::GroupJournal => vec![VERSION, GROUP_JOURNAL],
       Self::GroupRecords => vec![VERSION, GROUP_RECORDS],
       Self::GroupHelp => vec![VERSION, GROUP_HELP],
@@ -157,6 +163,15 @@ impl Callback {
       [VERSION, CRAFTING] => Some(Self::Crafting),
       [VERSION, CRAFT, rest @ ..] if rest.len() == 4 => Some(Self::Craft { recipe_id: decode_u32(rest)? }),
       [VERSION, GROUP_CAST, rest @ ..] if rest.len() == 8 => Some(Self::GroupCast { cycle: decode_i64(rest)? }),
+      [VERSION, GROUP_APPROACH, rest @ ..] if rest.len() == 9 => {
+        let (cycle, approach) = rest.split_at(8);
+        let approach = match approach {
+          [1] => GroupApproach::Drift,
+          [2] => GroupApproach::Hold,
+          _ => return None,
+        };
+        Some(Self::GroupApproach { cycle: decode_i64(cycle)?, approach })
+      }
       [VERSION, GROUP_JOURNAL] => Some(Self::GroupJournal),
       [VERSION, GROUP_RECORDS] => Some(Self::GroupRecords),
       [VERSION, GROUP_HELP] => Some(Self::GroupHelp),
@@ -190,6 +205,15 @@ fn encode_u32(kind: u8, value: u32) -> Vec<u8> {
 
 fn decode_u32(bytes: &[u8]) -> Option<u32> {
   Some(u32::from_le_bytes(bytes.try_into().ok()?))
+}
+
+fn encode_group_approach(cycle: i64, approach: GroupApproach) -> Vec<u8> {
+  let mut bytes = encode_i64(GROUP_APPROACH, cycle);
+  bytes.push(match approach {
+    GroupApproach::Drift => 1,
+    GroupApproach::Hold => 2,
+  });
+  bytes
 }
 
 fn encode_i64(kind: u8, value: i64) -> Vec<u8> {
@@ -232,6 +256,8 @@ mod tests {
       Callback::Crafting,
       Callback::Craft { recipe_id: 2 },
       Callback::GroupCast { cycle: -123_456 },
+      Callback::GroupApproach { cycle: 77, approach: GroupApproach::Drift },
+      Callback::GroupApproach { cycle: 77, approach: GroupApproach::Hold },
       Callback::GroupJournal,
       Callback::GroupRecords,
       Callback::GroupHelp,

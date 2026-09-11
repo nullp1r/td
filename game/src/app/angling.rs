@@ -536,6 +536,7 @@ fn finish_catch(
   )?;
   clear_encounter(tx, encounter_id)?;
   Ok(CatchView {
+    item_id: record.item_id,
     chat_id: encounter.chat_id,
     message_id: encounter.message_id,
     species_name: species.name.clone(),
@@ -544,6 +545,8 @@ fn finish_catch(
     reaction,
     new_species: record.new_species,
     global_first: record.global_first,
+    personal_best: record.personal_best,
+    world_best: record.world_best,
     xp_gained: record.xp_gained,
     level: record.level,
     level_up: record.level_up,

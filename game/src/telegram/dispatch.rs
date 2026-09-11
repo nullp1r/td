@@ -13,7 +13,7 @@ use crate::{
   fishing::StruggleAction,
   ids::EncounterId,
   timer,
-  view::ReelOutcome,
+  view::{GroupApproach, ReelOutcome},
 };
 
 use super::{callback::Callback, present, wake_timer};
@@ -51,6 +51,17 @@ async fn private_command(app: &App, client: &Client, message: &types::message, c
   Ok(())
 }
 
+/// Answers one classic inline-mode query with catches owned by the requesting character.
+pub async fn inline_query(app: &App, client: &Client, update: &types::updateNewInlineQuery) -> anyhow::Result<()> {
+  let catches = match app.inline_catches(update.sender_user_id, update.query.clone()).await {
+    Ok(catches) => catches,
+    Err(AppError::CharacterMissing) => Vec::new(),
+    Err(error) => return Err(error.into()),
+  };
+  present::inline_catches(client, update, &catches).await?;
+  Ok(())
+}
+
 /// Handles one incoming callback query.
 pub async fn callback(app: &App, client: &Client, update: &types::updateNewCallbackQuery, wake: &watch::Sender<u64>) -> anyhow::Result<()> {
   let CallbackQueryPayload::callbackQueryPayloadData(payload) = &update.payload else {
@@ -62,7 +73,7 @@ pub async fn callback(app: &App, client: &Client, update: &types::updateNewCallb
     return Ok(());
   };
   // Group callbacks own their acknowledgement because an ephemeral response may need to fall back to a toast.
-  if !matches!(callback, Callback::GroupCast { .. } | Callback::GroupJournal | Callback::GroupRecords | Callback::GroupHelp) {
+  if !matches!(callback, Callback::GroupCast { .. } | Callback::GroupApproach { .. } | Callback::GroupJournal | Callback::GroupRecords | Callback::GroupHelp) {
     client.send(&action_callback::ack(update)).await?;
   }
 
@@ -81,7 +92,9 @@ pub async fn callback(app: &App, client: &Client, update: &types::updateNewCallb
     Callback::ClaimObjective { .. } | Callback::TurnInContract | Callback::EquipTitle { .. } => {
       progression_callback(app, client, update, callback).await?;
     }
-    Callback::GroupCast { .. } | Callback::GroupJournal | Callback::GroupRecords | Callback::GroupHelp => group_callback(app, client, update, callback).await?,
+    Callback::GroupCast { .. } | Callback::GroupApproach { .. } | Callback::GroupJournal | Callback::GroupRecords | Callback::GroupHelp => {
+      group_callback(app, client, update, callback).await?;
+    }
     Callback::Home
     | Callback::Inventory
     | Callback::Journal
@@ -121,7 +134,7 @@ async fn fishing_callback(
     }
     Callback::Reel { encounter_id, step } => {
       match app.reel(update.sender_user_id, encounter_id, step, now).await {
-        Ok(outcome) => present_reel_outcome(app, client, outcome).await?,
+        Ok(outcome) => present_reel_outcome(app, client, update.sender_user_id, outcome).await?,
         Err(error) => present_app_error(client, update, error).await?,
       }
       wake_timer(wake);
@@ -155,7 +168,7 @@ async fn struggle(
 ) -> anyhow::Result<()> {
   let now = timer::now_ms();
   match app.struggle_action(update.sender_user_id, encounter_id, step, action, now).await {
-    Ok(outcome) => present_reel_outcome(app, client, outcome).await?,
+    Ok(outcome) => present_reel_outcome(app, client, update.sender_user_id, outcome).await?,
     Err(error) => present_app_error(client, update, error).await?,
   }
   wake_timer(wake);
@@ -236,7 +249,13 @@ async fn panel_callback(app: &App, client: &Client, update: &types::updateNewCal
       Err(error) => present_app_error(client, update, error).await?,
     },
     Callback::Explore => match app.explore(update.sender_user_id, now).await {
-      Ok(exploration) => present::explored(client, update.chat_id, update.message_id, &exploration).await?,
+      Ok(exploration) => {
+        let discovered = exploration.discovered_location.is_some();
+        present::explored(client, update.chat_id, update.message_id, &exploration).await?;
+        if discovered {
+          present::home(client, update.chat_id, &app.character(update.sender_user_id, now).await?).await?;
+        }
+      }
       Err(error) => present_app_error(client, update, error).await?,
     },
     Callback::Tasks => present::tasks(client, update.chat_id, update.message_id, &app.tasks(update.sender_user_id, now).await?).await?,
@@ -262,7 +281,15 @@ async fn group_callback(app: &App, client: &Client, update: &types::updateNewCal
   let now = timer::now_ms();
   app.ensure_character(update.sender_user_id, now).await?;
   match callback {
-    Callback::GroupCast { cycle } => group_cast_callback(app, client, update, cycle, now).await?,
+    Callback::GroupCast { cycle } => {
+      let event = app.group_event(update.chat_id, now).await?;
+      if event.cycle == cycle {
+        finish_ephemeral(client, update, present::group_read(client, update, &event).await, "shoal read", "Couldn't read the water here.").await?;
+      } else {
+        client.send(&action_callback::toast(update, "That shoal moved on. Use /fish for the current one.")).await?;
+      }
+    }
+    Callback::GroupApproach { cycle, approach } => group_cast_callback(app, client, update, cycle, approach, now).await?,
     Callback::GroupJournal => {
       let view = app.journal(update.sender_user_id).await?;
       finish_ephemeral(client, update, present::group_journal(client, update, &view).await, "Journal", "Couldn't open your Journal here.").await?;
@@ -276,16 +303,23 @@ async fn group_callback(app: &App, client: &Client, update: &types::updateNewCal
   Ok(())
 }
 
-async fn group_cast_callback(app: &App, client: &Client, update: &types::updateNewCallbackQuery, cycle: i64, now_ms: i64) -> anyhow::Result<()> {
+async fn group_cast_callback(
+  app: &App,
+  client: &Client,
+  update: &types::updateNewCallbackQuery,
+  cycle: i64,
+  approach: GroupApproach,
+  now_ms: i64,
+) -> anyhow::Result<()> {
   let seed = getrandom::u64().map_err(|error| anyhow::anyhow!("failed to obtain group-cast entropy: {error}"))?;
-  match app.group_cast(update.sender_user_id, update.chat_id, cycle, seed, now_ms).await {
+  match app.group_cast(update.sender_user_id, update.chat_id, cycle, approach, seed, now_ms).await {
     Ok(catch) => {
       if let Err(error) = present::group_result(client, update, &catch).await {
-        tracing::warn!(?error, chat_id = update.chat_id, user_id = update.sender_user_id, "ephemeral group catch presentation failed");
-        let toast = action_callback::toast(
-          update,
-          format_args!("Caught {} · {:.2} kg · +{} XP", catch.species_name, f64::from(catch.weight_g) / 1_000.0, catch.xp_gained),
-        );
+        let error_text = format!("{error:?}");
+        drop(error);
+        tracing::warn!(error = %error_text, chat_id = update.chat_id, user_id = update.sender_user_id, "ephemeral group catch presentation failed");
+        let text = format!("Caught {} · {:.2} kg · +{} XP", catch.species_name, f64::from(catch.weight_g) / 1_000.0, catch.xp_gained);
+        let toast = action_callback::toast(update, text);
         client.send(&toast).await?;
       } else {
         client.send(&action_callback::ack(update)).await?;
@@ -302,7 +336,9 @@ async fn group_cast_callback(app: &App, client: &Client, update: &types::updateN
       client.send(&action_callback::toast(update, "That shoal moved on. Use /fish for the current one.")).await?;
     }
     Err(error) => {
-      tracing::warn!(?error, chat_id = update.chat_id, "group shoal action failed");
+      let error_text = format!("{error:?}");
+      drop(error);
+      tracing::warn!(error = %error_text, chat_id = update.chat_id, "group shoal action failed");
       client.send(&action_callback::alert(update, "The shared cast could not be completed.")).await?;
     }
   }
@@ -321,21 +357,34 @@ async fn finish_ephemeral(
       client.send(&action_callback::ack(update)).await?;
     }
     Err(error) => {
-      tracing::warn!(?error, chat_id = update.chat_id, user_id = update.sender_user_id, panel, "ephemeral group panel failed");
+      let error_text = format!("{error:?}");
+      drop(error);
+      tracing::warn!(error = %error_text, chat_id = update.chat_id, user_id = update.sender_user_id, panel, "ephemeral group panel failed");
       client.send(&action_callback::toast(update, fallback)).await?;
     }
   }
   Ok(())
 }
 
-async fn present_reel_outcome(app: &App, client: &Client, outcome: ReelOutcome) -> anyhow::Result<()> {
+async fn present_reel_outcome(app: &App, client: &Client, telegram_user_id: i64, outcome: ReelOutcome) -> anyhow::Result<()> {
   match outcome {
-    ReelOutcome::Caught(catch) => present::caught(client, &catch).await?,
+    ReelOutcome::Caught(catch) => {
+      let durable = catch.new_species || catch.world_best || catch.global_first;
+      let chat_id = catch.chat_id;
+      present::caught(client, &catch, durable).await?;
+      if durable {
+        present::home(client, chat_id, &app.character(telegram_user_id, timer::now_ms()).await?).await?;
+      }
+    }
     ReelOutcome::Struggle(struggle) => {
       present::struggle(client, &struggle).await?;
       app.mark_presented(struggle.encounter_id, struggle.step, timer::now_ms()).await?;
     }
-    ReelOutcome::Relic(relic) => present::relic(client, &relic).await?,
+    ReelOutcome::Relic(relic) => {
+      let chat_id = relic.chat_id;
+      present::relic(client, &relic).await?;
+      present::home(client, chat_id, &app.character(telegram_user_id, timer::now_ms()).await?).await?;
+    }
     ReelOutcome::Escaped(escape) => present::escaped(client, &escape).await?,
   }
   Ok(())

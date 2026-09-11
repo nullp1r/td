@@ -87,7 +87,7 @@ The public button is shared by everyone; uniqueness must therefore be server/dat
 
 ## Schema version
 
-Current SQLite `PRAGMA user_version = 4`.
+Current SQLite `PRAGMA user_version = 5`.
 
 ### v1 — core
 
@@ -118,6 +118,11 @@ Current SQLite `PRAGMA user_version = 4`.
 - equipped character title ID;
 - craft consumption history;
 - group event claims.
+
+### v5 — group reads
+
+- group-shoal approach choice;
+- persisted whether that private read matched the shoal behavior.
 
 Schema changes must be forward migrations. Persisted numeric enums/IDs used in existing rows must not be casually renumbered.
 

@@ -15,11 +15,12 @@ use tokio::sync::{mpsc, oneshot};
 
 type Job = Box<dyn FnOnce(&mut Connection) + Send + 'static>;
 
-const MIGRATIONS: [&str; 4] = [
+const MIGRATIONS: [&str; 5] = [
   include_str!("../migrations/0001_init.sql"),
   include_str!("../migrations/0002_progression.sql"),
   include_str!("../migrations/0003_world_loop.sql"),
   include_str!("../migrations/0004_social_crafting.sql"),
+  include_str!("../migrations/0005_group_reads.sql"),
 ];
 
 #[derive(Clone)]

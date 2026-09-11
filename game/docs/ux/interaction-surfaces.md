@@ -1,146 +1,91 @@
 # Interaction surfaces
 
-Rustwater should use multiple Telegram-native surfaces onto one authoritative world. This document records the product role of each surface; [`../telegram/platform.md`](../telegram/platform.md) records verified platform facts.
+Rustwater uses multiple Telegram-native surfaces over one authoritative world. This document records the product role of each surface; [`../telegram/platform.md`](../telegram/platform.md) records verified platform facts and [`../telegram/rich-messages.md`](../telegram/rich-messages.md) records empirical Rich Message behavior.
 
 ## 1. Private DM — implemented core surface
 
-Best for:
+Best for persistent personal play: fishing, exploration/travel, inventory/equipment/crafting, journal/records/titles, NPC scenes and longer private choices.
 
-- persistent personal play;
-- fishing encounters;
-- exploration/travel;
-- inventory/equipment/crafting;
-- journal/records/titles;
-- NPC conversations and future relationship scenes;
-- private choices;
-- longer sessions.
+The current Home is **scene-first rather than sitemap-first**. Location/conditions/current thread and the immediate in-world actions lead; kit/progression details are secondary. The first-catch state deliberately exposes fewer navigation destinations so new players are not introduced to every subsystem at equal weight.
 
-Current navigation is Rich Message/inline-button driven with only `/start` and `/help` advertised as normal commands.
+Only `/start` and `/help` are advertised as normal private commands.
 
-### Reply keyboard: possible, not default
+### Mutable panel vs durable moment
 
-Telegram also supports the persistent “custom keyboard” below the composer. Current Rustwater does **not** need it as a permanent sitemap; Rich Message + inline navigation is cleaner.
+Rustwater deliberately uses two message lifetimes:
 
-Reconsider it only for a concrete mode that benefits from an always-present action pad, e.g. movement, a repeated encounter vocabulary, accessibility, or another high-frequency interaction where reopening a panel is worse.
+- **panel/state** — routine navigation and ordinary catches can replace the current game message;
+- **event/history** — new species, world records, relics and newly discovered locations remain as durable chat messages, followed by a fresh current-scene panel.
 
-## 2. Group chat — implemented social surface
+This preserves the low-noise single-interface idea without making every memorable event disappear on the next tap.
 
-Best for:
+## 2. Rich Messages — implemented default UI
 
-- shared events/state;
-- cooperation/competition;
-- public discoveries and rare announcements;
-- chat-local phenomena;
-- a public invitation into the game.
+Rich Messages are the primary high-fidelity panel format. Current rules from cross-client testing are:
 
-Current `/fish` demonstrates the preferred structure:
+- use prose/scene composition for fiction, observation and encounters;
+- use **compact tables with buttons inside cells** for dense transactional collections such as gear, shops, milestones, titles and crafting;
+- use `● / ○` for selected/unselected state;
+- use disabled buttons to communicate unavailable/current states;
+- avoid interactive controls nested in list items because Android composition differed from Desktop;
+- avoid UI that needs rapid repeated message edits; Telegram edit latency/rate limits make high-frequency steppers poor controls;
+- never issue an edit when authoritative state did not change (`MESSAGE_NOT_MODIFIED`).
 
-- one public shared Rich Message;
-- one safe primary action;
-- per-user ephemeral outcome;
+The complete compatibility matrix and caveats are in [`../telegram/rich-messages.md`](../telegram/rich-messages.md).
+
+## 3. Group chat — implemented social surface
+
+Current `/fish` uses:
+
+- one public chat-local clue/event card;
+- private ephemeral interpretation choices;
+- persistent personal consequences;
 - sparse public edits;
-- persistent consequences still belong to the player's character.
+- persistent chat familiarity that gradually reveals hints, identity and eventually the mastered read.
 
-Group `/help` is ephemeral and the event card itself includes **How it works**, so slash-command discovery is not required.
+This surface should remain mechanically distinct from DM fishing while sharing the same world/catch history.
 
-## 3. Classic inline mode — committed direction
+Group `/help` is ephemeral; the event card itself also explains how to inspect the activity.
 
-**Definitely part of the intended Rustwater surface.**
+## 4. Classic inline mode — implemented initial sharing surface
 
-A user types the bot username plus a query in any chat and chooses a result to send. This is ideal for letting a player's game identity/content travel naturally into conversations where the bot may not otherwise be active.
+A user can invoke an inline-enabled Rustwater bot from another chat and send a catch card. Empty query returns recent catches; text filters by species name; internal **Share this catch** buttons use an exact historical catch ID.
 
-Strong result candidates:
+This is the first implemented version of the broader “game objects travel naturally through Telegram” loop. Strong future result types include location postcards, artwork/gallery pieces, profiles/titles, lore discoveries and event invitations.
 
-- catch/specimen card;
-- personal/world record card;
-- unlocked location postcard;
-- unlocked artwork/gallery piece;
-- player profile/title;
-- discovery/lore card;
-- event invitation/challenge;
-- future market/trade listing if socially appropriate.
-
-Empty-query results should still offer useful recent/favorite/shareable objects rather than requiring users to memorize a grammar.
-
-Rustwater screens can include switch-to-inline buttons for “Share” actions.
-
-## 4. Guest Mode — strong direction, prototype before committing mechanics
-
-Telegram's 2026 **Guest Mode** is distinct from classic inline mode. A user can mention a guest-enabled bot in a supported chat even when the bot is not a member, and the bot can directly post a guest response.
-
-This is the mention-based surface that can be confused with classic inline mode; Rustwater should treat them as distinct interaction models.
-
-Promising Rustwater uses:
-
-- mention Rustwater while replying to a catch/art card and ask for context;
-- challenge another person from an arbitrary chat;
-- summon a lightweight social encounter;
-- show a player's unlocked postcard/record/profile;
-- resolve a world-related query using the triggering/replied-to message as context.
-
-Guest Mode receives constrained context by design, so mechanics must not assume access to entire chat history/member state.
-
-Treat this as a social/discovery surface, not a second full UI until a prototype proves what feels good.
+Inline mode must be enabled operationally through BotFather `/setinline` for the deployed bot.
 
 ## 5. Ephemeral per-user group messages — implemented
 
-Ephemeral group messages are particularly important to Rustwater because they create a private interaction layer **inside a social conversation**.
+Use for personal reads, choices, results, private Journal/Records views and other consequences that should happen inside a social conversation without spamming its public history.
 
-Use for:
+Do not use ephemerality for facts meant to become durable world/conversation history.
 
-- personal catch results;
-- read-only journal/records from a group result;
-- private choices/hints;
-- personalized consequences of a public event;
-- future inventory/relationship/event decisions that should not spam the group.
+## 6. Guest Mode — strong direction, prototype before committing mechanics
 
-Do not use ephemerality for information that should become durable world/conversation history.
+Guest Mode is distinct from classic inline mode: a supported chat can mention a guest-enabled bot even when the bot is not a member, and the bot can post a result using constrained trigger/reply context.
 
-## 6. Rich Messages — implemented foundation
+Promising uses include lightweight challenges, explaining a shared catch/art card, showing a profile/postcard, or summoning a small social encounter. Do not build mechanics that assume full arbitrary chat history.
 
-Rich Messages are the default high-fidelity Telegram game panel and can combine typography, tables, media, maps/collages/slideshows and in-message actions.
+## 7. Reply keyboard — possible, not default
 
-The new image-heavy vision makes this surface even more important: an NPC portrait/location image/CG can live in the same structured game object as dialogue/state/actions.
+The persistent custom keyboard below the composer is available but is not a good default sitemap for Rustwater. Reconsider it only for a concrete high-frequency interaction where an always-present action pad is objectively better.
 
-## 7. Private-chat topics — exploratory
+## 8. Private-chat topics — exploratory
 
-Telegram bots can support forum-style topics in private chats. This might eventually help organize long-running domains such as:
+Topics may eventually help organize long-running NPC/story/market threads, but can also fragment an interface that benefits from directness. Adopt only after a real information-architecture problem appears.
 
-- NPC/story threads;
-- expeditions;
-- trading/market activity;
-- separate persistent activity workspaces.
+## 9. Mini App — later dense/spatial surface
 
-It may also fragment a game interface that is currently pleasantly direct. Do not adopt it because the feature exists; test a real information-architecture problem first.
-
-## 8. Mini App — later dense/spatial surface
-
-A Mini App becomes attractive when Telegram messages are objectively poor for the task:
-
-- interactive world map;
-- large inventory/equipment layouts;
-- markets/trading;
-- crafting/build planning;
-- galleries/collections with many images;
-- complex character builds;
-- visual infrastructure/world editing.
-
-It should remain a view/controller over the same application/world state. Do not move core game rules into the client.
-
-## 9. Web/other clients — future
-
-A website or companion interface can eventually expose profiles, world maps, records, galleries, markets or community history. Same rule: one world, multiple surfaces.
+A Mini App becomes attractive when messages are objectively poor for the task: interactive maps, very large inventory/market layouts, complex builds, building planning or dense visual galleries. It remains a controller/view over the same server-side game state.
 
 ## Surface-selection rule
 
-Choose the surface that makes the interaction feel native and low-friction:
-
 - personal sustained interaction → DM;
-- shared moment → public group state;
+- shared moment/state → public group card;
 - private consequence of shared moment → ephemeral group state;
-- shareable game object → inline mode;
-- lightweight invocation from an arbitrary chat → Guest Mode;
-- dense/spatial interface → Mini App;
-- durable public showcase/reference → web if/when useful.
+- shareable immutable game object → inline mode;
+- lightweight arbitrary-chat invocation → Guest Mode;
+- dense/spatial interaction that outgrows messages → Mini App.
 
-Do not force a feature into a surface merely because that surface is newer.
+Do not force a mechanic into a surface merely because that Telegram feature is newer.

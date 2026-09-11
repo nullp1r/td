@@ -16,8 +16,8 @@ pub async fn shop(client: &Client, chat_id: i64, message_id: i64, view: &ShopVie
 pub async fn sold(client: &Client, chat_id: i64, message_id: i64, sale: SaleView, shop: &ShopView) -> client::Result<()> {
   let mut blocks = vec![
     heading("🪙 Catch sold", 1),
-    paragraph(format_args!("Sold {} catches for {} coins.", sale.sold, sale.coins_gained)),
-    paragraph(format_args!("🪙 Balance: {} coins", sale.coins)),
+    paragraph(format!("Sold {} catches for {} coins.", sale.sold, sale.coins_gained)),
+    paragraph(format!("Balance · {} coins", sale.coins)),
   ];
   blocks.extend(shop_blocks(shop));
   edit_panel(client, chat_id, message_id, rich(blocks), shop_markup()).await
@@ -41,21 +41,20 @@ pub async fn reward(client: &Client, chat_id: i64, message_id: i64, view: &Rewar
   let mut blocks = vec![
     heading(format!("🏆 {}", view.title), 1),
     paragraph(view.text.as_str()),
-    paragraph(format_args!("🪙 {} coins · ⭐ Level {} · ✨ {} XP", view.coins, view.level, view.xp)),
+    paragraph(format!("🪙 {} coins · ⭐ Level {} · ✨ {} XP", view.coins, view.level, view.xp)),
   ];
   if view.level_up {
-    blocks.push(block_quote([paragraph(format_args!("⭐ Level {} reached.", view.level))]));
+    blocks.push(block_quote([paragraph(format!("⭐ Level {} reached.", view.level))]));
   }
   blocks.extend(tasks_blocks(tasks));
   edit_panel(client, chat_id, message_id, rich(blocks), tasks_markup()).await
 }
 
 pub async fn npc(client: &Client, chat_id: i64, message_id: i64, view: &NpcView) -> client::Result<()> {
-  let content =
-    rich([heading(format_args!("💬 {} · {}", view.name, view.title), 1), paragraph(view.text.as_str()), block_quote([paragraph(view.hint.as_str())])]);
+  let content = rich([heading(format!("{} · {}", view.name, view.title), 1), paragraph(view.text.as_str()), block_quote([paragraph(view.hint.as_str())])]);
   let reply_markup = markup::inline(vec![
-    vec![markup::callback("📋 Harbor board", Callback::Tasks.encode()), markup::callback("🏪 Tackle stall", Callback::Shop.encode())],
-    vec![markup::callback("🌦 Conditions", Callback::Conditions.encode()), markup::callback("🏠 Home", Callback::Home.encode())],
+    vec![markup::callback("📋 Harbor board", Callback::Tasks.encode()), markup::callback("🌦 Read the water", Callback::Conditions.encode())],
+    vec![markup::callback("🏪 Tackle stall", Callback::Shop.encode()), markup::callback("🏠 Home", Callback::Home.encode())],
   ]);
   edit_panel(client, chat_id, message_id, content, reply_markup).await
 }
@@ -71,8 +70,8 @@ pub async fn crafting(client: &Client, chat_id: i64, message_id: i64, view: &Cra
 pub async fn crafted(client: &Client, chat_id: i64, message_id: i64, result: &CraftResultView, view: &CraftingView) -> client::Result<()> {
   let mut blocks = vec![
     heading("🧰 Bait prepared", 1),
-    paragraph(format_args!("{} produced {} ×{}.", result.recipe_name, result.bait_name, result.quantity)),
-    block_quote([paragraph("The specimen was used up, but the catch still counts in Records.")]),
+    paragraph(format!("{} produced {} ×{}.", result.recipe_name, result.bait_name, result.quantity)),
+    block_quote([paragraph("The specimen is gone from your bag; its catch record remains in your journal.")]),
   ];
   blocks.extend(crafting_blocks(view));
   edit_panel(client, chat_id, message_id, rich(blocks), crafting_markup()).await
@@ -83,71 +82,62 @@ fn shop_content(view: &ShopView) -> types::inputMessageRichMessage {
 }
 
 fn shop_blocks(view: &ShopView) -> Vec<enums::InputPageBlock> {
-  let bait_table = view.baits.iter().fold(table().header(("Bait", "Power", "Pack", "Price", "Owned")), |table, bait| {
-    table.row((
-      if bait.selected { format!("✓ {}", bait.name) } else { bait.name.clone() },
-      bait.power,
-      format_args!("×{}", bait.pack_size),
-      bait.price,
-      bait.quantity,
-    ))
-  });
-  let rod_table = table().header(("Rod", "Control", "Condition", "Price", "Status")).rows(view.rods.iter().map(|rod| {
-    let status = if rod.equipped {
-      "equipped"
+  let rod_table = view.rods.iter().fold(table().header(("", "Rod", "Ctrl", "Cond", "Action")), |table, rod| {
+    let marker = if rod.equipped { "●" } else { "○" };
+    let action = if rod.equipped {
+      inline_disabled_button("Equipped")
     } else if rod.owned {
-      "owned"
+      inline_disabled_button("Owned")
+    } else if u64::from(rod.price) <= view.coins {
+      inline_callback_button(format!("Buy · {}c", rod.price), Callback::BuyRod { rod_id: rod.id }.encode())
     } else {
-      ""
+      inline_disabled_button(format!("Need {}c", rod.price))
     };
-    (
-      rod.name.as_str(),
-      rod.control,
-      if rod.owned { format!("{}%", rod.condition) } else { "—".to_owned() },
-      if rod.price == 0 { "—".to_owned() } else { rod.price.to_string() },
-      status,
-    )
-  }));
-  let mut blocks = vec![
-    heading("🏪 Harbor Tackle Stall", 1),
-    paragraph(format_args!("🪙 Balance: {} coins", view.coins)),
-    heading("🎣 Rods", 2),
-    rod_table.striped().compact().into(),
-    paragraph(concat!(
-      "Control determines whether your equipment can keep powerful catches from tearing free. Difficult catches wear rods slowly; ",
-      "low condition only reduces control modestly and never destroys the rod.",
-    )),
-    heading("🪱 Bait", 2),
-    bait_table.striped().compact().into(),
-    paragraph(concat!(
-      "Fishing Power shortens the wait for a bite. Species preferences are a separate, mostly discoverable effect. ",
-      "Buying bait auto-selects it only when the current bait has run out.",
-    )),
-    paragraph(if view.can_forage {
-      "Out of bait? You can dig up three basic worms for free. Once you have bait again, you won’t need this option."
+    table.row((marker, rod.name.as_str(), rod.control, if rod.owned { format!("{}%", rod.condition) } else { "—".to_owned() }, action))
+  });
+
+  let bait_table = view.baits.iter().fold(table().header(("", "Bait", "Power", "Have", "Action")), |table, bait| {
+    let marker = if bait.selected { "●" } else { "○" };
+    let action = if u64::from(bait.price) <= view.coins {
+      inline_callback_button(format!("Buy ×{} · {}c", bait.pack_size, bait.price), Callback::BuyBait { bait_id: bait.id }.encode())
     } else {
-      "Digging for emergency worms is available whenever you run completely out of bait."
-    }),
+      inline_disabled_button(format!("Need {}c", bait.price))
+    };
+    table.row((marker, bait.name.as_str(), bait.power, bait.quantity, action))
+  });
+
+  let mut blocks = vec![
+    heading("Harbor Tackle Stall", 1),
+    paragraph(("Balance · ", bold(format!("{} coins", view.coins)))),
+    heading("Rods", 2),
+    rod_table.striped().compact().into(),
+    heading("Bait", 2),
+    bait_table.striped().compact().into(),
   ];
-  blocks.extend(
-    view
-      .rods
-      .iter()
-      .filter(|rod| !rod.owned && rod.price > 0)
-      .map(|rod| button_row([success_callback_button(format_args!("Buy {} · {} coins", rod.name, rod.price), Callback::BuyRod { rod_id: rod.id }.encode())])),
-  );
+
   if view.repair_all_cost > 0 {
-    blocks.push(button_row([callback_button(format_args!("Repair all rods · {} coins", view.repair_all_cost), Callback::RepairRods.encode())]));
+    let action = if u64::from(view.repair_all_cost) <= view.coins {
+      inline_callback_button(format!("Repair all · {}c", view.repair_all_cost), Callback::RepairRods.encode())
+    } else {
+      inline_disabled_button(format!("Repairs need {}c", view.repair_all_cost))
+    };
+    blocks.push(paragraph(("Worn tackle · ", action)));
   }
-  blocks.extend(view.baits.iter().map(|bait| {
-    button_row([success_callback_button(
-      format_args!("Buy {} ×{} · {} coins", bait.name, bait.pack_size, bait.price),
-      Callback::BuyBait { bait_id: bait.id }.encode(),
-    )])
-  }));
+
   if view.can_forage {
-    blocks.push(button_row([callback_button("🪱 Dig for 3 worms · free", Callback::ForageBait.encode())]));
+    blocks.push(paragraph(("Nothing left in the bait tin · ", inline_callback_button("Dig for 3 worms", Callback::ForageBait.encode()))));
   }
+
+  blocks.push(details(
+    "How tackle works",
+    [
+      paragraph("Control helps keep powerful catches from tearing free. Hard fights wear rods slowly; a worn rod loses some control but is never destroyed."),
+      paragraph(
+        "Fishing Power shortens the wait for a bite. Species preferences are separate and are meant to be learned from the water and your field notes.",
+      ),
+      paragraph("The ● marker shows what is currently equipped or selected. Change equipment from Inventory."),
+    ],
+  ));
   blocks
 }
 
@@ -160,40 +150,49 @@ fn tasks_content(view: &TasksView) -> types::inputMessageRichMessage {
 }
 
 fn tasks_blocks(view: &TasksView) -> Vec<enums::InputPageBlock> {
-  let milestones = table().header(("Milestone", "Progress", "Reward")).rows(view.objectives.iter().map(|objective| {
-    let status = if objective.claimed {
-      "claimed".to_owned()
+  let milestones = view.objectives.iter().fold(table().header(("Milestone", "Progress", "Reward", "Action")), |table, objective| {
+    let progress = if objective.claimed {
+      "done".to_owned()
     } else if objective.completed {
       "ready".to_owned()
     } else {
       format!("{} / {}", objective.progress, objective.target)
     };
-    (objective.name, status, objective.reward)
-  }));
-  let mut blocks = vec![heading("📋 Harbor Board", 1), milestones.striped().compact().into()];
-  blocks.extend(view.objectives.iter().map(|objective| paragraph(format_args!("{} — {}", objective.name, objective.description))));
-  blocks.push(heading("🎯 Harbor contract", 2));
+    let action = if objective.claimed {
+      inline_disabled_button("Claimed")
+    } else if objective.completed {
+      inline_callback_button("Claim", Callback::ClaimObjective { objective_id: objective.id }.encode())
+    } else {
+      inline_disabled_button("In progress")
+    };
+    table.row((objective.name, progress, objective.reward, action))
+  });
+
   let contract_status = if view.contract.claimed {
-    "Completed this game day"
+    inline_disabled_button("Settled")
   } else if view.contract.ready {
-    "Matching specimen stored — ready to turn in"
+    inline_callback_button("Turn in", Callback::TurnInContract.encode())
   } else {
-    "No matching stored specimen yet"
+    inline_disabled_button("Not ready")
   };
-  blocks.extend([
-    paragraph(format_args!(
-      "Bring one {}. Reward: {} coins + {} XP. {}.",
-      view.contract.species_name, view.contract.reward_coins, view.contract.reward_xp, contract_status
-    )),
-    paragraph(format_args!("Board rotation in {}.", format_duration(view.contract.resets_in_ms))),
-    paragraph(italic("Contract turn-ins use your smallest matching stored specimen, so a record catch is not sacrificed automatically.")),
-  ]);
-  blocks.extend(view.objectives.iter().filter(|objective| objective.completed && !objective.claimed).map(|objective| {
-    button_row([success_callback_button(format_args!("Claim {}", objective.name), Callback::ClaimObjective { objective_id: objective.id }.encode())])
-  }));
-  if view.contract.ready && !view.contract.claimed {
-    blocks.push(button_row([success_callback_button(format_args!("Turn in {}", view.contract.species_name), Callback::TurnInContract.encode())]));
-  }
+  let contract = table().header(("Wanted", "Reward", "Action")).row((
+    view.contract.species_name.as_str(),
+    format!("{}c · {} XP", view.contract.reward_coins, view.contract.reward_xp),
+    contract_status,
+  ));
+
+  let mut blocks = vec![
+    heading("Harbor Board", 1),
+    paragraph("Mara keeps the useful work here: long-running milestones and one specimen request that changes with the harbor day."),
+    milestones.striped().compact().into(),
+    heading("Today's specimen", 2),
+    contract.compact().into(),
+    paragraph(format!("Board rotates in {}.", format_duration(view.contract.resets_in_ms))),
+  ];
+
+  let notes = view.objectives.iter().map(|objective| paragraph((bold(objective.name), " — ", objective.description))).collect::<Vec<_>>();
+  blocks.push(details("Milestone notes", notes));
+  blocks.push(paragraph(italic("Contract turn-ins use your smallest matching stored specimen, so the game will not sacrifice a record catch first.")));
   blocks
 }
 
@@ -202,31 +201,22 @@ fn tasks_markup() -> enums::ReplyMarkup {
 }
 
 fn titles_content(view: &TitlesView) -> types::inputMessageRichMessage {
-  let titles = table().header(("Title", "Requirement", "Status")).rows(view.titles.iter().map(|title| {
-    let status = if title.equipped {
-      "equipped"
+  let titles = view.titles.iter().fold(table().header(("", "Title", "Requirement", "Action")), |table, title| {
+    let marker = if title.equipped { "●" } else { "○" };
+    let action = if title.equipped {
+      inline_disabled_button("Equipped")
     } else if title.unlocked {
-      "unlocked"
+      inline_callback_button("Equip", Callback::EquipTitle { title_id: title.id }.encode())
     } else {
-      "locked"
+      inline_disabled_button("Locked")
     };
-    (title.name, title.description, status)
-  }));
-  let mut blocks = vec![
-    heading("🏷 Titles", 1),
-    paragraph(
-      "Titles show what you’ve accomplished in Rustwater. They don’t change your fishing strength, and you can swap any unlocked title whenever you like.",
-    ),
+    table.row((marker, title.name, title.description, action))
+  });
+  rich([
+    heading("Titles", 1),
+    paragraph("Titles are visible proof of what you have done in Rustwater. They do not add combat or fishing stats."),
     titles.striped().compact().into(),
-  ];
-  blocks.extend(
-    view
-      .titles
-      .iter()
-      .filter(|title| title.unlocked && !title.equipped)
-      .map(|title| button_row([callback_button(format_args!("Equip {}", title.name), Callback::EquipTitle { title_id: title.id }.encode())])),
-  );
-  rich(blocks)
+  ])
 }
 
 fn titles_markup() -> enums::ReplyMarkup {
@@ -238,24 +228,20 @@ fn crafting_content(view: &CraftingView) -> types::inputMessageRichMessage {
 }
 
 fn crafting_blocks(view: &CraftingView) -> Vec<enums::InputPageBlock> {
-  let recipes = view.recipes.iter().fold(table().header(("Preparation", "Output", "Status")), |table, recipe| {
-    table.row((recipe.name, format_args!("{} ×{}", recipe.output_name, recipe.output_quantity), if recipe.ready { "ready" } else { "missing specimen" }))
+  let recipes = view.recipes.iter().fold(table().header(("Preparation", "Makes", "Action")), |table, recipe| {
+    let action =
+      if recipe.ready { inline_callback_button("Prepare", Callback::Craft { recipe_id: recipe.id }.encode()) } else { inline_disabled_button("Need specimen") };
+    table.row((recipe.name, format!("{} ×{}", recipe.output_name, recipe.output_quantity), action))
   });
-  let mut blocks = vec![
-    heading("🧰 Tackle Preparation", 1),
-    paragraph(format_args!("Stored catches available as materials: {}", view.stored_catches)),
+
+  let notes = view.recipes.iter().map(|recipe| paragraph((bold(recipe.name), " — ", recipe.description))).collect::<Vec<_>>();
+  vec![
+    heading("Tackle Preparation", 1),
+    paragraph(format!("Stored specimens available · {}", view.stored_catches)),
     recipes.striped().compact().into(),
-  ];
-  blocks.extend(view.recipes.iter().map(|recipe| paragraph(format_args!("{} — {}", recipe.name, recipe.description))));
-  blocks.push(paragraph(italic("Preparing bait uses one stored specimen. The catch still counts in Records after the specimen is used.")));
-  blocks.extend(
-    view
-      .recipes
-      .iter()
-      .filter(|recipe| recipe.ready)
-      .map(|recipe| button_row([success_callback_button(format_args!("Prepare {}", recipe.output_name), Callback::Craft { recipe_id: recipe.id }.encode())])),
-  );
-  blocks
+    details("Preparation notes", notes),
+    paragraph(italic("Preparing bait consumes one stored specimen. Its catch and record history remain in your journal.")),
+  ]
 }
 
 fn crafting_markup() -> enums::ReplyMarkup {
@@ -268,16 +254,19 @@ fn help_markup() -> enums::ReplyMarkup {
 
 fn help_content() -> types::inputMessageRichMessage {
   rich([
-    heading("🌊 Welcome to Rustwater", 1),
+    heading("Welcome to Rustwater", 1),
     paragraph(
-      "You’re an angler working the old harbor and the waters around it. Fish, explore, keep interesting specimens, and follow whatever the shoreline turns up.",
+      "You are an adventurer at the edge of an old harbor. Fishing is your first way into the world, not the limit of it: watch the water, keep field notes, explore what turns up, and follow threads that look strange enough to matter.",
     ),
-    block_quote([paragraph(("🎣 ", bold("Start here:"), " go Home and tap “Cast a line”. When something bites, react to what you see."))]),
-    paragraph("🎣 Fish — catch specimens and learn what lives where."),
-    paragraph("🧭 Explore — discover places, people, and clues."),
-    paragraph("🎒 Prepare — choose gear, sell catches, and make bait."),
-    paragraph("📖 Record — Journal and Records track discoveries and personal bests."),
-    paragraph("📋 Progress — the Harbor Board offers milestones and a changing specimen contract."),
-    paragraph(italic("Coming back later? /start opens Home and /help opens this guide.")),
+    block_quote([paragraph((bold("Start here · "), "go Home and cast a line. When something bites, react quickly; your timing affects the catch."))]),
+    paragraph((bold("Fish · "), "catch individual specimens and learn where and when species appear.")),
+    paragraph((bold("Explore · "), "find places, relics, people, and routes that are not exposed as a checklist in advance.")),
+    paragraph((bold("Prepare · "), "manage gear, sell ordinary specimens, and turn selected catches into bait.")),
+    paragraph((bold("Record · "), "Journal and Records preserve discoveries and personal bests; notable catches can be shared through Telegram inline mode.")),
+    paragraph((
+      bold("Social · "),
+      "group shoals are shared observations: read the clue privately, make a choice, and teach the chat what its water tends to do.",
+    )),
+    paragraph(italic("Coming back later? /start opens your current scene and /help opens this guide.")),
   ])
 }

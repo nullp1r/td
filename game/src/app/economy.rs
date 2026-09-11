@@ -374,36 +374,27 @@ fn load_inventory(connection: &rusqlite::Connection, content: &Content, telegram
 
   let (recent_catches, catch_count, sell_value) = stored_catch_summary(connection, content, state.character_id)?;
   let has_rusted_key = owns_item(connection, state.character_id, ITEM_RUSTED_KEY)?;
-  Ok(InventoryView {
-    coins: state.coins.max(0) as u64,
-    rod_name: content.rod(state.equipped_rod_id).name.clone(),
-    rods,
-    baits,
-    recent_catches,
-    catch_count,
-    sell_value,
-    has_rusted_key,
-  })
+  Ok(InventoryView { coins: state.coins.max(0) as u64, rods, baits, recent_catches, catch_count, sell_value, has_rusted_key })
 }
 
 // One scan feeds both the inventory preview and its aggregate sell action.
 fn stored_catch_summary(connection: &rusqlite::Connection, content: &Content, character_id: i64) -> rusqlite::Result<(Vec<CatchSummaryView>, u32, u64)> {
   let mut statement = connection.prepare(
-    "SELECT c.species_id, c.length_mm, c.weight_g
+    "SELECT c.item_id, c.species_id, c.length_mm, c.weight_g
      FROM catches c JOIN items i ON i.id = c.item_id
      WHERE i.owner_character_id = ?1 AND i.removed_at_ms IS NULL
      ORDER BY c.caught_at_ms DESC, c.item_id DESC",
   )?;
-  let rows = statement.query_map([character_id], |row| Ok((SpeciesId(row.get(0)?), row.get::<_, u32>(1)?, row.get::<_, u32>(2)?)))?;
+  let rows = statement.query_map([character_id], |row| Ok((row.get::<_, i64>(0)?, SpeciesId(row.get(1)?), row.get::<_, u32>(2)?, row.get::<_, u32>(3)?)))?;
   let (mut recent, mut count, mut value) = (Vec::new(), 0_u32, 0_u64);
   for row in rows {
-    let (species_id, length_mm, weight_g) = row?;
+    let (item_id, species_id, length_mm, weight_g) = row?;
     let species = content.species(species_id);
     let catch_value = fishing::sale_value(species, Specimen { length_mm, weight_g });
     count = count.saturating_add(1);
     value = value.saturating_add(catch_value);
     if recent.len() < 8 {
-      recent.push(CatchSummaryView { species_name: species.name.clone(), length_mm, weight_g, value: catch_value });
+      recent.push(CatchSummaryView { item_id, species_name: species.name.clone(), length_mm, weight_g, value: catch_value });
     }
   }
   Ok((recent, count, value))

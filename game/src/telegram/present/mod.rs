@@ -3,18 +3,27 @@
 mod core;
 mod fishing;
 mod progression;
+mod sharing;
 mod social;
 mod world;
 
 pub use core::{home, home_edit, inventory};
 pub use fishing::{bite, casting, caught, escaped, explored, relic, struggle};
 pub use progression::{crafted, crafting, help, help_send, npc, reward, shop, sold, tasks, titles};
-pub use social::{group_caught, group_fish, group_help, group_help_send, group_journal, group_records, group_result};
+pub use sharing::inline_catches;
+pub use social::{group_caught, group_fish, group_help, group_help_send, group_journal, group_read, group_records, group_result};
 pub use world::{conditions, journal, locations, records};
 
 use tdx::{client, prelude::*};
 
 use crate::{fishing::Reaction, telegram::callback::Callback};
+
+pub fn share_target() -> enums::TargetChat {
+  types::targetChatChosen {
+    types: types::targetChatTypes { allow_user_chats: true, allow_bot_chats: false, allow_group_chats: true, allow_channel_chats: true },
+  }
+  .into()
+}
 
 async fn send_ephemeral(client: &Client, update: &types::updateNewCallbackQuery, content: types::inputMessageRichMessage) -> client::Result<()> {
   client.send(&send::ephemeral(update, content)).await?;

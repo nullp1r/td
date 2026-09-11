@@ -10,7 +10,6 @@ use crate::{
 #[derive(Debug)]
 pub struct CharacterView {
   pub name: String,
-  pub xp: u64,
   pub level: u32,
   pub coins: u64,
   pub location: LocationView,
@@ -24,6 +23,8 @@ pub struct CharacterView {
   pub has_rusted_key: bool,
   pub has_npc: bool,
   pub title_name: Option<&'static str>,
+  pub lifetime_catches: u32,
+  pub discovered_species: u32,
 }
 
 #[derive(Debug)]
@@ -44,6 +45,7 @@ pub struct BaitStackView {
 
 #[derive(Debug)]
 pub struct CatchSummaryView {
+  pub item_id: i64,
   pub species_name: String,
   pub length_mm: u32,
   pub weight_g: u32,
@@ -63,7 +65,6 @@ pub struct RodInventoryView {
 #[derive(Debug)]
 pub struct InventoryView {
   pub coins: u64,
-  pub rod_name: String,
   pub rods: Vec<RodInventoryView>,
   pub baits: Vec<BaitStackView>,
   pub recent_catches: Vec<CatchSummaryView>,
@@ -246,25 +247,63 @@ pub struct CraftResultView {
   pub quantity: u32,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum GroupApproach {
+  Drift,
+  Hold,
+}
+
+impl GroupApproach {
+  pub const fn label(self) -> &'static str {
+    match self {
+      Self::Drift => "Let it drift",
+      Self::Hold => "Hold steady",
+    }
+  }
+}
+
 #[derive(Debug)]
 pub struct GroupEventView {
   pub cycle: i64,
-  pub species_name: String,
+  pub species_name: Option<String>,
+  pub clue: &'static str,
+  pub memory_hint: Option<&'static str>,
   pub participants: u32,
+  pub total_catches: u32,
+  pub standing_name: &'static str,
+  pub mastered_approach: Option<GroupApproach>,
   pub resets_in_ms: i64,
   pub ends_at_unix: i32,
 }
 
+#[expect(clippy::struct_excessive_bools, reason = "catch view exposes independent milestone facts")]
 #[derive(Debug)]
 pub struct GroupCatchView {
+  pub item_id: i64,
   pub species_name: String,
   pub length_mm: u32,
   pub weight_g: u32,
   pub new_species: bool,
   pub global_first: bool,
+  pub personal_best: bool,
+  pub world_best: bool,
   pub xp_gained: u32,
   pub level: u32,
+  pub approach: GroupApproach,
+  pub read_correct: bool,
   pub event: GroupEventView,
+}
+
+#[derive(Debug)]
+pub struct InlineCatchView {
+  pub item_id: i64,
+  pub species_name: String,
+  pub length_mm: u32,
+  pub weight_g: u32,
+  pub location_name: String,
+  pub owner_name: String,
+  pub personal_best: bool,
+  pub world_best: bool,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -283,8 +322,10 @@ pub struct BiteView {
   pub observation: &'static str,
 }
 
+#[expect(clippy::struct_excessive_bools, reason = "catch view exposes independent milestone facts")]
 #[derive(Debug)]
 pub struct CatchView {
+  pub item_id: i64,
   pub chat_id: i64,
   pub message_id: i64,
   pub species_name: String,
@@ -293,6 +334,8 @@ pub struct CatchView {
   pub reaction: Reaction,
   pub new_species: bool,
   pub global_first: bool,
+  pub personal_best: bool,
+  pub world_best: bool,
   pub xp_gained: u32,
   pub level: u32,
   pub level_up: bool,

@@ -4,6 +4,7 @@ mod angling;
 mod character;
 mod economy;
 mod progression;
+mod sharing;
 mod social;
 
 #[cfg(test)]
@@ -188,7 +189,6 @@ fn quantity(stacks: &[(u32, u32)], item_def_id: u32) -> u32 {
 struct CharacterState {
   id: i64,
   name: String,
-  xp: i64,
   level: u32,
   coins: i64,
   location_id: LocationId,
@@ -199,20 +199,19 @@ struct CharacterState {
 
 fn load_character(connection: &Connection, content: &Content, telegram_user_id: i64, now_ms: i64) -> rusqlite::Result<CharacterView> {
   let state = connection.query_row(
-    "SELECT c.id, c.name, c.xp, c.level, c.coins, c.location_id, c.selected_bait_id, c.equipped_rod_id, c.title_id
+    "SELECT c.id, c.name, c.level, c.coins, c.location_id, c.selected_bait_id, c.equipped_rod_id, c.title_id
      FROM characters c JOIN accounts a ON a.id = c.account_id WHERE a.telegram_user_id = ?1",
     [telegram_user_id],
     |row| {
       Ok(CharacterState {
         id: row.get(0)?,
         name: row.get(1)?,
-        xp: row.get(2)?,
-        level: row.get(3)?,
-        coins: row.get(4)?,
-        location_id: LocationId(row.get(5)?),
-        bait_id: BaitId(row.get(6)?),
-        rod_id: RodId(row.get(7)?),
-        title_id: row.get(8)?,
+        level: row.get(2)?,
+        coins: row.get(3)?,
+        location_id: LocationId(row.get(4)?),
+        bait_id: BaitId(row.get(5)?),
+        rod_id: RodId(row.get(6)?),
+        title_id: row.get(7)?,
       })
     },
   )?;
@@ -221,6 +220,10 @@ fn load_character(connection: &Connection, content: &Content, telegram_user_id: 
   let total_bait = content.baits.iter().map(|bait| u64::from(quantity(&stacks, bait.id.0))).fold(0_u64, u64::saturating_add);
   let fishing_active = has_active_encounter(connection, state.id)?;
   let has_rusted_key = owns_item(connection, state.id, ITEM_RUSTED_KEY)?;
+  let lifetime_catches: u32 =
+    connection.query_row("SELECT count(*) FROM catches c JOIN items i ON i.id = c.item_id WHERE i.owner_character_id = ?1", [state.id], |row| row.get(0))?;
+  let discovered_species: u32 =
+    connection.query_row("SELECT count(*) FROM discoveries WHERE character_id = ?1 AND kind = ?2", params![state.id, DISCOVERY_SPECIES], |row| row.get(0))?;
   let location = content.location(state.location_id);
   let bait = content.bait(state.bait_id);
   let rod = content.rod(state.rod_id);
@@ -230,7 +233,6 @@ fn load_character(connection: &Connection, content: &Content, telegram_user_id: 
     })?;
   Ok(CharacterView {
     name: state.name,
-    xp: state.xp.max(0) as u64,
     level: state.level,
     coins: state.coins.max(0) as u64,
     location: LocationView { name: location.name.clone(), description: location.description.clone(), fishable: location.fishable },
@@ -244,6 +246,8 @@ fn load_character(connection: &Connection, content: &Content, telegram_user_id: 
     has_rusted_key,
     has_npc: state.location_id == LocationId(1),
     title_name: title_definition(state.title_id).and_then(|(name, _)| (state.title_id != 0).then_some(name)),
+    lifetime_catches,
+    discovered_species,
   })
 }
 
@@ -260,10 +264,13 @@ fn award_xp(tx: &rusqlite::Transaction<'_>, character_id: i64, xp_gained: u32) -
   tx.execute("UPDATE characters SET xp = ?1, level = ?2 WHERE id = ?3", params![total_xp as i64, level, character_id])?;
   Ok(ProgressRecord { total_xp, level, level_up: level > old_level })
 }
+#[expect(clippy::struct_excessive_bools, reason = "catch record stores independent milestone facts")]
 struct CatchRecord {
   item_id: i64,
   new_species: bool,
   global_first: bool,
+  personal_best: bool,
+  world_best: bool,
   xp_gained: u32,
   level: u32,
   level_up: bool,
@@ -284,6 +291,14 @@ struct CatchInput {
 /// Inserts the immutable catch ledger row, discovery facts, and XP as one transaction step.
 fn record_catch(tx: &rusqlite::Transaction<'_>, species: &Species, input: &CatchInput) -> rusqlite::Result<CatchRecord> {
   let &CatchInput { character_id, species_id, specimen, seed, location_id, bait_id, weather, game_minute, caught_at_ms } = input;
+  let personal_best_before: Option<u32> = tx.query_row(
+    "SELECT max(c.weight_g) FROM catches c JOIN items i ON i.id = c.item_id WHERE i.owner_character_id = ?1 AND c.species_id = ?2",
+    params![character_id, species_id.0],
+    |row| row.get(0),
+  )?;
+  let world_best_before: Option<u32> = tx.query_row("SELECT max(weight_g) FROM catches WHERE species_id = ?1", [species_id.0], |row| row.get(0))?;
+  let personal_best = personal_best_before.is_none_or(|weight| specimen.weight_g > weight);
+  let world_best = world_best_before.is_none_or(|weight| specimen.weight_g > weight);
   let seed = i64::from_ne_bytes(seed.to_ne_bytes());
   tx.execute(
     "INSERT INTO items (owner_character_id, item_def_id, created_at_ms) VALUES (?1, ?2, ?3)",
@@ -309,7 +324,7 @@ fn record_catch(tx: &rusqlite::Transaction<'_>, species: &Species, input: &Catch
   let xp_gained = species.xp + if new_species { 10 } else { 0 };
   let progress = award_xp(tx, character_id, xp_gained)?;
 
-  Ok(CatchRecord { item_id, new_species, global_first, xp_gained, level: progress.level, level_up: progress.level_up })
+  Ok(CatchRecord { item_id, new_species, global_first, personal_best, world_best, xp_gained, level: progress.level, level_up: progress.level_up })
 }
 
 fn title_definition(id: u32) -> Option<(&'static str, &'static str)> {

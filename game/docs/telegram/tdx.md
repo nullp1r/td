@@ -85,6 +85,19 @@ Rows accept tuples, arrays or vectors according to the same composition rule. Us
 
 Never fake a headerless table with empty strings.
 
+## Rich Message actions
+
+Rustwater has empirically validated Rich Message controls on Telegram Desktop and Android. Prefer the thin `tdx` helpers rather than rebuilding generated TDLib nodes in game presenters:
+
+- `inline_callback_button(...)` for compact borderless actions inside table cells or paragraphs;
+- `inline_disabled_button(...)` for non-clickable state labels such as `Equipped`, `Selected`, or `Sold out`;
+- `switch_inline_button(...)` for buttons that open classic inline mode in a chosen chat;
+- `inline_button(...)` when a preconstructed Rich Message button needs to be embedded as Rich Text.
+
+For dense transactional interfaces, a compact table row should carry both information and its action. Keep narrative/gameplay surfaces spacious instead of turning every screen into a table. Do not build high-frequency steppers around message edits; live testing showed edit latency/rate limits become noticeable after a few rapid taps.
+
+Buttons nested inside list items rendered inconsistently on Android and are not part of the Rustwater interaction grammar. See [`rich-messages.md`](rich-messages.md) for the compatibility matrix.
+
 ## Native relative time
 
 Use `relative_time(fallback, unix_time)` for client-updated relative timestamps rather than periodically editing a message only to refresh “in N minutes.”

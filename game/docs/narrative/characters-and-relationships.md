@@ -105,7 +105,7 @@ Visual state should reflect narrative state when feasible, while canonical desig
 
 ## Current NPC: Mara Reed
 
-The existing `Mara, Harbor Warden` is canonically **Mara Reed**. She currently reacts to the Rusted Key/lighthouse progression and points the player toward Harbor Board content.
+The in-game `Mara Reed · Harbor Warden` is the canonical **Mara Reed**. She currently reacts to the Rusted Key/lighthouse progression and points the player toward Harbor Board content.
 
 She is also the current face/mascot and recurring visual viewpoint character for Rustwater. See [`mara-reed.md`](mara-reed.md) for the full specification.
 

@@ -65,7 +65,7 @@ Official guide: <https://core.telegram.org/bots/inline>
 
 Inline mode is enabled via BotFather (`/setinline`). The local TDLib schema includes `updateNewInlineQuery` and `answerInlineQuery`.
 
-Rustwater considers classic inline mode a **committed future product surface**. See [`../ux/interaction-surfaces.md`](../ux/interaction-surfaces.md) for intended sharing use cases.
+Rustwater now implements the first classic-inline surface for catch sharing: recent owned historical catches are queryable, species text filters them, and exact `catch:<item_id>` queries power one-tap **Share this catch** buttons. Deployment still requires enabling inline mode for the bot via BotFather `/setinline`. See [`../ux/interaction-surfaces.md`](../ux/interaction-surfaces.md) for product role and [`rich-messages.md`](rich-messages.md) for the tested Rich Message interaction grammar.
 
 ## Guest Mode — mention a bot that is not in the chat
 

@@ -7,7 +7,7 @@ use crate::{
   content::Content,
   db::Db,
   ids::{BaitId, SpeciesId},
-  view::{ReelOutcome, TimerOutcome},
+  view::{GroupApproach, ReelOutcome, TimerOutcome},
   world::game_day,
 };
 
@@ -193,10 +193,14 @@ async fn selling_a_catch_preserves_its_personal_record() {
 
   let before = app.inventory(49).await.expect("inventory");
   assert_eq!(before.catch_count, 1);
+  let item_id = before.recent_catches[0].item_id;
   app.sell_all_catches(49, now + 10_000).await.expect("sell");
   assert_eq!(app.inventory(49).await.expect("inventory").catch_count, 0);
   let journal = app.journal(49).await.expect("journal");
   assert!(journal.species.iter().any(|species| species.discovered && species.best_weight_g.is_some()));
+  let shared = app.inline_catches(49, format!("catch:{item_id}")).await.expect("inline catch");
+  assert_eq!(shared.len(), 1);
+  assert_eq!(shared[0].item_id, item_id);
 }
 
 #[tokio::test]
@@ -344,9 +348,9 @@ async fn group_shoal_is_once_per_character_and_unlocks_a_title() {
   app.ensure_character(54, now).await.expect("character");
   let event = app.group_event(chat_id, now).await.expect("event");
   assert_eq!(i64::from(event.ends_at_unix) * 1_000, now + event.resets_in_ms);
-  let catch = app.group_cast(54, chat_id, event.cycle, 99, now + 1).await.expect("group cast");
+  let catch = app.group_cast(54, chat_id, event.cycle, GroupApproach::Drift, 99, now + 1).await.expect("group cast");
   assert_eq!(catch.event.participants, 1);
-  assert_matches!(app.group_cast(54, chat_id, event.cycle, 100, now + 2).await, Err(Error::GroupEventClaimed));
+  assert_matches!(app.group_cast(54, chat_id, event.cycle, GroupApproach::Hold, 100, now + 2).await, Err(Error::GroupEventClaimed));
 
   let titles = app.titles(54).await.expect("titles");
   let shoalbound = titles.titles.iter().find(|title| title.id == 6).expect("shoalbound");
